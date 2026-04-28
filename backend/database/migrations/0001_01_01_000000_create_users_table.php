@@ -11,14 +11,28 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::create('shops', function (Blueprint $table) {
+            $table->id();
+            $table->string('shop_name');
+            $table->string('email')->unique();
+            $table->string('shop_mobile');
+            $table->string('shop_website')->nullable();
+            $table->text('shop_address')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('role', ['admin', 'seller']);
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -42,8 +56,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('shops');
     }
 };
