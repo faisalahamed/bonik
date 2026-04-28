@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/network/api_client.dart';
+import '../../data/datasources/auth_remote_data_source.dart';
+import '../../data/repositories/auth_repository_impl.dart';
 import '../widgets/auth_brand_header.dart';
 import '../widgets/login_background.dart';
 import '../widgets/signup_form_card.dart';
@@ -48,7 +51,7 @@ class SignupPage extends StatelessWidget {
                         subtitle: 'দোকান ও ব্যবহারকারীর প্রাথমিক তথ্য দিন',
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      const SignupFormCard(),
+                      SignupFormCard(onSubmit: _sendSignupOtp),
                       const SizedBox(height: AppSpacing.lg),
                       Wrap(
                         alignment: WrapAlignment.center,
@@ -86,6 +89,18 @@ class SignupPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _sendSignupOtp(SignupFormData data) {
+    final repository = AuthRepositoryImpl(
+      AuthRemoteDataSource(const ApiClient()),
+    );
+
+    return repository.sendSignupOtp(
+      email: data.email,
+      shopName: data.shopName,
+      fullName: data.fullName,
     );
   }
 }

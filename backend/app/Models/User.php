@@ -18,6 +18,11 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasUuids, Notifiable;
 
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

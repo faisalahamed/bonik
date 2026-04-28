@@ -1,6 +1,7 @@
 class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
+  static const String signupOtp = '/signup/otp';
   static const String forgotPassword = '/forgot-password';
   static const String dashboard = '/dashboard';
   static const String cashPurchase = '/purchase/cash';

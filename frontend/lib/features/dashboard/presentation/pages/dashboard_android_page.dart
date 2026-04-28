@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,6 +8,7 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../auth/application/auth_controller.dart';
 
 class DashboardAndroidPage extends StatelessWidget {
   const DashboardAndroidPage({super.key});
@@ -139,11 +141,11 @@ class DashboardAndroidPage extends StatelessWidget {
   }
 }
 
-class _DashboardTopBar extends StatelessWidget {
+class _DashboardTopBar extends ConsumerWidget {
   const _DashboardTopBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: AppGradients.primaryButton,
@@ -161,9 +163,11 @@ class _DashboardTopBar extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.18)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
                   ),
                   child: const Icon(
                     Icons.person_rounded,
@@ -188,6 +192,13 @@ class _DashboardTopBar extends StatelessWidget {
                   color: const Color(0xFF61E0B1),
                   icon: const Icon(Icons.notifications_rounded),
                 ),
+                IconButton(
+                  onPressed: () async {
+                    await ref.read(authControllerProvider.notifier).signOut();
+                  },
+                  color: const Color(0xFF61E0B1),
+                  icon: const Icon(Icons.exit_to_app),
+                ),
               ],
             ),
           ),
@@ -207,6 +218,7 @@ class _SummaryCard extends StatefulWidget {
 class _SummaryCardState extends State<_SummaryCard> {
   bool _isMoneyHidden = true;
 
+  // ignore: unused_element
   String _displayMoney(String value) {
     if (!_isMoneyHidden) {
       return value;

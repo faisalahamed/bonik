@@ -6,7 +6,9 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/auth_state.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/signup_otp_page.dart';
 import '../../features/auth/presentation/pages/signup_page.dart';
+import '../../features/auth/presentation/widgets/signup_form_card.dart';
 import '../../features/dashboard/presentation/pages/dashboard_entry_page.dart';
 import '../../features/dues/presentation/pages/dues_giving_page.dart';
 import '../../features/dues/presentation/pages/dues_ledger_details_page.dart';
@@ -77,6 +79,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.signup,
         name: 'signup',
         builder: (context, state) => const SignupPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.signupOtp,
+        name: 'signup-otp',
+        builder: (context, state) => SignupOtpPage(
+          signupData: state.extra is SignupFormData
+              ? state.extra! as SignupFormData
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.forgotPassword,
@@ -296,7 +307,7 @@ class RouterNotifier extends ChangeNotifier {
   RouterNotifier(this.ref) {
     _subscription = ref.listen<AuthState>(
       authControllerProvider,
-      (_, __) => notifyListeners(),
+      (_, _) => notifyListeners(),
     );
   }
 
@@ -308,8 +319,10 @@ class RouterNotifier extends ChangeNotifier {
     final location = state.matchedLocation;
     final isLoggingIn = location == AppRoutes.login;
     final isSigningUp = location == AppRoutes.signup;
+    final isVerifyingSignup = location == AppRoutes.signupOtp;
     final isForgotPassword = location == AppRoutes.forgotPassword;
-    final isAuthPage = isLoggingIn || isSigningUp || isForgotPassword;
+    final isAuthPage =
+        isLoggingIn || isSigningUp || isVerifyingSignup || isForgotPassword;
 
     if (!authState.isAuthenticated && !isAuthPage) {
       return AppRoutes.login;

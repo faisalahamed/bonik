@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
@@ -7,7 +9,9 @@ import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 
 class SignupFormCard extends StatefulWidget {
-  const SignupFormCard({super.key});
+  const SignupFormCard({super.key, this.onSubmit});
+
+  final Future<void> Function(SignupFormData data)? onSubmit;
 
   @override
   State<SignupFormCard> createState() => _SignupFormCardState();
@@ -22,6 +26,7 @@ class _SignupFormCardState extends State<SignupFormCard> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -129,7 +134,7 @@ class _SignupFormCardState extends State<SignupFormCard> {
             child: SizedBox(
               height: 58,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: AppColors.onPrimary,
@@ -138,10 +143,16 @@ class _SignupFormCardState extends State<SignupFormCard> {
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
                 ),
-                child: Text(
-                  'অ্যাকাউন্ট তৈরি করুন',
-                  style: textTheme.labelLarge,
-                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: AppColors.onPrimary,
+                        ),
+                      )
+                    : Text('অ্যাকাউন্ট তৈরি করুন', style: textTheme.labelLarge),
               ),
             ),
           ),
@@ -149,6 +160,96 @@ class _SignupFormCardState extends State<SignupFormCard> {
       ),
     );
   }
+
+  Future<void> _submit() async {
+    final data = SignupFormData(
+      shopName: _shopNameController.text.trim(),
+      fullName: _fullNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      confirmPassword: _confirmPasswordController.text,
+    );
+
+    if (data.shopName.isEmpty || data.fullName.isEmpty || data.phone.isEmpty) {
+      _showMessage('দোকানের নাম, নাম ও মোবাইল নম্বর দিন।');
+      return;
+    }
+
+    if (!_looksLikeEmail(data.email)) {
+      _showMessage('একটি সঠিক ইমেইল দিন।');
+      return;
+    }
+
+    if (data.password.length < 6) {
+      _showMessage('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+      return;
+    }
+
+    if (data.password != data.confirmPassword) {
+      _showMessage('পাসওয়ার্ড মিলছে না।');
+      return;
+    }
+
+    if (widget.onSubmit == null) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await widget.onSubmit!(data);
+
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage('ওটিপি ইমেইল পাঠানো হয়েছে।');
+      context.push(AppRoutes.signupOtp, extra: data);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  bool _looksLikeEmail(String value) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class SignupFormData {
+  const SignupFormData({
+    required this.shopName,
+    required this.fullName,
+    required this.phone,
+    required this.email,
+    required this.password,
+    required this.confirmPassword,
+  });
+
+  final String shopName;
+  final String fullName;
+  final String phone;
+  final String email;
+  final String password;
+  final String confirmPassword;
 }
 
 class _SignupField extends StatelessWidget {

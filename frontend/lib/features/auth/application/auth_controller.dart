@@ -1,6 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/app_database.dart';
+import '../../../core/network/api_client.dart';
+import '../data/datasources/auth_remote_data_source.dart';
+import '../data/repositories/auth_repository_impl.dart';
+import '../domain/repositories/auth_repository.dart';
 import 'auth_state.dart';
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepositoryImpl(
+    AuthRemoteDataSource(const ApiClient()),
+    ref.watch(appDatabaseProvider),
+  );
+});
 
 class AuthController extends Notifier<AuthState> {
   @override
@@ -14,15 +26,27 @@ class AuthController extends Notifier<AuthState> {
   }) async {
     state = state.copyWith(isSubmitting: true);
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .login(identity: identity, password: password);
 
-    state = const AuthState(
-      status: AuthStatus.authenticated,
-      isSubmitting: false,
-    );
+      state = const AuthState(
+        status: AuthStatus.authenticated,
+        isSubmitting: false,
+      );
+    } catch (_) {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        isSubmitting: false,
+      );
+      rethrow;
+    }
   }
 
-  void signOut() {
+  Future<void> signOut() async {
+    await ref.read(authRepositoryProvider).logout();
+
     state = const AuthState(
       status: AuthStatus.unauthenticated,
       isSubmitting: false,
@@ -30,5 +54,6 @@ class AuthController extends Notifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);

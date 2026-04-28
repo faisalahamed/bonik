@@ -44,10 +44,7 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'মোবাইল নম্বর বা ইমেইল',
-            style: textTheme.labelMedium,
-          ),
+          Text('মোবাইল নম্বর বা ইমেইল', style: textTheme.labelMedium),
           const SizedBox(height: AppSpacing.xs),
           TextField(
             controller: _identityController,
@@ -61,10 +58,7 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(
-            'পাসওয়ার্ড',
-            style: textTheme.labelMedium,
-          ),
+          Text('পাসওয়ার্ড', style: textTheme.labelMedium),
           const SizedBox(height: AppSpacing.xs),
           TextField(
             controller: _passwordController,
@@ -114,14 +108,7 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
             child: SizedBox(
               height: 58,
               child: ElevatedButton(
-                onPressed: authState.isSubmitting
-                    ? null
-                    : () {
-                        ref.read(authControllerProvider.notifier).signIn(
-                              identity: _identityController.text.trim(),
-                              password: _passwordController.text,
-                            );
-                      },
+                onPressed: authState.isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   foregroundColor: AppColors.onPrimary,
@@ -145,15 +132,9 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'অপেক্ষা করুন',
-                        style: textTheme.labelLarge,
-                      ),
+                      Text('অপেক্ষা করুন', style: textTheme.labelLarge),
                     ] else ...[
-                      Text(
-                        'লগইন করুন',
-                        style: textTheme.labelLarge,
-                      ),
+                      Text('লগইন করুন', style: textTheme.labelLarge),
                       const SizedBox(width: AppSpacing.sm),
                       const Icon(Icons.arrow_forward_rounded),
                     ],
@@ -165,5 +146,33 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
         ],
       ),
     );
+  }
+
+  Future<void> _submit() async {
+    final identity = _identityController.text.trim();
+    final password = _passwordController.text;
+
+    if (identity.isEmpty || password.isEmpty) {
+      _showMessage('ইমেইল/মোবাইল এবং পাসওয়ার্ড দিন।');
+      return;
+    }
+
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .signIn(identity: identity, password: password);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(error.toString());
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

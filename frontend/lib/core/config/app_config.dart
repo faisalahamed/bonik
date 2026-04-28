@@ -1,8 +1,10 @@
 class AppConfig {
   static const String appName = 'TallyShop';
 
-  // Update this when your backend is ready.
-  static const String apiBaseUrl = 'https://api.example.com';
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8000/api',
+  );
 
   const AppConfig._();
 }
