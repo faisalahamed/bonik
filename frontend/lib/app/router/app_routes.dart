@@ -1,0 +1,47 @@
+class AppRoutes {
+  static const String login = '/login';
+  static const String signup = '/signup';
+  static const String forgotPassword = '/forgot-password';
+  static const String dashboard = '/dashboard';
+  static const String cashPurchase = '/purchase/cash';
+  static const String purchaseHistory = '/purchase/history';
+  static const String purchaseHistoryDetails = '/purchase/history/details';
+  static const String cashPurchaseReview = '/purchase/cash/review';
+  static const String cashPurchasePayment = '/purchase/cash/payment';
+  static const String duesLedger = '/dues';
+  static const String duesLedgerDetails = '/dues/details';
+  static const String duesGiving = '/dues/giving';
+  static const String duesTaking = '/dues/taking';
+  static const String expenses = '/expenses';
+  static const String expenseHistory = '/expenses/history';
+  static const String expenseCreate = '/expenses/new';
+  static const String expenseCategories = '/expenses/categories';
+  static const String otherIncome = '/other-income';
+  static const String otherIncomeCreate = '/other-income/new';
+  static const String otherIncomeCategories = '/other-income/categories';
+  static const String inventory = '/inventory';
+  static const String ownerTransactions = '/owner-transactions';
+  static const String ownerGiving = '/owner-transactions/giving';
+  static const String ownerTaking = '/owner-transactions/taking';
+  static const String reports = '/reports';
+  static const String reportPurchase = '/reports/purchase';
+  static const String reportSales = '/reports/sales';
+  static const String reportStock = '/reports/stock';
+  static const String reportProduct = '/reports/product';
+  static const String reportProfitLoss = '/reports/profit-loss';
+  static const String reportProfitLossDetails = '/reports/profit-loss/details';
+  static const String reportTopCustomers = '/reports/top-customers';
+  static const String reportExpense = '/reports/expense';
+  static const String reportOtherIncome = '/reports/other-income';
+  static const String reportSuppliers = '/reports/suppliers';
+  static const String sales = '/sales';
+  static const String salesHistory = '/sales/history';
+  static const String salesHistoryDetails = '/sales/history/details';
+  static const String salesReturn = '/sales/return';
+  static const String salesCart = '/sales/cart';
+  static const String salesPayment = '/sales/payment';
+  static const String storeSelector = '/stores';
+  static const String users = '/users';
+
+  const AppRoutes._();
+}
