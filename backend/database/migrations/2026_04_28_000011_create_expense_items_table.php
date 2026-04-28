@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('expense_items', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('category_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('category_id')->constrained()->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
             $table->text('note')->nullable();
             $table->timestamps();

@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('purchases', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('supplier_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('supplier_id')->constrained()->cascadeOnDelete();
             $table->decimal('total', 10, 2);
             $table->decimal('other_charge', 10, 2)->default(0);
             $table->text('description')->nullable();

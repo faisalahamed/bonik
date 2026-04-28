@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('cash_transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->enum('type', [
                 'sale',
                 'customer_payment',
@@ -21,7 +21,7 @@ return new class extends Migration
             ]);
             $table->enum('direction', ['in', 'out']);
             $table->decimal('amount', 12, 2);
-            $table->nullableMorphs('reference');
+            $table->nullableUuidMorphs('reference');
             $table->string('method')->nullable();
             $table->text('note')->nullable();
             $table->timestamps();

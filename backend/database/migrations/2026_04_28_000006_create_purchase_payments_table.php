@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('purchase_payments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('purchase_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('purchase_id')->constrained()->cascadeOnDelete();
             $table->decimal('payments', 10, 2);
             $table->text('description')->nullable();
             $table->timestamps();

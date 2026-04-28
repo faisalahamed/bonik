@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('categories', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('shop_id')->constrained()->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->enum('type', ['product', 'expense', 'commission']);
             $table->string('image_url')->nullable();
