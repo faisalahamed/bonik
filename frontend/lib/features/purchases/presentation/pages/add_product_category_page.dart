@@ -16,6 +16,8 @@ class AddProductCategoryDraft {
   final String? details;
 }
 
+enum _CategoryListMode { active, deleted }
+
 class AddProductCategoryPage extends ConsumerStatefulWidget {
   const AddProductCategoryPage({super.key});
 
@@ -30,8 +32,11 @@ class _AddProductCategoryPageState
   final _descriptionController = TextEditingController();
   final _scrollController = ScrollController();
   late final Stream<List<LocalCategory>> _categoriesStream;
+  late final Stream<List<LocalCategory>> _deletedCategoriesStream;
   String? _editingCategoryId;
   LocalCategory? _categoryPendingDelete;
+  LocalCategory? _categoryPendingRestore;
+  _CategoryListMode _listMode = _CategoryListMode.active;
 
   bool get _isEditing => _editingCategoryId != null;
 
@@ -41,6 +46,9 @@ class _AddProductCategoryPageState
     _categoriesStream = ref
         .read(appDatabaseProvider)
         .watchProductCategoriesForCurrentShop();
+    _deletedCategoriesStream = ref
+        .read(appDatabaseProvider)
+        .watchDeletedProductCategoriesForCurrentShop();
   }
 
   @override
@@ -103,41 +111,69 @@ class _AddProductCategoryPageState
                               onPressed: _save,
                             ),
                             const SizedBox(height: AppSpacing.xxl),
-                            Text(
-                              'বিদ্যমান প্রোডাক্ট ক্যাটাগরিসমূহ',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            StreamBuilder<List<LocalCategory>>(
-                              stream: _categoriesStream,
-                              builder: (context, snapshot) {
-                                return _ExistingCategoryList(
-                                  categories: snapshot.data ?? const [],
-                                  isLoading:
-                                      snapshot.connectionState ==
-                                          ConnectionState.waiting &&
-                                      !snapshot.hasData,
-                                  editingCategoryId: _editingCategoryId,
-                                  onEdit: _editCategory,
-                                  onDelete: _deleteCategory,
-                                );
+                            _CategoryListToggle(
+                              selectedMode: _listMode,
+                              onChanged: (mode) {
+                                setState(() {
+                                  _listMode = mode;
+                                });
                               },
                             ),
+                            const SizedBox(height: AppSpacing.xl),
+                            if (_listMode == _CategoryListMode.active)
+                              Text(
+                                'বিদ্যমান প্রোডাক্ট ক্যাটাগরিসমূহ',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                            if (_listMode == _CategoryListMode.active)
+                              const SizedBox(height: AppSpacing.lg),
+                            if (_listMode == _CategoryListMode.active)
+                              StreamBuilder<List<LocalCategory>>(
+                                stream: _categoriesStream,
+                                builder: (context, snapshot) {
+                                  return _ExistingCategoryList(
+                                    categories: snapshot.data ?? const [],
+                                    isLoading:
+                                        snapshot.connectionState ==
+                                            ConnectionState.waiting &&
+                                        !snapshot.hasData,
+                                    editingCategoryId: _editingCategoryId,
+                                    onEdit: _editCategory,
+                                    onDelete: _deleteCategory,
+                                  );
+                                },
+                              ),
                             const SizedBox(height: AppSpacing.xxl),
-                            Text(
-                              'একটি নতুন বিভাগ তৈরি করুন যা আপনার পণ্যগুলো সুন্দরভাবে সাজাতে সাহায্য করবে।',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: AppColors.textMuted,
-                                    fontStyle: FontStyle.italic,
-                                    height: 1.45,
-                                  ),
-                            ),
+                            if (_listMode == _CategoryListMode.deleted)
+                              Text(
+                                'ডিলিট করা প্রোডাক্ট ক্যাটাগরিসমূহ',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                            if (_listMode == _CategoryListMode.deleted)
+                              const SizedBox(height: AppSpacing.lg),
+                            if (_listMode == _CategoryListMode.deleted)
+                              StreamBuilder<List<LocalCategory>>(
+                                stream: _deletedCategoriesStream,
+                                builder: (context, snapshot) {
+                                  return _DeletedCategoryList(
+                                    categories: snapshot.data ?? const [],
+                                    isLoading:
+                                        snapshot.connectionState ==
+                                            ConnectionState.waiting &&
+                                        !snapshot.hasData,
+                                    onRestore: _restoreCategory,
+                                  );
+                                },
+                              ),
+                            const SizedBox(height: AppSpacing.xxl),
                           ],
                         ),
                       ),
@@ -148,6 +184,12 @@ class _AddProductCategoryPageState
                       category: _categoryPendingDelete!,
                       onCancel: _cancelDelete,
                       onConfirm: _confirmDelete,
+                    ),
+                  if (_categoryPendingRestore != null)
+                    _RestoreCategoryConfirmation(
+                      category: _categoryPendingRestore!,
+                      onCancel: _cancelRestore,
+                      onConfirm: _confirmRestore,
                     ),
                 ],
               ),
@@ -226,9 +268,21 @@ class _AddProductCategoryPageState
     });
   }
 
+  Future<void> _restoreCategory(LocalCategory category) async {
+    setState(() {
+      _categoryPendingRestore = category;
+    });
+  }
+
   void _cancelDelete() {
     setState(() {
       _categoryPendingDelete = null;
+    });
+  }
+
+  void _cancelRestore() {
+    setState(() {
+      _categoryPendingRestore = null;
     });
   }
 
@@ -253,6 +307,29 @@ class _AddProductCategoryPageState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('"${category.name}" ডিলিট হয়েছে')));
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _confirmRestore() async {
+    final category = _categoryPendingRestore;
+    if (category == null) {
+      return;
+    }
+
+    try {
+      await ref.read(appDatabaseProvider).restoreProductCategory(category.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _categoryPendingRestore = null;
+      });
+      _syncProductCategories();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${category.name}" ফিরিয়ে আনা হয়েছে')),
+      );
     } catch (error) {
       _showError(error);
     }
@@ -359,9 +436,9 @@ class _AddCategoryFormCard extends StatelessWidget {
           children: [
             Container(
               width: 10,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: isEditing ? const Color(0xFFD88400) : AppColors.primary,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(AppRadii.xl),
                   bottomLeft: Radius.circular(AppRadii.xl),
                 ),
@@ -599,6 +676,88 @@ class _SaveCategoryButton extends StatelessWidget {
   }
 }
 
+class _CategoryListToggle extends StatelessWidget {
+  const _CategoryListToggle({
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  final _CategoryListMode selectedMode;
+  final ValueChanged<_CategoryListMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _CategoryListToggleButton(
+              label: 'বিদ্যমান',
+              icon: Icons.category_rounded,
+              isSelected: selectedMode == _CategoryListMode.active,
+              onPressed: () => onChanged(_CategoryListMode.active),
+            ),
+          ),
+          Expanded(
+            child: _CategoryListToggleButton(
+              label: 'ডিলিট করা',
+              icon: Icons.delete_rounded,
+              isSelected: selectedMode == _CategoryListMode.deleted,
+              onPressed: () => onChanged(_CategoryListMode.deleted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryListToggleButton extends StatelessWidget {
+  const _CategoryListToggleButton({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: isSelected ? Colors.white : AppColors.primary,
+          backgroundColor: isSelected ? AppColors.primary : Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: isSelected ? Colors.white : AppColors.primary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DeleteCategoryConfirmation extends StatelessWidget {
   const _DeleteCategoryConfirmation({
     required this.category,
@@ -747,6 +906,241 @@ class _ExistingCategoryList extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _RestoreCategoryConfirmation extends StatelessWidget {
+  const _RestoreCategoryConfirmation({
+    required this.category,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final LocalCategory category;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.24)),
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 620),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  boxShadow: AppShadows.button,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'ক্যাটাগরি ফিরিয়ে আনবেন?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '"${category.name}" আবার বিদ্যমান ক্যাটাগরি তালিকায় ফিরবে এবং অনলাইনে সিঙ্ক হবে।',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onCancel,
+                            child: const Text('না'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: onConfirm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('ফিরিয়ে আনুন'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeletedCategoryList extends StatelessWidget {
+  const _DeletedCategoryList({
+    required this.categories,
+    required this.isLoading,
+    required this.onRestore,
+  });
+
+  final List<LocalCategory> categories;
+  final bool isLoading;
+  final ValueChanged<LocalCategory> onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Text(
+          'কোনো ডিলিট করা ক্যাটাগরি নেই',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < categories.length; i++) ...[
+            _DeletedCategoryTile(category: categories[i], onRestore: onRestore),
+            if (i != categories.length - 1)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.textMuted.withValues(alpha: 0.16),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DeletedCategoryTile extends StatelessWidget {
+  const _DeletedCategoryTile({required this.category, required this.onRestore});
+
+  final LocalCategory category;
+  final ValueChanged<LocalCategory> onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = category.details?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.lg,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.textMuted.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.delete_rounded,
+              color: AppColors.textMuted.withValues(alpha: 0.86),
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary.withValues(alpha: 0.72),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (details != null && details.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (category.deletedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'ডিলিট: ${_formatDeletedAt(category.deletedAt!)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted.withValues(alpha: 0.72),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => onRestore(category),
+            color: AppColors.primary,
+            icon: const Icon(Icons.restore_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDeletedAt(DateTime value) {
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+
+    return '$day/$month/$year $hour:$minute';
   }
 }
 

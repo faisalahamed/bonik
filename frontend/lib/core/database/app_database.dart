@@ -144,6 +144,22 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<List<LocalCategory>> watchDeletedProductCategoriesForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localCategories)
+          ..where(
+            (category) =>
+                category.type.equals('product') &
+                category.deletedAt.isNotNull() &
+                category.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(category) => OrderingTerm.desc(category.deletedAt)]))
+        .watch();
+  }
+
   Future<LocalCategory> createProductCategory(
     String name, {
     String? details,
@@ -227,6 +243,18 @@ final class AppDatabase extends _$AppDatabase {
       LocalCategoriesCompanion(
         updatedAt: Value(now),
         deletedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> restoreProductCategory(String id) async {
+    await (update(
+      localCategories,
+    )..where((table) => table.id.equals(id))).write(
+      LocalCategoriesCompanion(
+        updatedAt: Value(DateTime.now()),
+        deletedAt: const Value(null),
         syncStatus: const Value('pending'),
       ),
     );
