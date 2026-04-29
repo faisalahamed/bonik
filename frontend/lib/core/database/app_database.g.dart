@@ -1340,16 +1340,582 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
   }
 }
 
+class $LocalCategoriesTable extends LocalCategories
+    with TableInfo<$LocalCategoriesTable, LocalCategory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+    'image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    shopId,
+    name,
+    type,
+    imageUrl,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalCategory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('image_url')) {
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalCategory(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalCategoriesTable createAlias(String alias) {
+    return $LocalCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalCategory extends DataClass implements Insertable<LocalCategory> {
+  final String id;
+  final String shopId;
+  final String name;
+  final String type;
+  final String? imageUrl;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final String syncStatus;
+  const LocalCategory({
+    required this.id,
+    required this.shopId,
+    required this.name,
+    required this.type,
+    this.imageUrl,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['shop_id'] = Variable<String>(shopId);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || imageUrl != null) {
+      map['image_url'] = Variable<String>(imageUrl);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  LocalCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return LocalCategoriesCompanion(
+      id: Value(id),
+      shopId: Value(shopId),
+      name: Value(name),
+      type: Value(type),
+      imageUrl: imageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageUrl),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory LocalCategory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalCategory(
+      id: serializer.fromJson<String>(json['id']),
+      shopId: serializer.fromJson<String>(json['shopId']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      imageUrl: serializer.fromJson<String?>(json['imageUrl']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'shopId': serializer.toJson<String>(shopId),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'imageUrl': serializer.toJson<String?>(imageUrl),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  LocalCategory copyWith({
+    String? id,
+    String? shopId,
+    String? name,
+    String? type,
+    Value<String?> imageUrl = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? syncStatus,
+  }) => LocalCategory(
+    id: id ?? this.id,
+    shopId: shopId ?? this.shopId,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  LocalCategory copyWithCompanion(LocalCategoriesCompanion data) {
+    return LocalCategory(
+      id: data.id.present ? data.id.value : this.id,
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalCategory(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    shopId,
+    name,
+    type,
+    imageUrl,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalCategory &&
+          other.id == this.id &&
+          other.shopId == this.shopId &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.imageUrl == this.imageUrl &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
+  final Value<String> id;
+  final Value<String> shopId;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String?> imageUrl;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const LocalCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.shopId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalCategoriesCompanion.insert({
+    required String id,
+    required String shopId,
+    required String name,
+    required String type,
+    this.imageUrl = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       shopId = Value(shopId),
+       name = Value(name),
+       type = Value(type),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LocalCategory> custom({
+    Expression<String>? id,
+    Expression<String>? shopId,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? imageUrl,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shopId != null) 'shop_id': shopId,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? shopId,
+    Value<String>? name,
+    Value<String>? type,
+    Value<String?>? imageUrl,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<String>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return LocalCategoriesCompanion(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      imageUrl: imageUrl ?? this.imageUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $LocalShopsTable localShops = $LocalShopsTable(this);
   late final $LocalUsersTable localUsers = $LocalUsersTable(this);
+  late final $LocalCategoriesTable localCategories = $LocalCategoriesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [localShops, localUsers];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    localShops,
+    localUsers,
+    localCategories,
+  ];
 }
 
 typedef $$LocalShopsTableCreateCompanionBuilder =
@@ -1398,6 +1964,29 @@ final class $$LocalShopsTableReferences
     ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_localUsersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LocalCategoriesTable, List<LocalCategory>>
+  _localCategoriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localCategories,
+    aliasName: $_aliasNameGenerator(
+      db.localShops.id,
+      db.localCategories.shopId,
+    ),
+  );
+
+  $$LocalCategoriesTableProcessedTableManager get localCategoriesRefs {
+    final manager = $$LocalCategoriesTableTableManager(
+      $_db,
+      $_db.localCategories,
+    ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _localCategoriesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -1479,6 +2068,31 @@ class $$LocalShopsTableFilterComposer
           }) => $$LocalUsersTableFilterComposer(
             $db: $db,
             $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> localCategoriesRefs(
+    Expression<bool> Function($$LocalCategoriesTableFilterComposer f) f,
+  ) {
+    final $$LocalCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localCategories,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.localCategories,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1620,6 +2234,31 @@ class $$LocalShopsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> localCategoriesRefs<T extends Object>(
+    Expression<T> Function($$LocalCategoriesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localCategories,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalShopsTableTableManager
@@ -1635,7 +2274,10 @@ class $$LocalShopsTableTableManager
           $$LocalShopsTableUpdateCompanionBuilder,
           (LocalShop, $$LocalShopsTableReferences),
           LocalShop,
-          PrefetchHooks Function({bool localUsersRefs})
+          PrefetchHooks Function({
+            bool localUsersRefs,
+            bool localCategoriesRefs,
+          })
         > {
   $$LocalShopsTableTableManager(_$AppDatabase db, $LocalShopsTable table)
     : super(
@@ -1708,36 +2350,63 @@ class $$LocalShopsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({localUsersRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (localUsersRefs) db.localUsers],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (localUsersRefs)
-                    await $_getPrefetchedData<
-                      LocalShop,
-                      $LocalShopsTable,
-                      LocalUser
-                    >(
-                      currentTable: table,
-                      referencedTable: $$LocalShopsTableReferences
-                          ._localUsersRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$LocalShopsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).localUsersRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.shopId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({localUsersRefs = false, localCategoriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (localUsersRefs) db.localUsers,
+                    if (localCategoriesRefs) db.localCategories,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (localUsersRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalUser
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localUsersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localUsersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (localCategoriesRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalCategory
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localCategoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localCategoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -1754,7 +2423,7 @@ typedef $$LocalShopsTableProcessedTableManager =
       $$LocalShopsTableUpdateCompanionBuilder,
       (LocalShop, $$LocalShopsTableReferences),
       LocalShop,
-      PrefetchHooks Function({bool localUsersRefs})
+      PrefetchHooks Function({bool localUsersRefs, bool localCategoriesRefs})
     >;
 typedef $$LocalUsersTableCreateCompanionBuilder =
     LocalUsersCompanion Function({
@@ -2214,6 +2883,412 @@ typedef $$LocalUsersTableProcessedTableManager =
       LocalUser,
       PrefetchHooks Function({bool shopId})
     >;
+typedef $$LocalCategoriesTableCreateCompanionBuilder =
+    LocalCategoriesCompanion Function({
+      required String id,
+      required String shopId,
+      required String name,
+      required String type,
+      Value<String?> imageUrl,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$LocalCategoriesTableUpdateCompanionBuilder =
+    LocalCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> shopId,
+      Value<String> name,
+      Value<String> type,
+      Value<String?> imageUrl,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$LocalCategoriesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $LocalCategoriesTable, LocalCategory> {
+  $$LocalCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $LocalShopsTable _shopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(db.localCategories.shopId, db.localShops.id),
+      );
+
+  $$LocalShopsTableProcessedTableManager get shopId {
+    final $_column = $_itemColumn<String>('shop_id')!;
+
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LocalCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalCategoriesTable> {
+  $$LocalCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalShopsTableFilterComposer get shopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalCategoriesTable> {
+  $$LocalCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalShopsTableOrderingComposer get shopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalCategoriesTable> {
+  $$LocalCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  $$LocalShopsTableAnnotationComposer get shopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalCategoriesTable,
+          LocalCategory,
+          $$LocalCategoriesTableFilterComposer,
+          $$LocalCategoriesTableOrderingComposer,
+          $$LocalCategoriesTableAnnotationComposer,
+          $$LocalCategoriesTableCreateCompanionBuilder,
+          $$LocalCategoriesTableUpdateCompanionBuilder,
+          (LocalCategory, $$LocalCategoriesTableReferences),
+          LocalCategory,
+          PrefetchHooks Function({bool shopId})
+        > {
+  $$LocalCategoriesTableTableManager(
+    _$AppDatabase db,
+    $LocalCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> shopId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> imageUrl = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalCategoriesCompanion(
+                id: id,
+                shopId: shopId,
+                name: name,
+                type: type,
+                imageUrl: imageUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String shopId,
+                required String name,
+                required String type,
+                Value<String?> imageUrl = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalCategoriesCompanion.insert(
+                id: id,
+                shopId: shopId,
+                name: name,
+                type: type,
+                imageUrl: imageUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({shopId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (shopId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.shopId,
+                                referencedTable:
+                                    $$LocalCategoriesTableReferences
+                                        ._shopIdTable(db),
+                                referencedColumn:
+                                    $$LocalCategoriesTableReferences
+                                        ._shopIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LocalCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalCategoriesTable,
+      LocalCategory,
+      $$LocalCategoriesTableFilterComposer,
+      $$LocalCategoriesTableOrderingComposer,
+      $$LocalCategoriesTableAnnotationComposer,
+      $$LocalCategoriesTableCreateCompanionBuilder,
+      $$LocalCategoriesTableUpdateCompanionBuilder,
+      (LocalCategory, $$LocalCategoriesTableReferences),
+      LocalCategory,
+      PrefetchHooks Function({bool shopId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2222,4 +3297,6 @@ class $AppDatabaseManager {
       $$LocalShopsTableTableManager(_db, _db.localShops);
   $$LocalUsersTableTableManager get localUsers =>
       $$LocalUsersTableTableManager(_db, _db.localUsers);
+  $$LocalCategoriesTableTableManager get localCategories =>
+      $$LocalCategoriesTableTableManager(_db, _db.localCategories);
 }

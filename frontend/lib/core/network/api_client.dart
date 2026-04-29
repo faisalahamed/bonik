@@ -54,6 +54,41 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> getJson(
+    String path, {
+    Map<String, String> queryParameters = const {},
+  }) async {
+    final client = HttpClient();
+    final baseUri = Uri.parse('$baseUrl$path');
+    final uri = baseUri.replace(
+      queryParameters: {...baseUri.queryParameters, ...queryParameters},
+    );
+
+    try {
+      final request = await client.getUrl(uri);
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+      final decoded = _decodeResponse(responseBody);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          decoded['message']?.toString() ?? 'Request failed.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      return decoded;
+    } on SocketException {
+      throw const ApiException('Could not connect to the server.');
+    } on FormatException {
+      throw const ApiException('Server returned an invalid response.');
+    } finally {
+      client.close();
+    }
+  }
+
   Map<String, dynamic> _decodeResponse(String responseBody) {
     if (responseBody.isEmpty) {
       return <String, dynamic>{};
