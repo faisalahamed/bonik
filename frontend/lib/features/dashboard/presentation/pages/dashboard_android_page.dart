@@ -187,6 +187,11 @@ class _DashboardTopBar extends ConsumerWidget {
                     ),
                   ),
                 ),
+                   IconButton(
+                  onPressed: () {},
+                  color: const Color(0xFF61E0B1),
+                  icon: const Icon(Icons.sync_lock_outlined),
+                ),
                 IconButton(
                   onPressed: () {},
                   color: const Color(0xFF61E0B1),

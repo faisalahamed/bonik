@@ -1,10 +1,17 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import '../config/app_config.dart';
 
 class ApiClient {
-  const ApiClient();
+  const ApiClient({
+    this.connectionTimeout = const Duration(seconds: 2),
+    this.requestTimeout = const Duration(seconds: 6),
+  });
+
+  final Duration connectionTimeout;
+  final Duration requestTimeout;
 
   String get baseUrl {
     if (Platform.isAndroid &&
@@ -25,16 +32,20 @@ class ApiClient {
     required Map<String, dynamic> body,
   }) async {
     final client = HttpClient();
+    client.connectionTimeout = connectionTimeout;
     final uri = Uri.parse('$baseUrl$path');
 
     try {
-      final request = await client.postUrl(uri);
+      final request = await client.postUrl(uri).timeout(requestTimeout);
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       request.write(jsonEncode(body));
 
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
+      final response = await request.close().timeout(requestTimeout);
+      final responseBody = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(requestTimeout);
       final decoded = _decodeResponse(responseBody);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -46,6 +57,8 @@ class ApiClient {
 
       return decoded;
     } on SocketException {
+      throw const ApiException('Could not connect to the server.');
+    } on TimeoutException {
       throw const ApiException('Could not connect to the server.');
     } on FormatException {
       throw const ApiException('Server returned an invalid response.');
@@ -59,17 +72,21 @@ class ApiClient {
     Map<String, String> queryParameters = const {},
   }) async {
     final client = HttpClient();
+    client.connectionTimeout = connectionTimeout;
     final baseUri = Uri.parse('$baseUrl$path');
     final uri = baseUri.replace(
       queryParameters: {...baseUri.queryParameters, ...queryParameters},
     );
 
     try {
-      final request = await client.getUrl(uri);
+      final request = await client.getUrl(uri).timeout(requestTimeout);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
 
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
+      final response = await request.close().timeout(requestTimeout);
+      final responseBody = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(requestTimeout);
       final decoded = _decodeResponse(responseBody);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -81,6 +98,8 @@ class ApiClient {
 
       return decoded;
     } on SocketException {
+      throw const ApiException('Could not connect to the server.');
+    } on TimeoutException {
       throw const ApiException('Could not connect to the server.');
     } on FormatException {
       throw const ApiException('Server returned an invalid response.');
