@@ -33,6 +33,8 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authControllerProvider);
+    _identityController.text = 'a@a.com';
+    _passwordController.text = '123456';
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
