@@ -31,6 +31,7 @@ class _AddProductCategoryPageState
   final _scrollController = ScrollController();
   late final Stream<List<LocalCategory>> _categoriesStream;
   String? _editingCategoryId;
+  LocalCategory? _categoryPendingDelete;
 
   bool get _isEditing => _editingCategoryId != null;
 
@@ -142,6 +143,12 @@ class _AddProductCategoryPageState
                       ),
                     ),
                   ),
+                  if (_categoryPendingDelete != null)
+                    _DeleteCategoryConfirmation(
+                      category: _categoryPendingDelete!,
+                      onCancel: _cancelDelete,
+                      onConfirm: _confirmDelete,
+                    ),
                 ],
               ),
             ),
@@ -214,11 +221,31 @@ class _AddProductCategoryPageState
   }
 
   Future<void> _deleteCategory(LocalCategory category) async {
+    setState(() {
+      _categoryPendingDelete = category;
+    });
+  }
+
+  void _cancelDelete() {
+    setState(() {
+      _categoryPendingDelete = null;
+    });
+  }
+
+  Future<void> _confirmDelete() async {
+    final category = _categoryPendingDelete;
+    if (category == null) {
+      return;
+    }
+
     try {
       await ref.read(appDatabaseProvider).deleteProductCategory(category.id);
       if (!mounted) {
         return;
       }
+      setState(() {
+        _categoryPendingDelete = null;
+      });
       if (_editingCategoryId == category.id) {
         _clearEditingState();
       }
@@ -564,6 +591,88 @@ class _SaveCategoryButton extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteCategoryConfirmation extends StatelessWidget {
+  const _DeleteCategoryConfirmation({
+    required this.category,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+
+  final LocalCategory category;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.24)),
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 620),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  boxShadow: AppShadows.button,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'ক্যাটাগরি ডিলিট করবেন?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '"${category.name}" লোকাল থেকে সরানো হবে এবং অনলাইনে সিঙ্ক হবে।',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onCancel,
+                            child: const Text('না'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: onConfirm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('ডিলিট'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
