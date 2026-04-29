@@ -8,6 +8,8 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/sync/app_sync_service.dart';
 import '../../../auth/application/auth_controller.dart';
 
 class DashboardAndroidPage extends StatelessWidget {
@@ -141,11 +143,18 @@ class DashboardAndroidPage extends StatelessWidget {
   }
 }
 
-class _DashboardTopBar extends ConsumerWidget {
+class _DashboardTopBar extends ConsumerStatefulWidget {
   const _DashboardTopBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DashboardTopBar> createState() => _DashboardTopBarState();
+}
+
+class _DashboardTopBarState extends ConsumerState<_DashboardTopBar> {
+  bool _isSyncing = false;
+
+  @override
+  Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: AppGradients.primaryButton,
@@ -187,10 +196,39 @@ class _DashboardTopBar extends ConsumerWidget {
                     ),
                   ),
                 ),
-                   IconButton(
-                  onPressed: () {},
-                  color: const Color(0xFF61E0B1),
-                  icon: const Icon(Icons.sync_lock_outlined),
+                StreamBuilder<bool>(
+                  stream: ref.read(appDatabaseProvider).watchHasUnsyncedData(),
+                  builder: (context, snapshot) {
+                    final hasUnsyncedData = snapshot.data ?? false;
+
+                    return IconButton(
+                      onPressed: _isSyncing ? null : _syncAll,
+                      tooltip: _isSyncing
+                          ? 'Syncing local data'
+                          : hasUnsyncedData
+                          ? 'Tap to sync local data'
+                          : 'Tap to check sync',
+                      color: hasUnsyncedData
+                          ? const Color(0xFFE04747)
+                          : const Color(0xFF4DA3FF),
+                      icon: _isSyncing
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF4DA3FF),
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              hasUnsyncedData
+                                  ? Icons.sync_problem_rounded
+                                  : Icons.sync_lock_outlined,
+                            ),
+                    );
+                  },
                 ),
                 IconButton(
                   onPressed: () {},
@@ -210,6 +248,37 @@ class _DashboardTopBar extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _syncAll() async {
+    setState(() {
+      _isSyncing = true;
+    });
+
+    try {
+      await ref.read(appSyncServiceProvider).syncAll();
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sync completed')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
+    }
   }
 }
 

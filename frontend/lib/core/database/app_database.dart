@@ -122,6 +122,21 @@ final class AppDatabase extends _$AppDatabase {
     )..where((user) => user.isCurrent.equals(true))).watchSingleOrNull();
   }
 
+  Stream<bool> watchHasUnsyncedData() {
+    return customSelect(
+      '''
+      SELECT EXISTS(
+        SELECT 1 FROM local_shops WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_users WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_categories WHERE sync_status != 'synced'
+      ) AS has_unsynced
+      ''',
+      readsFrom: {localShops, localUsers, localCategories},
+    ).watchSingle().map((row) => row.read<bool>('has_unsynced'));
+  }
+
   Future<LocalUser?> getCurrentUser() {
     return (select(
       localUsers,
