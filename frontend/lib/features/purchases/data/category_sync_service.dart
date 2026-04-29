@@ -38,9 +38,11 @@ class CategorySyncService {
           'shop_id': category.shopId,
           'name': category.name,
           'type': category.type,
+          'details': category.details,
           'image_url': category.imageUrl,
           'created_at': category.createdAt.toIso8601String(),
           'updated_at': category.updatedAt.toIso8601String(),
+          'deleted_at': category.deletedAt?.toIso8601String(),
         },
       );
       await database.markCategorySynced(category.id);
@@ -72,6 +74,7 @@ class CategorySyncService {
       shopId: Value(json['shop_id'].toString()),
       name: Value(json['name'].toString()),
       type: Value(json['type'].toString()),
+      details: Value(_nullableString(json['details'])),
       imageUrl: Value(_nullableString(json['image_url'])),
       createdAt: Value(_dateTime(json['created_at'])),
       updatedAt: Value(_dateTime(json['updated_at'])),

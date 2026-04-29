@@ -44,6 +44,7 @@ class LocalCategories extends Table {
   TextColumn get shopId => text().references(LocalShops, #id)();
   TextColumn get name => text()();
   TextColumn get type => text()();
+  TextColumn get details => text().nullable()();
   TextColumn get imageUrl => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -60,7 +61,7 @@ final class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'bonik'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -70,6 +71,9 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await migrator.createTable(localCategories);
+      }
+      if (from >= 3 && from < 4) {
+        await migrator.addColumn(localCategories, localCategories.details);
       }
     },
   );
@@ -140,7 +144,10 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  Future<LocalCategory> createProductCategory(String name) async {
+  Future<LocalCategory> createProductCategory(
+    String name, {
+    String? details,
+  }) async {
     final currentUser = await getCurrentUser();
     if (currentUser == null) {
       throw StateError('No current user found.');
@@ -163,6 +170,7 @@ final class AppDatabase extends _$AppDatabase {
       shopId: Value(currentUser.shopId),
       name: Value(trimmedName),
       type: const Value('product'),
+      details: Value(_nullableTrimmed(details)),
       createdAt: Value(now),
       updatedAt: Value(now),
       syncStatus: const Value('pending'),
@@ -173,6 +181,55 @@ final class AppDatabase extends _$AppDatabase {
     return (select(
       localCategories,
     )..where((table) => table.id.equals(id))).getSingle();
+  }
+
+  Future<void> updateProductCategory({
+    required String id,
+    required String name,
+    String? details,
+  }) async {
+    final category = await (select(
+      localCategories,
+    )..where((table) => table.id.equals(id))).getSingleOrNull();
+    if (category == null) {
+      throw StateError('Category not found.');
+    }
+
+    final trimmedName = name.trim();
+    final existingCategory = await _findCategoryByName(
+      shopId: category.shopId,
+      type: category.type,
+      name: trimmedName,
+      excludedId: id,
+    );
+    if (existingCategory != null) {
+      throw StateError('Category name already exists.');
+    }
+
+    await (update(
+      localCategories,
+    )..where((table) => table.id.equals(id))).write(
+      LocalCategoriesCompanion(
+        name: Value(trimmedName),
+        details: Value(_nullableTrimmed(details)),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> deleteProductCategory(String id) async {
+    final now = DateTime.now();
+
+    await (update(
+      localCategories,
+    )..where((table) => table.id.equals(id))).write(
+      LocalCategoriesCompanion(
+        updatedAt: Value(now),
+        deletedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
   }
 
   Future<List<LocalCategory>> getPendingProductCategories() {
@@ -217,6 +274,7 @@ final class AppDatabase extends _$AppDatabase {
     required String shopId,
     required String type,
     required String name,
+    String? excludedId,
   }) {
     return (select(localCategories)
           ..where(
@@ -224,10 +282,22 @@ final class AppDatabase extends _$AppDatabase {
                 category.shopId.equals(shopId) &
                 category.type.equals(type) &
                 category.deletedAt.isNull() &
+                (excludedId == null
+                    ? const Constant(true)
+                    : category.id.equals(excludedId).not()) &
                 category.name.lower().equals(name.toLowerCase()),
           )
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  String? _nullableTrimmed(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+
+    return trimmed;
   }
 }
 

@@ -25,6 +25,7 @@ class CategoryController extends Controller
         $data = $validator->validated();
 
         $categories = Category::query()
+            ->withTrashed()
             ->where('shop_id', $data['shop_id'])
             ->when(
                 isset($data['type']),
@@ -45,9 +46,11 @@ class CategoryController extends Controller
             'shop_id' => ['required', 'uuid', 'exists:shops,id'],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['product', 'expense', 'commission'])],
+            'details' => ['nullable', 'string'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'created_at' => ['nullable', 'date'],
             'updated_at' => ['nullable', 'date'],
+            'deleted_at' => ['nullable', 'date'],
         ]);
 
         if ($validator->fails()) {
@@ -56,17 +59,26 @@ class CategoryController extends Controller
 
         $data = $validator->validated();
 
-        $category = Category::updateOrCreate(
+        $category = Category::withTrashed()->updateOrCreate(
             ['id' => $data['id']],
             [
                 'shop_id' => $data['shop_id'],
                 'name' => $data['name'],
                 'type' => $data['type'],
+                'details' => $data['details'] ?? null,
                 'image_url' => $data['image_url'] ?? null,
                 'created_at' => $data['created_at'] ?? now(),
                 'updated_at' => $data['updated_at'] ?? now(),
+                'deleted_at' => $data['deleted_at'] ?? null,
             ],
         );
+
+        if (isset($data['deleted_at'])) {
+            $category->deleted_at = $data['deleted_at'];
+            $category->save();
+        } elseif ($category->trashed()) {
+            $category->restore();
+        }
 
         return response()->json([
             'category' => $category,

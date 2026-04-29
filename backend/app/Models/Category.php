@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['shop_id', 'name', 'type', 'image_url', 'created_at', 'updated_at'])]
+#[Fillable(['shop_id', 'name', 'type', 'details', 'image_url', 'created_at', 'updated_at', 'deleted_at'])]
 class Category extends Model
 {
     use HasUuids;
+    use SoftDeletes;
 }

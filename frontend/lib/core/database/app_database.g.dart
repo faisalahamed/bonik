@@ -1385,6 +1385,17 @@ class $LocalCategoriesTable extends LocalCategories
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _imageUrlMeta = const VerificationMeta(
     'imageUrl',
   );
@@ -1447,6 +1458,7 @@ class $LocalCategoriesTable extends LocalCategories
     shopId,
     name,
     type,
+    details,
     imageUrl,
     createdAt,
     updatedAt,
@@ -1493,6 +1505,12 @@ class $LocalCategoriesTable extends LocalCategories
       );
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
     }
     if (data.containsKey('image_url')) {
       context.handle(
@@ -1553,6 +1571,10 @@ class $LocalCategoriesTable extends LocalCategories
         DriftSqlType.string,
         data['${effectivePrefix}type'],
       )!,
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      ),
       imageUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}image_url'],
@@ -1587,6 +1609,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
   final String shopId;
   final String name;
   final String type;
+  final String? details;
   final String? imageUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1597,6 +1620,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
     required this.shopId,
     required this.name,
     required this.type,
+    this.details,
     this.imageUrl,
     required this.createdAt,
     required this.updatedAt,
@@ -1610,6 +1634,9 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
     map['shop_id'] = Variable<String>(shopId);
     map['name'] = Variable<String>(name);
     map['type'] = Variable<String>(type);
+    if (!nullToAbsent || details != null) {
+      map['details'] = Variable<String>(details);
+    }
     if (!nullToAbsent || imageUrl != null) {
       map['image_url'] = Variable<String>(imageUrl);
     }
@@ -1628,6 +1655,9 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
       shopId: Value(shopId),
       name: Value(name),
       type: Value(type),
+      details: details == null && nullToAbsent
+          ? const Value.absent()
+          : Value(details),
       imageUrl: imageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(imageUrl),
@@ -1650,6 +1680,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
       shopId: serializer.fromJson<String>(json['shopId']),
       name: serializer.fromJson<String>(json['name']),
       type: serializer.fromJson<String>(json['type']),
+      details: serializer.fromJson<String?>(json['details']),
       imageUrl: serializer.fromJson<String?>(json['imageUrl']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1665,6 +1696,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
       'shopId': serializer.toJson<String>(shopId),
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<String>(type),
+      'details': serializer.toJson<String?>(details),
       'imageUrl': serializer.toJson<String?>(imageUrl),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1678,6 +1710,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
     String? shopId,
     String? name,
     String? type,
+    Value<String?> details = const Value.absent(),
     Value<String?> imageUrl = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1688,6 +1721,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
     shopId: shopId ?? this.shopId,
     name: name ?? this.name,
     type: type ?? this.type,
+    details: details.present ? details.value : this.details,
     imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1700,6 +1734,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
       shopId: data.shopId.present ? data.shopId.value : this.shopId,
       name: data.name.present ? data.name.value : this.name,
       type: data.type.present ? data.type.value : this.type,
+      details: data.details.present ? data.details.value : this.details,
       imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1717,6 +1752,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
           ..write('shopId: $shopId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
+          ..write('details: $details, ')
           ..write('imageUrl: $imageUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1732,6 +1768,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
     shopId,
     name,
     type,
+    details,
     imageUrl,
     createdAt,
     updatedAt,
@@ -1746,6 +1783,7 @@ class LocalCategory extends DataClass implements Insertable<LocalCategory> {
           other.shopId == this.shopId &&
           other.name == this.name &&
           other.type == this.type &&
+          other.details == this.details &&
           other.imageUrl == this.imageUrl &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -1758,6 +1796,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
   final Value<String> shopId;
   final Value<String> name;
   final Value<String> type;
+  final Value<String?> details;
   final Value<String?> imageUrl;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1769,6 +1808,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
     this.shopId = const Value.absent(),
     this.name = const Value.absent(),
     this.type = const Value.absent(),
+    this.details = const Value.absent(),
     this.imageUrl = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1781,6 +1821,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
     required String shopId,
     required String name,
     required String type,
+    this.details = const Value.absent(),
     this.imageUrl = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -1798,6 +1839,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
     Expression<String>? shopId,
     Expression<String>? name,
     Expression<String>? type,
+    Expression<String>? details,
     Expression<String>? imageUrl,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1810,6 +1852,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
       if (shopId != null) 'shop_id': shopId,
       if (name != null) 'name': name,
       if (type != null) 'type': type,
+      if (details != null) 'details': details,
       if (imageUrl != null) 'image_url': imageUrl,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1824,6 +1867,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
     Value<String>? shopId,
     Value<String>? name,
     Value<String>? type,
+    Value<String?>? details,
     Value<String?>? imageUrl,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1836,6 +1880,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
       shopId: shopId ?? this.shopId,
       name: name ?? this.name,
       type: type ?? this.type,
+      details: details ?? this.details,
       imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1859,6 +1904,9 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
     }
     if (imageUrl.present) {
       map['image_url'] = Variable<String>(imageUrl.value);
@@ -1888,6 +1936,7 @@ class LocalCategoriesCompanion extends UpdateCompanion<LocalCategory> {
           ..write('shopId: $shopId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
+          ..write('details: $details, ')
           ..write('imageUrl: $imageUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2889,6 +2938,7 @@ typedef $$LocalCategoriesTableCreateCompanionBuilder =
       required String shopId,
       required String name,
       required String type,
+      Value<String?> details,
       Value<String?> imageUrl,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -2902,6 +2952,7 @@ typedef $$LocalCategoriesTableUpdateCompanionBuilder =
       Value<String> shopId,
       Value<String> name,
       Value<String> type,
+      Value<String?> details,
       Value<String?> imageUrl,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -2960,6 +3011,11 @@ class $$LocalCategoriesTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3036,6 +3092,11 @@ class $$LocalCategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get imageUrl => $composableBuilder(
     column: $table.imageUrl,
     builder: (column) => ColumnOrderings(column),
@@ -3102,6 +3163,9 @@ class $$LocalCategoriesTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
 
   GeneratedColumn<String> get imageUrl =>
       $composableBuilder(column: $table.imageUrl, builder: (column) => column);
@@ -3178,6 +3242,7 @@ class $$LocalCategoriesTableTableManager
                 Value<String> shopId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> type = const Value.absent(),
+                Value<String?> details = const Value.absent(),
                 Value<String?> imageUrl = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3189,6 +3254,7 @@ class $$LocalCategoriesTableTableManager
                 shopId: shopId,
                 name: name,
                 type: type,
+                details: details,
                 imageUrl: imageUrl,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3202,6 +3268,7 @@ class $$LocalCategoriesTableTableManager
                 required String shopId,
                 required String name,
                 required String type,
+                Value<String?> details = const Value.absent(),
                 Value<String?> imageUrl = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3213,6 +3280,7 @@ class $$LocalCategoriesTableTableManager
                 shopId: shopId,
                 name: name,
                 type: type,
+                details: details,
                 imageUrl: imageUrl,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

@@ -135,19 +135,27 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   }
 
   Future<void> _showAddCategoryPage() async {
-    final name = await showDialog<String>(
+    final draft = await showDialog<AddProductCategoryDraft>(
       context: context,
       useSafeArea: false,
       builder: (context) => const AddProductCategoryPage(),
     );
 
-    final trimmedName = name?.trim();
-    if (trimmedName == null || trimmedName.isEmpty) {
+    if (draft == null || draft.name.trim().isEmpty) {
+      return;
+    }
+
+    if (!mounted) {
       return;
     }
 
     try {
-      await ref.read(appDatabaseProvider).createProductCategory(trimmedName);
+      await ref
+          .read(appDatabaseProvider)
+          .createProductCategory(draft.name, details: draft.details);
+      if (!mounted) {
+        return;
+      }
       _syncProductCategories();
     } catch (error) {
       if (!mounted) {
@@ -312,7 +320,7 @@ class _CategoryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isPending ? 'সিঙ্ক অপেক্ষায়' : 'Product Category',
+                  isPending ? 'সিঙ্ক অপেক্ষায়' : category.details ?? '',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyLarge?.copyWith(color: AppColors.textMuted),
