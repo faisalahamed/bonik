@@ -10,6 +10,7 @@ import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
+import '../../application/cash_purchase_draft_controller.dart';
 import '../../data/category_sync_service.dart';
 import 'add_product_category_page.dart';
 
@@ -22,7 +23,6 @@ class CashPurchasePage extends ConsumerStatefulWidget {
 
 class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   final _searchController = TextEditingController();
-  final Map<String, LocalCategory> _selectedCategories = {};
   String _query = '';
 
   @override
@@ -47,6 +47,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   @override
   Widget build(BuildContext context) {
     final database = ref.watch(appDatabaseProvider);
+    final purchaseDraft = ref.watch(cashPurchaseDraftProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -109,7 +110,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                             for (var i = 0; i < categories.length; i++) ...[
                               _CategoryCard(
                                 category: categories[i],
-                                isSelected: _selectedCategories.containsKey(
+                                isSelected: purchaseDraft.lines.containsKey(
                                   categories[i].id,
                                 ),
                                 onTap: () =>
@@ -123,7 +124,10 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                     },
                   ),
                 ),
-                _PurchaseBottomBar(itemCount: _cartItemCount),
+                _PurchaseBottomBar(
+                  itemCount: _cartItemCount,
+                  onContinue: _openPurchaseReview,
+                ),
               ],
             ),
           ),
@@ -184,18 +188,33 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   }
 
   int get _cartItemCount {
-    return _selectedCategories.length;
+    return ref.read(cashPurchaseDraftProvider).lines.length;
   }
 
   void _toggleCategorySelection(LocalCategory category) {
-    setState(() {
-      if (_selectedCategories.containsKey(category.id)) {
-        _selectedCategories.remove(category.id);
-        return;
-      }
+    final draft = ref.read(cashPurchaseDraftProvider);
+    final controller = ref.read(cashPurchaseDraftProvider.notifier);
 
-      _selectedCategories[category.id] = category;
-    });
+    if (draft.lines.containsKey(category.id)) {
+      controller.removeCategory(category.id);
+      return;
+    }
+
+    controller.addCategory(category);
+  }
+
+  void _openPurchaseReview() {
+    final selectedCategories = ref
+        .read(cashPurchaseDraftProvider)
+        .selectedLines
+        .map((line) => line.category)
+        .toList(growable: false);
+
+    if (selectedCategories.isEmpty) {
+      return;
+    }
+
+    context.push(AppRoutes.cashPurchaseReview, extra: selectedCategories);
   }
 }
 
@@ -423,9 +442,10 @@ class _EmptyCategoryState extends StatelessWidget {
 }
 
 class _PurchaseBottomBar extends StatelessWidget {
-  const _PurchaseBottomBar({required this.itemCount});
+  const _PurchaseBottomBar({required this.itemCount, required this.onContinue});
 
   final int itemCount;
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -506,9 +526,7 @@ class _PurchaseBottomBar extends StatelessWidget {
                 width: 162,
                 height: 86,
                 child: ElevatedButton(
-                  onPressed: itemCount == 0
-                      ? null
-                      : () => context.push(AppRoutes.cashPurchaseReview),
+                  onPressed: itemCount == 0 ? null : onContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     disabledBackgroundColor: Colors.transparent,

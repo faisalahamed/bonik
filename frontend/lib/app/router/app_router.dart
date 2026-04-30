@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/application/auth_state.dart';
+import '../../core/database/app_database.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/signup_otp_page.dart';
@@ -117,7 +118,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.cashPurchaseReview,
         name: 'cash-purchase-review',
-        builder: (context, state) => const CashPurchaseReviewPage(),
+        builder: (context, state) {
+          final selectedCategories = state.extra is List<LocalCategory>
+              ? state.extra! as List<LocalCategory>
+              : const <LocalCategory>[];
+
+          return CashPurchaseReviewPage(selectedCategories: selectedCategories);
+        },
       ),
       GoRoute(
         path: AppRoutes.cashPurchasePayment,
