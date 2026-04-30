@@ -7,23 +7,42 @@ class CashPurchaseDraftState {
     required this.purchaseDate,
     this.lines = const {},
     this.comment = '',
+    this.supplierId,
+    this.paymentMethod = 'due',
+    this.paidAmount = '',
   });
 
   final DateTime purchaseDate;
   final Map<String, CashPurchaseDraftLine> lines;
   final String comment;
+  final String? supplierId;
+  final String paymentMethod;
+  final String paidAmount;
 
   List<CashPurchaseDraftLine> get selectedLines => lines.values.toList();
+  double get purchaseTotal {
+    return lines.values.fold(0, (total, line) => total + line.purchaseTotal);
+  }
+
+  double get profitTotal {
+    return lines.values.fold(0, (total, line) => total + line.profitTotal);
+  }
 
   CashPurchaseDraftState copyWith({
     DateTime? purchaseDate,
     Map<String, CashPurchaseDraftLine>? lines,
     String? comment,
+    String? supplierId,
+    String? paymentMethod,
+    String? paidAmount,
   }) {
     return CashPurchaseDraftState(
       purchaseDate: purchaseDate ?? this.purchaseDate,
       lines: lines ?? this.lines,
       comment: comment ?? this.comment,
+      supplierId: supplierId ?? this.supplierId,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paidAmount: paidAmount ?? this.paidAmount,
     );
   }
 }
@@ -165,6 +184,25 @@ class CashPurchaseDraftController extends Notifier<CashPurchaseDraftState> {
 
   void setComment(String comment) {
     state = state.copyWith(comment: comment);
+  }
+
+  void setSupplier(String? supplierId) {
+    state = CashPurchaseDraftState(
+      purchaseDate: state.purchaseDate,
+      lines: state.lines,
+      comment: state.comment,
+      supplierId: supplierId,
+      paymentMethod: state.paymentMethod,
+      paidAmount: state.paidAmount,
+    );
+  }
+
+  void setPaymentMethod(String paymentMethod) {
+    state = state.copyWith(paymentMethod: paymentMethod);
+  }
+
+  void setPaidAmount(String paidAmount) {
+    state = state.copyWith(paidAmount: paidAmount);
   }
 
   void clear() {

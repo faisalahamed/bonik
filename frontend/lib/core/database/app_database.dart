@@ -55,13 +55,93 @@ class LocalCategories extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [LocalShops, LocalUsers, LocalCategories])
+class LocalSuppliers extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get name => text()();
+  TextColumn get image => text().nullable()();
+  TextColumn get mobile => text().nullable()();
+  TextColumn get address => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalPurchases extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get supplierId => text().references(LocalSuppliers, #id)();
+  RealColumn get total => real()();
+  RealColumn get otherCharge => real().withDefault(const Constant(0))();
+  TextColumn get description => text().nullable()();
+  TextColumn get buyingMemoUrl => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalPurchaseItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get purchaseId =>
+      text().nullable().references(LocalPurchases, #id)();
+  TextColumn get categoryId =>
+      text().nullable().references(LocalCategories, #id)();
+  TextColumn get productName => text()();
+  RealColumn get buyingPrice => real()();
+  RealColumn get estSellingPrice => real().nullable()();
+  IntColumn get quantity => integer().withDefault(const Constant(0))();
+  TextColumn get barcode => text().nullable()();
+  RealColumn get otherCharge => real().withDefault(const Constant(0))();
+  TextColumn get description => text().nullable()();
+  TextColumn get productImage => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalPurchasePayments extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get purchaseId => text().references(LocalPurchases, #id)();
+  RealColumn get payments => real()();
+  TextColumn get description => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DriftDatabase(
+  tables: [
+    LocalShops,
+    LocalUsers,
+    LocalCategories,
+    LocalSuppliers,
+    LocalPurchases,
+    LocalPurchaseItems,
+    LocalPurchasePayments,
+  ],
+)
 final class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'bonik'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,6 +154,14 @@ final class AppDatabase extends _$AppDatabase {
       }
       if (from >= 3 && from < 4) {
         await migrator.addColumn(localCategories, localCategories.details);
+      }
+      if (from < 5) {
+        await migrator.createTable(localSuppliers);
+      }
+      if (from < 6) {
+        await migrator.createTable(localPurchases);
+        await migrator.createTable(localPurchaseItems);
+        await migrator.createTable(localPurchasePayments);
       }
     },
   );
@@ -131,9 +219,25 @@ final class AppDatabase extends _$AppDatabase {
         SELECT 1 FROM local_users WHERE sync_status != 'synced'
         UNION ALL
         SELECT 1 FROM local_categories WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_suppliers WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchases WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchase_items WHERE sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchase_payments WHERE sync_status != 'synced'
       ) AS has_unsynced
       ''',
-      readsFrom: {localShops, localUsers, localCategories},
+      readsFrom: {
+        localShops,
+        localUsers,
+        localCategories,
+        localSuppliers,
+        localPurchases,
+        localPurchaseItems,
+        localPurchasePayments,
+      },
     ).watchSingle().map((row) => row.read<bool>('has_unsynced'));
   }
 
@@ -313,6 +417,156 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Stream<List<LocalSupplier>> watchSuppliersForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localSuppliers)
+          ..where(
+            (supplier) =>
+                supplier.deletedAt.isNull() &
+                supplier.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(supplier) => OrderingTerm.asc(supplier.name)]))
+        .watch();
+  }
+
+  Future<List<LocalSupplier>> getPendingSuppliers() {
+    return (select(
+      localSuppliers,
+    )..where((supplier) => supplier.syncStatus.equals('pending'))).get();
+  }
+
+  Future<LocalSupplier> createSupplier({
+    required String name,
+    String? mobile,
+    String? address,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    final trimmedName = name.trim();
+    final existingSupplier =
+        await (select(localSuppliers)
+              ..where(
+                (supplier) =>
+                    supplier.shopId.equals(currentUser.shopId) &
+                    supplier.deletedAt.isNull() &
+                    supplier.name.lower().equals(trimmedName.toLowerCase()),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existingSupplier != null) {
+      return existingSupplier;
+    }
+
+    final now = DateTime.now();
+    final id = const Uuid().v4();
+    await into(localSuppliers).insert(
+      LocalSuppliersCompanion(
+        id: Value(id),
+        shopId: Value(currentUser.shopId),
+        name: Value(trimmedName),
+        mobile: Value(_nullableTrimmed(mobile)),
+        address: Value(_nullableTrimmed(address)),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    return (select(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).getSingle();
+  }
+
+  Future<void> markSupplierSynced(String id) async {
+    await (update(localSuppliers)..where((supplier) => supplier.id.equals(id)))
+        .write(const LocalSuppliersCompanion(syncStatus: Value('synced')));
+  }
+
+  Future<void> upsertSyncedSuppliers(List<LocalSuppliersCompanion> rows) async {
+    await transaction(() async {
+      for (final row in rows) {
+        final serverId = row.id.value;
+        final shopId = row.shopId.value;
+        final name = row.name.value;
+
+        await (delete(localSuppliers)..where(
+              (supplier) =>
+                  supplier.id.equalsExp(Variable(serverId)).not() &
+                  supplier.shopId.equals(shopId) &
+                  supplier.name.lower().equals(name.toLowerCase()),
+            ))
+            .go();
+
+        await into(localSuppliers).insertOnConflictUpdate(row);
+      }
+    });
+  }
+
+  Future<void> insertPurchaseBundle({
+    required LocalPurchasesCompanion purchase,
+    required List<LocalPurchaseItemsCompanion> items,
+    required LocalPurchasePaymentsCompanion? payment,
+  }) async {
+    await transaction(() async {
+      await into(localPurchases).insertOnConflictUpdate(purchase);
+      for (final item in items) {
+        await into(localPurchaseItems).insertOnConflictUpdate(item);
+      }
+      if (payment != null) {
+        await into(localPurchasePayments).insertOnConflictUpdate(payment);
+      }
+    });
+  }
+
+  Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {
+    final pendingPurchases = await (select(
+      localPurchases,
+    )..where((purchase) => purchase.syncStatus.equals('pending'))).get();
+    final bundles = <LocalPurchaseBundle>[];
+
+    for (final purchase in pendingPurchases) {
+      final items = await (select(
+        localPurchaseItems,
+      )..where((item) => item.purchaseId.equals(purchase.id))).get();
+      final payments = await (select(
+        localPurchasePayments,
+      )..where((payment) => payment.purchaseId.equals(purchase.id))).get();
+      bundles.add(
+        LocalPurchaseBundle(
+          purchase: purchase,
+          items: items,
+          payments: payments,
+        ),
+      );
+    }
+
+    return bundles;
+  }
+
+  Future<void> markPurchaseBundleSynced(String purchaseId) async {
+    await transaction(() async {
+      await (update(localPurchases)
+            ..where((purchase) => purchase.id.equals(purchaseId)))
+          .write(const LocalPurchasesCompanion(syncStatus: Value('synced')));
+      await (update(
+        localPurchaseItems,
+      )..where((item) => item.purchaseId.equals(purchaseId))).write(
+        const LocalPurchaseItemsCompanion(syncStatus: Value('synced')),
+      );
+      await (update(
+        localPurchasePayments,
+      )..where((payment) => payment.purchaseId.equals(purchaseId))).write(
+        const LocalPurchasePaymentsCompanion(syncStatus: Value('synced')),
+      );
+    });
+  }
+
   Future<LocalCategory?> _findCategoryByName({
     required String shopId,
     required String type,
@@ -349,3 +603,15 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   ref.onDispose(database.close);
   return database;
 });
+
+class LocalPurchaseBundle {
+  const LocalPurchaseBundle({
+    required this.purchase,
+    required this.items,
+    required this.payments,
+  });
+
+  final LocalPurchase purchase;
+  final List<LocalPurchaseItem> items;
+  final List<LocalPurchasePayment> payments;
+}
