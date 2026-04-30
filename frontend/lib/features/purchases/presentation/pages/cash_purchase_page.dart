@@ -22,6 +22,7 @@ class CashPurchasePage extends ConsumerStatefulWidget {
 
 class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   final _searchController = TextEditingController();
+  final Map<String, LocalCategory> _selectedCategories = {};
   String _query = '';
 
   @override
@@ -106,7 +107,14 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                             const _EmptyCategoryState()
                           else
                             for (var i = 0; i < categories.length; i++) ...[
-                              _CategoryCard(category: categories[i]),
+                              _CategoryCard(
+                                category: categories[i],
+                                isSelected: _selectedCategories.containsKey(
+                                  categories[i].id,
+                                ),
+                                onTap: () =>
+                                    _toggleCategorySelection(categories[i]),
+                              ),
                               if (i != categories.length - 1)
                                 const SizedBox(height: AppSpacing.md),
                             ],
@@ -115,7 +123,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                     },
                   ),
                 ),
-                const _PurchaseBottomBar(),
+                _PurchaseBottomBar(itemCount: _cartItemCount),
               ],
             ),
           ),
@@ -173,6 +181,21 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
         .read(categorySyncServiceProvider)
         .syncProductCategories()
         .catchError((_) {});
+  }
+
+  int get _cartItemCount {
+    return _selectedCategories.length;
+  }
+
+  void _toggleCategorySelection(LocalCategory category) {
+    setState(() {
+      if (_selectedCategories.containsKey(category.id)) {
+        _selectedCategories.remove(category.id);
+        return;
+      }
+
+      _selectedCategories[category.id] = category;
+    });
   }
 }
 
@@ -266,69 +289,110 @@ class _AddCategoryButton extends StatelessWidget {
 }
 
 class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({required this.category});
+  const _CategoryCard({
+    required this.category,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   final LocalCategory category;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isPending = category.syncStatus == 'pending';
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Row(
-        children: [
-          if (isPending)
-            Container(
-              width: 4,
-              height: 72,
-              margin: const EdgeInsets.only(right: AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF1C7),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.blur_on_rounded,
-              color: Color(0xFFD88400),
-              size: 28,
-            ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.05)
+                : AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            border: isSelected
+                ? Border.all(color: AppColors.primary.withValues(alpha: 0.18))
+                : null,
+            boxShadow: AppShadows.soft,
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
+          child: Row(
+            children: [
+              if (isPending)
+                Container(
+                  width: 4,
+                  height: 72,
+                  margin: const EdgeInsets.only(right: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  isPending ? 'সিঙ্ক অপেক্ষায়' : category.details ?? '',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: AppColors.textMuted),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF1C7),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
+                child: const Icon(
+                  Icons.blur_on_rounded,
+                  color: Color(0xFFD88400),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.name,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isPending ? 'সিঙ্ক অপেক্ষায়' : category.details ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.add_shopping_cart_rounded,
+                  color: AppColors.primary,
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -359,7 +423,9 @@ class _EmptyCategoryState extends StatelessWidget {
 }
 
 class _PurchaseBottomBar extends StatelessWidget {
-  const _PurchaseBottomBar();
+  const _PurchaseBottomBar({required this.itemCount});
+
+  final int itemCount;
 
   @override
   Widget build(BuildContext context) {
@@ -402,10 +468,12 @@ class _PurchaseBottomBar extends StatelessWidget {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: '৩৩ টি\n',
+                              text: '$itemCount টি\n',
                               style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(
-                                    color: AppColors.primary,
+                                    color: itemCount > 0
+                                        ? AppColors.primary
+                                        : AppColors.textMuted,
                                     fontWeight: FontWeight.w800,
                                   ),
                             ),
@@ -413,7 +481,9 @@ class _PurchaseBottomBar extends StatelessWidget {
                               text: 'আইটেম',
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
-                                    color: AppColors.primary,
+                                    color: itemCount > 0
+                                        ? AppColors.primary
+                                        : AppColors.textMuted,
                                     fontWeight: FontWeight.w800,
                                   ),
                             ),
@@ -436,10 +506,16 @@ class _PurchaseBottomBar extends StatelessWidget {
                 width: 162,
                 height: 86,
                 child: ElevatedButton(
-                  onPressed: () => context.push(AppRoutes.cashPurchaseReview),
+                  onPressed: itemCount == 0
+                      ? null
+                      : () => context.push(AppRoutes.cashPurchaseReview),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
+                    disabledBackgroundColor: Colors.transparent,
                     foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white.withValues(
+                      alpha: 0.58,
+                    ),
                     shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadii.xl),
