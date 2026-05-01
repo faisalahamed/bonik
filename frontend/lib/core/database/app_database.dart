@@ -524,6 +524,78 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> upsertSyncedPurchaseBundles(
+    List<LocalPurchaseBundleCompanion> bundles,
+  ) async {
+    await transaction(() async {
+      for (final bundle in bundles) {
+        await into(localPurchases).insertOnConflictUpdate(bundle.purchase);
+        for (final item in bundle.items) {
+          await into(localPurchaseItems).insertOnConflictUpdate(item);
+        }
+        for (final payment in bundle.payments) {
+          await into(localPurchasePayments).insertOnConflictUpdate(payment);
+        }
+      }
+    });
+  }
+
+  Stream<List<LocalPurchaseHistoryEntry>> watchPurchaseHistoryForCurrentShop() {
+    return customSelect(
+      '''
+      SELECT
+        p.id,
+        p.supplier_id,
+        COALESCE(s.name, 'সাপ্লায়ার') AS supplier_name,
+        p.total,
+        p.status,
+        p.created_at,
+        p.sync_status,
+        COALESCE((
+          SELECT SUM(payments)
+          FROM local_purchase_payments
+          WHERE purchase_id = p.id
+        ), 0.0) AS paid_amount,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM local_purchase_items
+          WHERE purchase_id = p.id
+        ), 0) AS item_count
+      FROM local_purchases p
+      LEFT JOIN local_suppliers s ON s.id = p.supplier_id
+      WHERE p.shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+      ORDER BY p.created_at DESC
+      ''',
+      readsFrom: {
+        localPurchases,
+        localSuppliers,
+        localPurchasePayments,
+        localPurchaseItems,
+        localUsers,
+      },
+    ).watch().map(
+      (rows) => rows
+          .map(
+            (row) => LocalPurchaseHistoryEntry(
+              id: row.read<String>('id'),
+              supplierId: row.read<String>('supplier_id'),
+              supplierName: row.read<String>('supplier_name'),
+              total: row.read<double>('total'),
+              paidAmount: row.read<double>('paid_amount'),
+              itemCount: row.read<int>('item_count'),
+              status: row.read<String>('status'),
+              createdAt: row.read<DateTime>('created_at'),
+              syncStatus: row.read<String>('sync_status'),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {
     final pendingPurchases = await (select(
       localPurchases,
@@ -614,4 +686,42 @@ class LocalPurchaseBundle {
   final LocalPurchase purchase;
   final List<LocalPurchaseItem> items;
   final List<LocalPurchasePayment> payments;
+}
+
+class LocalPurchaseBundleCompanion {
+  const LocalPurchaseBundleCompanion({
+    required this.purchase,
+    required this.items,
+    required this.payments,
+  });
+
+  final LocalPurchasesCompanion purchase;
+  final List<LocalPurchaseItemsCompanion> items;
+  final List<LocalPurchasePaymentsCompanion> payments;
+}
+
+class LocalPurchaseHistoryEntry {
+  const LocalPurchaseHistoryEntry({
+    required this.id,
+    required this.supplierId,
+    required this.supplierName,
+    required this.total,
+    required this.paidAmount,
+    required this.itemCount,
+    required this.status,
+    required this.createdAt,
+    required this.syncStatus,
+  });
+
+  final String id;
+  final String supplierId;
+  final String supplierName;
+  final double total;
+  final double paidAmount;
+  final int itemCount;
+  final String status;
+  final DateTime createdAt;
+  final String syncStatus;
+
+  double get dueAmount => total - paidAmount;
 }

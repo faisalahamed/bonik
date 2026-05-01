@@ -16,7 +16,7 @@ class AppSyncService {
   Future<void> syncAll() async {
     await _ref.read(supplierSyncServiceProvider).syncSuppliers();
     await _ref.read(categorySyncServiceProvider).syncProductCategories();
-    await _ref.read(purchaseSyncServiceProvider).syncPendingPurchases();
+    await _ref.read(purchaseSyncServiceProvider).syncPurchases();
 
     // Add future sync modules here:
     // await _ref.read(salesSyncServiceProvider).syncSales();

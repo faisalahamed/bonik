@@ -15,4 +15,5 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/categories', [CategoryController::class, 'store']);
 Route::get('/suppliers', [SupplierController::class, 'index']);
 Route::post('/suppliers', [SupplierController::class, 'store']);
+Route::get('/purchases', [PurchaseController::class, 'index']);
 Route::post('/purchases', [PurchaseController::class, 'store']);

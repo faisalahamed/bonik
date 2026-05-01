@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,17 +10,77 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/sync/app_sync_service.dart';
 
-class PurchaseHistoryPage extends StatelessWidget {
+final _purchaseHistoryProvider =
+    StreamProvider<List<LocalPurchaseHistoryEntry>>(
+      (ref) =>
+          ref.watch(appDatabaseProvider).watchPurchaseHistoryForCurrentShop(),
+    );
+
+class PurchaseHistoryPage extends ConsumerStatefulWidget {
   const PurchaseHistoryPage({super.key});
 
   @override
+  ConsumerState<PurchaseHistoryPage> createState() =>
+      _PurchaseHistoryPageState();
+}
+
+class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
+  var _isSyncing = false;
+  var _selectedRange = _PurchaseHistoryRange.day;
+  var _rangeAnchorDate = DateTime.now();
+  DateTimeRange? _customDateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_syncPurchases(showMessage: false));
+  }
+
+  Future<void> _syncPurchases({bool showMessage = true}) async {
+    if (_isSyncing) {
+      return;
+    }
+
+    setState(() => _isSyncing = true);
+    try {
+      await ref.read(appSyncServiceProvider).syncAll();
+      if (!mounted || !showMessage) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('কেনার ডাটা সিঙ্ক হয়েছে')));
+    } catch (_) {
+      if (!mounted || !showMessage) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('সার্ভারে সংযোগ হয়নি, লোকাল ডাটা দেখানো হচ্ছে'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final history = ref.watch(_purchaseHistoryProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          const _PurchaseHistoryTopBar(),
+          _PurchaseHistoryTopBar(
+            isSyncing: _isSyncing,
+            onSync: () => _syncPurchases(),
+          ),
           Expanded(
             child: Stack(
               children: [
@@ -45,61 +108,46 @@ class PurchaseHistoryPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.lg,
+                history.when(
+                  data: (entries) => _PurchaseHistoryList(
+                    entries: entries,
+                    selectedRange: _selectedRange,
+                    rangeAnchorDate: _rangeAnchorDate,
+                    customDateRange: _customDateRange,
+                    onRangeSelected: (range) {
+                      setState(() {
+                        _selectedRange = range;
+                        _rangeAnchorDate = DateTime.now();
+                        _customDateRange = null;
+                      });
+                    },
+                    onCustomRangeSelected: _selectCustomDateRange,
+                    onPreviousRange: () => _moveRange(-1),
+                    onNextRange: () => _moveRange(1),
+                    isSyncing: _isSyncing,
+                    onRefresh: () => _syncPurchases(),
                   ),
-                  children: const [
-                    _PurchaseHeroCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _PurchaseFilterTabs(),
-                    SizedBox(height: AppSpacing.md),
-                    _PurchaseSearchBox(),
-                    SizedBox(height: AppSpacing.md),
-                    _HistoryItemCard(
-                      code: '#2W4NEAD1HNK71V6',
-                      name: 'গোল্ডেন ট্রেড হাউস',
-                      amount: '১,৪৮৯.৯ ৳',
-                      dateTime: '2026-01-27 00:00:00',
-                      tagText: 'Stock replenishment',
-                      footerDate: '২৭ জানুয়ারি, ২৬',
-                      accent: AppColors.secondary,
-                      statusText: 'নগদ টাকা',
-                      statusBackground: Color(0xFFEAF3FF),
-                      statusColor: Color(0xFF2C66BE),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _HistoryItemCard(
-                      code: '#QR99A2ZB8M1X9',
-                      name: 'সোহাগ স্যানিটারি মার্ট',
-                      amount: '৫,০০০.৩ ৳',
-                      dateTime: '2026-01-25 14:30:12',
-                      tagText: 'Stock replenishment',
-                      footerDate: '২৫ জানুয়ারি, ২৬',
-                      accent: AppColors.secondary,
-                      statusText: 'বিকাশ/নগদ কিছুটা বাকী',
-                      statusBackground: Color(0xFFFFF1E8),
-                      statusColor: Color(0xFFDC7A37),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _HistoryItemCard(
-                      code: '#BK4X88LM1109W',
-                      name: 'মেসার্স রহিম হার্ডওয়্যার',
-                      amount: '১২,৮০০.৩ ৳',
-                      dateTime: '2026-01-22 10:15:45',
-                      tagText: 'Stock replenishment',
-                      footerDate: '২৫ জানুয়ারি, ২৬',
-                      accent: Color(0xFFE59B9B),
-                      statusText: 'বাকি',
-                      statusBackground: Color(0xFFFFEFEF),
-                      statusColor: Color(0xFFD9534F),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    // _BottomNavigationMock(),
-                  ],
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => _PurchaseHistoryList(
+                    entries: const [],
+                    selectedRange: _selectedRange,
+                    rangeAnchorDate: _rangeAnchorDate,
+                    customDateRange: _customDateRange,
+                    onRangeSelected: (range) {
+                      setState(() {
+                        _selectedRange = range;
+                        _rangeAnchorDate = DateTime.now();
+                        _customDateRange = null;
+                      });
+                    },
+                    onCustomRangeSelected: _selectCustomDateRange,
+                    onPreviousRange: () => _moveRange(-1),
+                    onNextRange: () => _moveRange(1),
+                    isSyncing: _isSyncing,
+                    onRefresh: () => _syncPurchases(),
+                    message: 'কেনার ডাটা পাওয়া যায়নি',
+                  ),
                 ),
               ],
             ),
@@ -108,10 +156,50 @@ class PurchaseHistoryPage extends StatelessWidget {
       ),
     );
   }
+
+  void _moveRange(int step) {
+    if (_selectedRange == _PurchaseHistoryRange.all ||
+        _selectedRange == _PurchaseHistoryRange.custom) {
+      return;
+    }
+
+    setState(() {
+      _rangeAnchorDate = _shiftRangeDate(
+        _rangeAnchorDate,
+        _selectedRange,
+        step,
+      );
+    });
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final now = DateTime.now();
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5, 12, 31),
+      initialDateRange: _customDateRange ?? DateTimeRange(start: now, end: now),
+      helpText: 'তারিখের রেঞ্জ নির্বাচন করুন',
+      cancelText: 'বাতিল',
+      confirmText: 'ঠিক আছে',
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedRange = _PurchaseHistoryRange.custom;
+      _customDateRange = selected;
+      _rangeAnchorDate = selected.start;
+    });
+  }
 }
 
 class _PurchaseHistoryTopBar extends StatelessWidget {
-  const _PurchaseHistoryTopBar();
+  const _PurchaseHistoryTopBar({required this.isSyncing, required this.onSync});
+
+  final bool isSyncing;
+  final VoidCallback onSync;
 
   @override
   Widget build(BuildContext context) {
@@ -145,17 +233,23 @@ class _PurchaseHistoryTopBar extends StatelessWidget {
                   child: Text(
                     'কেনা খাতা',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.picture_as_pdf_outlined,
-                    color: Colors.white,
-                  ),
+                  onPressed: isSyncing ? null : onSync,
+                  icon: isSyncing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.sync_rounded, color: Colors.white),
                 ),
               ],
             ),
@@ -166,8 +260,126 @@ class _PurchaseHistoryTopBar extends StatelessWidget {
   }
 }
 
+class _PurchaseHistoryList extends StatelessWidget {
+  const _PurchaseHistoryList({
+    required this.entries,
+    required this.selectedRange,
+    required this.rangeAnchorDate,
+    required this.customDateRange,
+    required this.onRangeSelected,
+    required this.onCustomRangeSelected,
+    required this.onPreviousRange,
+    required this.onNextRange,
+    required this.isSyncing,
+    required this.onRefresh,
+    this.message,
+  });
+
+  final List<LocalPurchaseHistoryEntry> entries;
+  final _PurchaseHistoryRange selectedRange;
+  final DateTime rangeAnchorDate;
+  final DateTimeRange? customDateRange;
+  final ValueChanged<_PurchaseHistoryRange> onRangeSelected;
+  final VoidCallback onCustomRangeSelected;
+  final VoidCallback onPreviousRange;
+  final VoidCallback onNextRange;
+  final bool isSyncing;
+  final Future<void> Function() onRefresh;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredEntries = entries
+        .where(
+          (entry) => _isInRange(
+            entry.createdAt,
+            selectedRange,
+            rangeAnchorDate,
+            customDateRange,
+          ),
+        )
+        .toList();
+    final total = filteredEntries.fold<double>(
+      0,
+      (sum, entry) => sum + entry.total,
+    );
+
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.lg,
+        ),
+        itemCount: filteredEntries.isEmpty ? 4 : filteredEntries.length + 3,
+        separatorBuilder: (context, index) =>
+            const SizedBox(height: AppSpacing.md),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _PurchaseHeroCard(
+              total: total,
+              count: filteredEntries.length,
+              rangeLabel: _rangeLabel(
+                selectedRange,
+                rangeAnchorDate,
+                customDateRange,
+              ),
+              canNavigate:
+                  selectedRange != _PurchaseHistoryRange.all &&
+                  selectedRange != _PurchaseHistoryRange.custom,
+              onPrevious: onPreviousRange,
+              onNext: onNextRange,
+            );
+          }
+          if (index == 1) {
+            return _PurchaseFilterTabs(
+              selectedRange: selectedRange,
+              onRangeSelected: onRangeSelected,
+              onCustomRangeSelected: onCustomRangeSelected,
+            );
+          }
+          if (index == 2) {
+            return const _PurchaseSearchBox();
+          }
+          if (index == 3 && filteredEntries.isEmpty) {
+            return _EmptyHistoryCard(
+              message:
+                  message ??
+                  (isSyncing
+                      ? 'সার্ভার থেকে ডাটা আনা হচ্ছে...'
+                      : _emptyMessage(
+                          selectedRange,
+                          rangeAnchorDate,
+                          customDateRange,
+                        )),
+            );
+          }
+
+          return _HistoryItemCard(entry: filteredEntries[index - 3]);
+        },
+      ),
+    );
+  }
+}
+
 class _PurchaseHeroCard extends StatelessWidget {
-  const _PurchaseHeroCard();
+  const _PurchaseHeroCard({
+    required this.total,
+    required this.count,
+    required this.rangeLabel,
+    required this.canNavigate,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final double total;
+  final int count;
+  final String rangeLabel;
+  final bool canNavigate;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +395,7 @@ class _PurchaseHeroCard extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
                 Icons.calendar_today_rounded,
@@ -190,11 +403,14 @@ class _PurchaseHeroCard extends StatelessWidget {
                 color: Color(0xFFE6FFF4),
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text(
-                '০১ জানুয়ারি, ২১ - ০৮ এপ্রিল, ২৪',
-                style: textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFFE6FFF4),
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  rangeLabel,
+                  textAlign: TextAlign.center,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFFE6FFF4),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -202,18 +418,10 @@ class _PurchaseHeroCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
+              _RangeNavButton(
+                icon: Icons.chevron_left_rounded,
+                enabled: canNavigate,
+                onTap: onPrevious,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -222,13 +430,13 @@ class _PurchaseHeroCard extends StatelessWidget {
                     Text(
                       'মোট কেনা',
                       style: textTheme.titleSmall?.copyWith(
-                        color: Colors.white.withOpacity(0.88),
+                        color: Colors.white.withValues(alpha: 0.88),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '১,২৫,৩৬৮.৯ ৳',
+                      _money(total),
                       style: textTheme.headlineMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -238,20 +446,20 @@ class _PurchaseHeroCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
+              _RangeNavButton(
+                icon: Icons.chevron_right_rounded,
+                enabled: canNavigate,
+                onTap: onNext,
               ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${_bnNumber(count)}টি কেনার রেকর্ড',
+            style: textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -260,30 +468,93 @@ class _PurchaseHeroCard extends StatelessWidget {
 }
 
 class _PurchaseFilterTabs extends StatelessWidget {
-  const _PurchaseFilterTabs();
+  const _PurchaseFilterTabs({
+    required this.selectedRange,
+    required this.onRangeSelected,
+    required this.onCustomRangeSelected,
+  });
+
+  final _PurchaseHistoryRange selectedRange;
+  final ValueChanged<_PurchaseHistoryRange> onRangeSelected;
+  final VoidCallback onCustomRangeSelected;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
+      children: [
         Expanded(
-          child: _FilterChip(label: 'দিন', active: true),
+          child: _FilterChip(
+            label: 'দিন',
+            active: selectedRange == _PurchaseHistoryRange.day,
+            onTap: () => onRangeSelected(_PurchaseHistoryRange.day),
+          ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: _FilterChip(label: 'মাস'),
+          child: _FilterChip(
+            label: 'মাস',
+            active: selectedRange == _PurchaseHistoryRange.month,
+            onTap: () => onRangeSelected(_PurchaseHistoryRange.month),
+          ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: _FilterChip(label: 'বছর'),
+          child: _FilterChip(
+            label: 'বছর',
+            active: selectedRange == _PurchaseHistoryRange.year,
+            onTap: () => onRangeSelected(_PurchaseHistoryRange.year),
+          ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: _FilterChip(label: 'সব সময়'),
+          child: _FilterChip(
+            label: 'সব',
+            active: selectedRange == _PurchaseHistoryRange.all,
+            onTap: () => onRangeSelected(_PurchaseHistoryRange.all),
+          ),
         ),
-        SizedBox(width: AppSpacing.sm),
-        _SortChip(),
+        const SizedBox(width: AppSpacing.sm),
+        _SortChip(
+          active: selectedRange == _PurchaseHistoryRange.custom,
+          onTap: onCustomRangeSelected,
+        ),
       ],
+    );
+  }
+}
+
+class _RangeNavButton extends StatelessWidget {
+  const _RangeNavButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Ink(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: enabled ? 0.12 : 0.06),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: enabled ? 1 : 0.45),
+            size: 30,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -291,48 +562,69 @@ class _PurchaseFilterTabs extends StatelessWidget {
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
+    required this.onTap,
     this.active = false,
   });
 
   final String label;
+  final VoidCallback onTap;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : AppColors.surfaceContainer,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: active ? Colors.white : AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
+        child: Ink(
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: active ? AppGradients.primaryButton : null,
+            color: active ? null : AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: active ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+        ),
       ),
     );
   }
 }
 
 class _SortChip extends StatelessWidget {
-  const _SortChip();
+  const _SortChip({required this.active, required this.onTap});
+
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 74,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: const Icon(
-        Icons.sort_rounded,
-        color: AppColors.textSecondary,
+        child: Ink(
+          width: 52,
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: active ? AppGradients.primaryButton : null,
+            color: active ? null : AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(
+            Icons.date_range_rounded,
+            color: active ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -354,7 +646,7 @@ class _PurchaseSearchBox extends StatelessWidget {
       ),
       child: const TextField(
         decoration: InputDecoration(
-          hintText: 'অনুসন্ধান করুন (নাম, মোবাইল, রিসিপ্ট)',
+          hintText: 'অনুসন্ধান করুন (সাপ্লায়ার, রিসিপ্ট)',
           prefixIcon: Icon(Icons.search_rounded),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -366,34 +658,41 @@ class _PurchaseSearchBox extends StatelessWidget {
   }
 }
 
-class _HistoryItemCard extends StatelessWidget {
-  const _HistoryItemCard({
-    required this.code,
-    required this.name,
-    required this.amount,
-    required this.dateTime,
-    required this.tagText,
-    required this.footerDate,
-    required this.accent,
-    required this.statusText,
-    required this.statusBackground,
-    required this.statusColor,
-  });
+class _EmptyHistoryCard extends StatelessWidget {
+  const _EmptyHistoryCard({required this.message});
 
-  final String code;
-  final String name;
-  final String amount;
-  final String dateTime;
-  final String tagText;
-  final String footerDate;
-  final Color accent;
-  final String statusText;
-  final Color statusBackground;
-  final Color statusColor;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryItemCard extends StatelessWidget {
+  const _HistoryItemCard({required this.entry});
+
+  final LocalPurchaseHistoryEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final status = _statusStyle(entry);
 
     return Material(
       color: Colors.transparent,
@@ -414,7 +713,9 @@ class _HistoryItemCard extends StatelessWidget {
                 width: 4,
                 height: 112,
                 decoration: BoxDecoration(
-                  color: accent,
+                  color: entry.syncStatus == 'pending'
+                      ? const Color(0xFFE59B9B)
+                      : AppColors.secondary,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -424,7 +725,7 @@ class _HistoryItemCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      code,
+                      '#${entry.id.substring(0, 8).toUpperCase()}',
                       style: textTheme.labelSmall?.copyWith(
                         color: AppColors.textMuted,
                         fontWeight: FontWeight.w700,
@@ -436,7 +737,7 @@ class _HistoryItemCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            name,
+                            entry.supplierName,
                             style: textTheme.titleLarge?.copyWith(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w800,
@@ -445,7 +746,7 @@ class _HistoryItemCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
-                          amount,
+                          _money(entry.total),
                           style: textTheme.titleLarge?.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w800,
@@ -464,7 +765,7 @@ class _HistoryItemCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            dateTime,
+                            _dateTime(entry.createdAt),
                             style: textTheme.labelMedium?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w600,
@@ -490,7 +791,7 @@ class _HistoryItemCard extends StatelessWidget {
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  tagText,
+                                  '${_bnNumber(entry.itemCount)}টি পণ্য',
                                   style: textTheme.labelMedium?.copyWith(
                                     color: AppColors.textSecondary,
                                     fontWeight: FontWeight.w700,
@@ -507,13 +808,13 @@ class _HistoryItemCard extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: statusBackground,
+                            color: status.background,
                             borderRadius: BorderRadius.circular(AppRadii.lg),
                           ),
                           child: Text(
-                            statusText,
+                            status.text,
                             style: textTheme.labelSmall?.copyWith(
-                              color: statusColor,
+                              color: status.color,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -524,7 +825,9 @@ class _HistoryItemCard extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        footerDate,
+                        entry.syncStatus == 'pending'
+                            ? 'সিঙ্ক বাকি'
+                            : 'সার্ভারে সিঙ্কড',
                         style: textTheme.labelSmall?.copyWith(
                           color: AppColors.textMuted,
                           fontWeight: FontWeight.w600,
@@ -542,3 +845,218 @@ class _HistoryItemCard extends StatelessWidget {
   }
 }
 
+_StatusStyle _statusStyle(LocalPurchaseHistoryEntry entry) {
+  if (entry.dueAmount <= 0) {
+    return const _StatusStyle(
+      text: 'সম্পূর্ণ পরিশোধ',
+      background: Color(0xFFEAF3FF),
+      color: Color(0xFF2C66BE),
+    );
+  }
+
+  if (entry.paidAmount > 0) {
+    return _StatusStyle(
+      text: 'বাকি ${_money(entry.dueAmount)}',
+      background: const Color(0xFFFFF1E8),
+      color: const Color(0xFFDC7A37),
+    );
+  }
+
+  return const _StatusStyle(
+    text: 'বাকি',
+    background: Color(0xFFFFEFEF),
+    color: Color(0xFFD9534F),
+  );
+}
+
+class _StatusStyle {
+  const _StatusStyle({
+    required this.text,
+    required this.background,
+    required this.color,
+  });
+
+  final String text;
+  final Color background;
+  final Color color;
+}
+
+enum _PurchaseHistoryRange { day, month, year, all, custom }
+
+bool _isInRange(
+  DateTime value,
+  _PurchaseHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  if (range == _PurchaseHistoryRange.custom) {
+    if (customRange == null) {
+      return false;
+    }
+
+    final day = DateTime(value.year, value.month, value.day);
+    final start = DateTime(
+      customRange.start.year,
+      customRange.start.month,
+      customRange.start.day,
+    );
+    final end = DateTime(
+      customRange.end.year,
+      customRange.end.month,
+      customRange.end.day,
+    );
+    return !day.isBefore(start) && !day.isAfter(end);
+  }
+
+  if (range == _PurchaseHistoryRange.all) {
+    return true;
+  }
+
+  if (range == _PurchaseHistoryRange.day) {
+    return value.year == anchorDate.year &&
+        value.month == anchorDate.month &&
+        value.day == anchorDate.day;
+  }
+
+  if (range == _PurchaseHistoryRange.month) {
+    return value.year == anchorDate.year && value.month == anchorDate.month;
+  }
+
+  return value.year == anchorDate.year;
+}
+
+DateTime _shiftRangeDate(DateTime date, _PurchaseHistoryRange range, int step) {
+  return switch (range) {
+    _PurchaseHistoryRange.day => date.add(Duration(days: step)),
+    _PurchaseHistoryRange.month => DateTime(
+      date.year,
+      date.month + step,
+      _safeDayForMonth(date.year, date.month + step, date.day),
+    ),
+    _PurchaseHistoryRange.year => DateTime(
+      date.year + step,
+      date.month,
+      _safeDayForMonth(date.year + step, date.month, date.day),
+    ),
+    _PurchaseHistoryRange.all => date,
+    _PurchaseHistoryRange.custom => date,
+  };
+}
+
+String _rangeLabel(
+  _PurchaseHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  return switch (range) {
+    _PurchaseHistoryRange.day => _dateOnly(anchorDate),
+    _PurchaseHistoryRange.month =>
+      '${_bnMonth(anchorDate.month)} ${_bnNumber(anchorDate.year)}',
+    _PurchaseHistoryRange.year => _bnNumber(anchorDate.year),
+    _PurchaseHistoryRange.all => 'সব সময়',
+    _PurchaseHistoryRange.custom =>
+      customRange == null
+          ? 'তারিখের রেঞ্জ'
+          : '${_dateOnly(customRange.start)} - ${_dateOnly(customRange.end)}',
+  };
+}
+
+String _emptyMessage(
+  _PurchaseHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  if (_isFutureRange(range, anchorDate, customRange)) {
+    return switch (range) {
+      _PurchaseHistoryRange.day =>
+        'এই দিনটি এখনও আসেনি। পরিকল্পনা প্রস্তুত রাখুন, সময় এলে কেনার হিস্টোরি এখানে দেখা যাবে।',
+      _PurchaseHistoryRange.month =>
+        'এই মাসটি এখনও আসেনি। সামনে ভালো কেনাবেচার প্রস্তুতি থাকুক।',
+      _PurchaseHistoryRange.year =>
+        'এই বছরটি এখনও আসেনি। নতুন বছরের হিস্টোরি সময় হলে এখানে জমা হবে।',
+      _PurchaseHistoryRange.all => 'এখনও কোনো কেনার হিস্টোরি নেই',
+      _PurchaseHistoryRange.custom =>
+        'এই তারিখের রেঞ্জ এখনও আসেনি। সময় এলে হিস্টোরি এখানে দেখা যাবে।',
+    };
+  }
+
+  return 'এখনও কোনো কেনার হিস্টোরি নেই';
+}
+
+bool _isFutureRange(
+  _PurchaseHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  final now = DateTime.now();
+  return switch (range) {
+    _PurchaseHistoryRange.day => DateTime(
+      anchorDate.year,
+      anchorDate.month,
+      anchorDate.day,
+    ).isAfter(DateTime(now.year, now.month, now.day)),
+    _PurchaseHistoryRange.month => DateTime(
+      anchorDate.year,
+      anchorDate.month,
+    ).isAfter(DateTime(now.year, now.month)),
+    _PurchaseHistoryRange.year => anchorDate.year > now.year,
+    _PurchaseHistoryRange.all => false,
+    _PurchaseHistoryRange.custom =>
+      customRange != null &&
+          DateTime(
+            customRange.start.year,
+            customRange.start.month,
+            customRange.start.day,
+          ).isAfter(DateTime(now.year, now.month, now.day)),
+  };
+}
+
+int _safeDayForMonth(int year, int month, int preferredDay) {
+  final lastDay = DateTime(year, month + 1, 0).day;
+  return preferredDay > lastDay ? lastDay : preferredDay;
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _dateTime(DateTime value) {
+  final date = '${value.year}-${_two(value.month)}-${_two(value.day)}';
+  final time = '${_two(value.hour)}:${_two(value.minute)}';
+  return _bnNumber('$date $time');
+}
+
+String _dateOnly(DateTime value) {
+  return '${_bnNumber(value.day)} ${_bnMonth(value.month)} ${_bnNumber(value.year)}';
+}
+
+String _bnMonth(int month) {
+  const names = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  return names[month - 1];
+}
+
+String _two(int value) => value.toString().padLeft(2, '0');
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
+}

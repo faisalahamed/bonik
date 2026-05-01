@@ -14,6 +14,21 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'shop_id' => ['required', 'uuid', 'exists:shops,id'],
+        ]);
+
+        return response()->json([
+            'purchases' => Purchase::query()
+                ->where('shop_id', $validated['shop_id'])
+                ->with(['items', 'payments'])
+                ->orderByDesc('created_at')
+                ->get(),
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

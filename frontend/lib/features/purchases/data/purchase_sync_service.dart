@@ -19,6 +19,16 @@ class PurchaseSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
+  Future<void> syncPurchases() async {
+    final currentUser = await database.getCurrentUser();
+    if (currentUser == null) {
+      return;
+    }
+
+    await syncPendingPurchases();
+    await _pullCurrentShop(currentUser.shopId);
+  }
+
   Future<String> saveDraftLocally(CashPurchaseDraftState draft) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
@@ -102,6 +112,25 @@ class PurchaseSyncService {
     }
   }
 
+  Future<void> _pullCurrentShop(String shopId) async {
+    final response = await apiClient.getJson(
+      '/purchases',
+      queryParameters: {'shop_id': shopId},
+    );
+
+    final rawPurchases = response['purchases'];
+    if (rawPurchases is! List) {
+      return;
+    }
+
+    await database.upsertSyncedPurchaseBundles(
+      rawPurchases
+          .whereType<Map<String, dynamic>>()
+          .map(_bundleFromJson)
+          .toList(),
+    );
+  }
+
   Map<String, dynamic> _bundleToJson(LocalPurchaseBundle bundle) {
     return {
       'purchase': {
@@ -150,6 +179,67 @@ class PurchaseSyncService {
     };
   }
 
+  LocalPurchaseBundleCompanion _bundleFromJson(Map<String, dynamic> json) {
+    final purchaseId = json['id'].toString();
+    final rawItems = json['items'];
+    final rawPayments = json['payments'];
+
+    return LocalPurchaseBundleCompanion(
+      purchase: LocalPurchasesCompanion(
+        id: Value(purchaseId),
+        shopId: Value(json['shop_id'].toString()),
+        supplierId: Value(json['supplier_id'].toString()),
+        total: Value(_double(json['total'])),
+        otherCharge: Value(_double(json['other_charge'])),
+        description: Value(_nullableString(json['description'])),
+        buyingMemoUrl: Value(_nullableString(json['buying_memo_url'])),
+        status: Value(json['status']?.toString() ?? 'pending'),
+        createdAt: Value(_dateTime(json['created_at'])),
+        updatedAt: Value(_dateTime(json['updated_at'])),
+        syncStatus: const Value('synced'),
+      ),
+      items: [
+        if (rawItems is List)
+          for (final item in rawItems.whereType<Map<String, dynamic>>())
+            LocalPurchaseItemsCompanion(
+              id: Value(item['id'].toString()),
+              shopId: Value(item['shop_id'].toString()),
+              purchaseId: Value(item['purchase_id']?.toString() ?? purchaseId),
+              categoryId: Value(_nullableString(item['category_id'])),
+              productName: Value(item['product_name'].toString()),
+              buyingPrice: Value(_double(item['buying_price'])),
+              estSellingPrice: Value(
+                _nullableDouble(item['est_selling_price']),
+              ),
+              quantity: Value(_int(item['quantity'])),
+              barcode: Value(_nullableString(item['barcode'])),
+              otherCharge: Value(_double(item['other_charge'])),
+              description: Value(_nullableString(item['description'])),
+              productImage: Value(_nullableString(item['product_image'])),
+              createdAt: Value(_dateTime(item['created_at'])),
+              updatedAt: Value(_dateTime(item['updated_at'])),
+              syncStatus: const Value('synced'),
+            ),
+      ],
+      payments: [
+        if (rawPayments is List)
+          for (final payment in rawPayments.whereType<Map<String, dynamic>>())
+            LocalPurchasePaymentsCompanion(
+              id: Value(payment['id'].toString()),
+              shopId: Value(payment['shop_id'].toString()),
+              purchaseId: Value(
+                payment['purchase_id']?.toString() ?? purchaseId,
+              ),
+              payments: Value(_double(payment['payments'])),
+              description: Value(_nullableString(payment['description'])),
+              createdAt: Value(_dateTime(payment['created_at'])),
+              updatedAt: Value(_dateTime(payment['updated_at'])),
+              syncStatus: const Value('synced'),
+            ),
+      ],
+    );
+  }
+
   double _paidAmountForDraft(CashPurchaseDraftState draft) {
     return switch (draft.paymentMethod) {
       'due' => 0,
@@ -172,5 +262,42 @@ class PurchaseSyncService {
   String? _nullableTrimmed(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String? _nullableString(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    final text = value.toString();
+    return text.isEmpty ? null : text;
+  }
+
+  double _double(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  double? _nullableDouble(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    return _double(value);
+  }
+
+  int _int(Object? value) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  DateTime _dateTime(Object? value) {
+    return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
   }
 }
