@@ -9,6 +9,7 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
+import '../../application/sales_cart_controller.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
 final _salesProductsProvider = StreamProvider<List<LocalSalesProduct>>(
@@ -24,16 +25,7 @@ class SalesPage extends ConsumerStatefulWidget {
 
 class _SalesPageState extends ConsumerState<SalesPage> {
   final _searchController = TextEditingController();
-  final Map<String, _SalesCartLine> _cart = {};
   String _query = '';
-
-  int get _cartItemCount =>
-      _cart.values.fold(0, (total, item) => total + item.quantity);
-
-  double get _cartTotal => _cart.values.fold(
-    0,
-    (total, item) => total + (item.product.sellingPrice * item.quantity),
-  );
 
   @override
   void initState() {
@@ -54,6 +46,8 @@ class _SalesPageState extends ConsumerState<SalesPage> {
   @override
   Widget build(BuildContext context) {
     final productsState = ref.watch(_salesProductsProvider);
+    final cartLines = ref.watch(salesCartProvider);
+    final cartController = ref.watch(salesCartProvider.notifier);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -93,7 +87,7 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                       const SizedBox(height: AppSpacing.md),
                       _SalesProductList(
                         products: filteredProducts,
-                        cart: _cart,
+                        cartLines: cartLines,
                         onProductTap: _addToCart,
                       ),
                     ],
@@ -117,7 +111,10 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                 ),
               ),
             ),
-            _SalesBottomBar(total: _cartTotal, itemCount: _cartItemCount),
+            _SalesBottomBar(
+              total: cartController.total,
+              itemCount: cartController.itemCount,
+            ),
           ],
         ),
       ),
@@ -130,25 +127,21 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     }
 
     return products
-        .where((product) => product.name.toLowerCase().contains(_query))
+        .where(
+          (product) =>
+              product.name.toLowerCase().contains(_query) ||
+              (product.description?.toLowerCase().contains(_query) ?? false),
+        )
         .toList();
   }
 
   void _addToCart(LocalSalesProduct product) {
-    final existingQuantity = _cart[product.id]?.quantity ?? 0;
-    if (existingQuantity >= product.stockQuantity) {
+    final added = ref.read(salesCartProvider.notifier).addProduct(product);
+    if (!added) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('স্টকের চেয়ে বেশি যোগ করা যাবে না')),
       );
-      return;
     }
-
-    setState(() {
-      _cart[product.id] = _SalesCartLine(
-        product: product,
-        quantity: existingQuantity + 1,
-      );
-    });
   }
 }
 
@@ -271,12 +264,12 @@ class _SalesFilterChip extends StatelessWidget {
 class _SalesProductList extends StatelessWidget {
   const _SalesProductList({
     required this.products,
-    required this.cart,
+    required this.cartLines,
     required this.onProductTap,
   });
 
   final List<LocalSalesProduct> products;
-  final Map<String, _SalesCartLine> cart;
+  final List<SalesCartLine> cartLines;
   final ValueChanged<LocalSalesProduct> onProductTap;
 
   @override
@@ -292,13 +285,22 @@ class _SalesProductList extends StatelessWidget {
         for (final product in products) ...[
           _SalesProductCard(
             product: product,
-            selectedQuantity: cart[product.id]?.quantity ?? 0,
+            selectedQuantity: _quantityFor(product.id),
             onTap: () => onProductTap(product),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
       ],
     );
+  }
+
+  int _quantityFor(String productId) {
+    for (final line in cartLines) {
+      if (line.product.id == productId) {
+        return line.quantity;
+      }
+    }
+    return 0;
   }
 }
 
@@ -388,6 +390,18 @@ class _SalesProductCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  if (_hasText(product.description)) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      product.description!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.xs,
@@ -614,13 +628,6 @@ class _SalesBottomBar extends StatelessWidget {
   }
 }
 
-class _SalesCartLine {
-  const _SalesCartLine({required this.product, required this.quantity});
-
-  final LocalSalesProduct product;
-  final int quantity;
-}
-
 String _stockLabel(int stock, bool isLowStock) {
   final stockText = 'স্টক: ${_bnNumber(stock)}টি';
   return isLowStock ? 'স্টক শেষ পর্যায়ে: ${_bnNumber(stock)}টি' : stockText;
@@ -631,6 +638,10 @@ String _money(double value) {
       ? value.toStringAsFixed(0)
       : value.toStringAsFixed(2);
   return '৳ ${_bnNumber(fixed)}';
+}
+
+bool _hasText(String? value) {
+  return value != null && value.trim().isNotEmpty;
 }
 
 String _bnNumber(Object value) {

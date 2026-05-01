@@ -662,6 +662,7 @@ final class AppDatabase extends _$AppDatabase {
         MIN(id) AS id,
         category_id,
         product_name,
+        MAX(NULLIF(description, '')) AS description,
         SUM(quantity) AS stock_quantity,
         COALESCE(MAX(est_selling_price), MAX(buying_price), 0.0) AS selling_price
       FROM local_purchase_items
@@ -682,6 +683,7 @@ final class AppDatabase extends _$AppDatabase {
               id: row.read<String>('id'),
               categoryId: row.readNullable<String>('category_id'),
               name: row.read<String>('product_name'),
+              description: row.readNullable<String>('description'),
               stockQuantity: row.read<int>('stock_quantity'),
               sellingPrice: row.read<double>('selling_price'),
             ),
@@ -825,6 +827,7 @@ class LocalSalesProduct {
     required this.id,
     required this.categoryId,
     required this.name,
+    required this.description,
     required this.stockQuantity,
     required this.sellingPrice,
   });
@@ -832,6 +835,7 @@ class LocalSalesProduct {
   final String id;
   final String? categoryId;
   final String name;
+  final String? description;
   final int stockQuantity;
   final double sellingPrice;
 }

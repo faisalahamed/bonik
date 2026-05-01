@@ -1,17 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../application/sales_cart_controller.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
-class SalesPaymentPage extends StatelessWidget {
+enum _SalesPaymentMethod { cash, due, mobileBanking }
+
+class SalesPaymentPage extends ConsumerStatefulWidget {
   const SalesPaymentPage({super.key});
 
   @override
+  ConsumerState<SalesPaymentPage> createState() => _SalesPaymentPageState();
+}
+
+class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
+  final _cashReceivedController = TextEditingController();
+  final _customerNameController = TextEditingController();
+  final _customerMobileController = TextEditingController();
+  _SalesPaymentMethod _paymentMethod = _SalesPaymentMethod.cash;
+  double _cashReceived = 0;
+  double _lastGrandTotal = -1;
+  bool _editingCash = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cashReceivedController.addListener(_updateCashReceived);
+  }
+
+  @override
+  void dispose() {
+    _cashReceivedController.dispose();
+    _customerNameController.dispose();
+    _customerMobileController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final cartLines = ref.watch(salesCartProvider);
+    final cartController = ref.read(salesCartProvider.notifier);
+    final checkout = ref.watch(salesCheckoutProvider);
+    final subtotal = cartController.total;
+    final grandTotal = checkout.grandTotal(subtotal);
+    final remaining = (grandTotal - _cashReceived).clamp(0, double.infinity);
+
+    _syncCashReceived(grandTotal);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AuthTopBar(title: 'পেমেন্ট ডিটেইলস'),
@@ -52,23 +93,46 @@ class SalesPaymentPage extends StatelessWidget {
                     AppSpacing.md,
                     108,
                   ),
-                  child: ListView(
-                    children: const [
-                      _TotalAmountCard(),
-                      SizedBox(height: AppSpacing.lg),
-                      _CashReceivedCard(),
-                      SizedBox(height: AppSpacing.md),
-                      _RemainingCard(),
-                      SizedBox(height: AppSpacing.xl),
-                      _PaymentMethodHeader(),
-                      SizedBox(height: AppSpacing.md),
-                      _PaymentMethodGrid(),
-                      SizedBox(height: AppSpacing.xl),
-                      _CustomerInfoCard(),
-                    ],
-                  ),
+                  child: cartLines.isEmpty
+                      ? const _EmptyPaymentState()
+                      : ListView(
+                          children: [
+                            _TotalAmountCard(total: grandTotal),
+                            const SizedBox(height: AppSpacing.lg),
+                            _SaleBreakdownCard(
+                              subtotal: subtotal,
+                              discount: checkout.discountAmount,
+                              vat: checkout.vatAmount,
+                              itemCount: cartController.itemCount,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _CashReceivedCard(
+                              controller: _cashReceivedController,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _RemainingCard(remaining: remaining.toDouble()),
+                            const SizedBox(height: AppSpacing.xl),
+                            const _PaymentMethodHeader(),
+                            const SizedBox(height: AppSpacing.md),
+                            _PaymentMethodGrid(
+                              selectedMethod: _paymentMethod,
+                              onChanged: (method) {
+                                setState(() {
+                                  _paymentMethod = method;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            _CartItemsCard(lines: cartLines),
+                            const SizedBox(height: AppSpacing.xl),
+                            _CustomerInfoCard(
+                              nameController: _customerNameController,
+                              mobileController: _customerMobileController,
+                            ),
+                          ],
+                        ),
                 ),
-                const _CompletePaymentButton(),
+                _CompletePaymentButton(enabled: cartLines.isNotEmpty),
               ],
             ),
           ),
@@ -76,10 +140,75 @@ class SalesPaymentPage extends StatelessWidget {
       ),
     );
   }
+
+  void _syncCashReceived(double grandTotal) {
+    if (_editingCash || _lastGrandTotal == grandTotal) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _lastGrandTotal = grandTotal;
+      _cashReceived = grandTotal;
+      final text = _numberText(grandTotal);
+      _cashReceivedController.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+      setState(() {});
+    });
+  }
+
+  void _updateCashReceived() {
+    setState(() {
+      _editingCash = true;
+      _cashReceived = _readNumber(_cashReceivedController.text);
+    });
+  }
+
+  double _readNumber(String value) {
+    final normalized = value.replaceAll(',', '').trim();
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    return double.tryParse(normalized) ?? 0;
+  }
+}
+
+class _EmptyPaymentState extends StatelessWidget {
+  const _EmptyPaymentState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Text(
+          'পেমেন্ট করার জন্য কার্টে পণ্য যোগ করুন',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _TotalAmountCard extends StatelessWidget {
-  const _TotalAmountCard();
+  const _TotalAmountCard({required this.total});
+
+  final double total;
 
   @override
   Widget build(BuildContext context) {
@@ -98,29 +227,16 @@ class _TotalAmountCard extends StatelessWidget {
           Text(
             'সর্বমোট',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.8),
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Colors.white.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '1158.1',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                TextSpan(
-                  text: '৳',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white.withOpacity(0.95),
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
+          Text(
+            _money(total),
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -129,8 +245,100 @@ class _TotalAmountCard extends StatelessWidget {
   }
 }
 
+class _SaleBreakdownCard extends StatelessWidget {
+  const _SaleBreakdownCard({
+    required this.subtotal,
+    required this.discount,
+    required this.vat,
+    required this.itemCount,
+  });
+
+  final double subtotal;
+  final double discount;
+  final double vat;
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        children: [
+          _BreakdownRow(
+            label: 'পণ্য সংখ্যা',
+            value: '${_bnNumber(itemCount)}টি',
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _BreakdownRow(
+            label: 'মোট',
+            value: _money(subtotal),
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _BreakdownRow(
+            label: 'ডিসকাউন্ট',
+            value: '- ${_money(discount)}',
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _BreakdownRow(
+            label: 'ভ্যাট',
+            value: _money(vat),
+            textTheme: textTheme,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  const _BreakdownRow({
+    required this.label,
+    required this.value,
+    required this.textTheme,
+  });
+
+  final String label;
+  final String value;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: textTheme.labelLarge?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          value,
+          style: textTheme.labelLarge?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CashReceivedCard extends StatelessWidget {
-  const _CashReceivedCard();
+  const _CashReceivedCard({required this.controller});
+
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -159,39 +367,37 @@ class _CashReceivedCard extends StatelessWidget {
                 Text(
                   'ক্যাশ পেয়েছি',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.md,
+                TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
+                  ],
+                  decoration: InputDecoration(
+                    prefixText: '৳ ',
+                    filled: true,
+                    fillColor: AppColors.surfaceContainerLow,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      borderSide: const BorderSide(color: AppColors.primary),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '1158.1',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                      ),
-                      Text(
-                        '৳',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -204,7 +410,9 @@ class _CashReceivedCard extends StatelessWidget {
 }
 
 class _RemainingCard extends StatelessWidget {
-  const _RemainingCard();
+  const _RemainingCard({required this.remaining});
+
+  final double remaining;
 
   @override
   Widget build(BuildContext context) {
@@ -220,29 +428,16 @@ class _RemainingCard extends StatelessWidget {
           Text(
             'বাকি',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '0',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                TextSpan(
-                  text: '৳',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
+          Text(
+            _money(remaining),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -270,9 +465,9 @@ class _PaymentMethodHeader extends StatelessWidget {
         Text(
           'পেমেন্ট মেথড',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w800,
-              ),
+            color: AppColors.primary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -280,31 +475,42 @@ class _PaymentMethodHeader extends StatelessWidget {
 }
 
 class _PaymentMethodGrid extends StatelessWidget {
-  const _PaymentMethodGrid();
+  const _PaymentMethodGrid({
+    required this.selectedMethod,
+    required this.onChanged,
+  });
+
+  final _SalesPaymentMethod selectedMethod;
+  final ValueChanged<_SalesPaymentMethod> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: _PaymentMethodCard(
             icon: Icons.payments_rounded,
             label: 'নগদ টাকা',
+            active: selectedMethod == _SalesPaymentMethod.cash,
+            onTap: () => onChanged(_SalesPaymentMethod.cash),
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _PaymentMethodCard(
             icon: Icons.assignment_turned_in_rounded,
             label: 'বাকি',
-            active: true,
+            active: selectedMethod == _SalesPaymentMethod.due,
+            onTap: () => onChanged(_SalesPaymentMethod.due),
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _PaymentMethodCard(
             icon: Icons.qr_code_2_rounded,
-            label: 'বিকাশ/নগদ বিক্রেতার',
+            label: 'বিকাশ/নগদ',
+            active: selectedMethod == _SalesPaymentMethod.mobileBanking,
+            onTap: () => onChanged(_SalesPaymentMethod.mobileBanking),
           ),
         ),
       ],
@@ -316,53 +522,115 @@ class _PaymentMethodCard extends StatelessWidget {
   const _PaymentMethodCard({
     required this.icon,
     required this.label,
-    this.active = false,
+    required this.active,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      child: Container(
+        height: 124,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          boxShadow: active ? AppShadows.button : AppShadows.soft,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: active
+                    ? Colors.white.withValues(alpha: 0.14)
+                    : AppColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Icon(
+                icon,
+                color: active ? Colors.white : AppColors.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: active ? Colors.white : AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CartItemsCard extends StatelessWidget {
+  const _CartItemsCard({required this.lines});
+
+  final List<SalesCartLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      height: 124,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: active ? AppColors.primary : AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: active ? AppShadows.button : AppShadows.soft,
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: active
-                  ? Colors.white.withOpacity(0.14)
-                  : AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Icon(
-              icon,
-              color: active ? Colors.white : AppColors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: active ? Colors.white : AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                ),
+            'পণ্যসমূহ',
+            style: textTheme.titleMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+          const SizedBox(height: AppSpacing.md),
+          for (final line in lines) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    line.product.name,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${_bnNumber(line.quantity)} x ${_money(line.product.sellingPrice)}',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
         ],
       ),
     );
@@ -370,7 +638,13 @@ class _PaymentMethodCard extends StatelessWidget {
 }
 
 class _CustomerInfoCard extends StatelessWidget {
-  const _CustomerInfoCard();
+  const _CustomerInfoCard({
+    required this.nameController,
+    required this.mobileController,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController mobileController;
 
   @override
   Widget build(BuildContext context) {
@@ -386,18 +660,15 @@ class _CustomerInfoCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Row(
               children: [
-                const Icon(
-                  Icons.person_rounded,
-                  color: AppColors.primary,
-                ),
+                const Icon(Icons.person_rounded, color: AppColors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     'কাস্টমার তথ্য',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const Icon(
@@ -408,18 +679,21 @@ class _CustomerInfoCard extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          const Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               children: [
                 _CustomerField(
                   label: 'কাস্টমারের নাম',
-                  value: 'আবুল রহিম',
+                  hintText: 'নাম লিখুন',
+                  controller: nameController,
                 ),
-                SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.md),
                 _CustomerField(
                   label: 'মোবাইল নম্বর',
-                  value: '017XXXXXXXX',
+                  hintText: '01XXXXXXXXX',
+                  controller: mobileController,
+                  keyboardType: TextInputType.phone,
                 ),
               ],
             ),
@@ -433,11 +707,15 @@ class _CustomerInfoCard extends StatelessWidget {
 class _CustomerField extends StatelessWidget {
   const _CustomerField({
     required this.label,
-    required this.value,
+    required this.hintText,
+    required this.controller,
+    this.keyboardType,
   });
 
   final String label;
-  final String value;
+  final String hintText;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
 
   @override
   Widget build(BuildContext context) {
@@ -447,30 +725,32 @@ class _CustomerField extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(
-              color: AppColors.surfaceContainerHigh,
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hintText,
+            filled: true,
+            fillColor: Colors.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              borderSide: const BorderSide(
+                color: AppColors.surfaceContainerHigh,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -479,7 +759,9 @@ class _CustomerField extends StatelessWidget {
 }
 
 class _CompletePaymentButton extends StatelessWidget {
-  const _CompletePaymentButton();
+  const _CompletePaymentButton({required this.enabled});
+
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -490,18 +772,24 @@ class _CompletePaymentButton extends StatelessWidget {
         minimum: const EdgeInsets.all(AppSpacing.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            gradient: AppGradients.primaryButton,
+            gradient: enabled
+                ? AppGradients.primaryButton
+                : const LinearGradient(
+                    colors: [Color(0xFFBFC8C4), Color(0xFFBFC8C4)],
+                  ),
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            boxShadow: AppShadows.button,
+            boxShadow: enabled ? AppShadows.button : const [],
           ),
           child: SizedBox(
             width: double.infinity,
             height: 72,
             child: ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: enabled ? () {} : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
+                disabledForegroundColor: Colors.white,
+                disabledBackgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -511,9 +799,9 @@ class _CompletePaymentButton extends StatelessWidget {
               label: Text(
                 'কনফার্ম পেমেন্ট',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -521,4 +809,20 @@ class _CompletePaymentButton extends StatelessWidget {
       ),
     );
   }
+}
+
+String _money(double value) {
+  return '৳ ${_bnNumber(_numberText(value))}';
+}
+
+String _numberText(double value) {
+  return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }
