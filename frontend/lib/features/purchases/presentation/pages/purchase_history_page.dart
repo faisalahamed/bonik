@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +9,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../../core/sync/app_sync_service.dart';
 
 final _purchaseHistoryProvider =
     StreamProvider<List<LocalPurchaseHistoryEntry>>(
@@ -28,46 +25,9 @@ class PurchaseHistoryPage extends ConsumerStatefulWidget {
 }
 
 class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
-  var _isSyncing = false;
   var _selectedRange = _PurchaseHistoryRange.day;
   var _rangeAnchorDate = DateTime.now();
   DateTimeRange? _customDateRange;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_syncPurchases(showMessage: false));
-  }
-
-  Future<void> _syncPurchases({bool showMessage = true}) async {
-    if (_isSyncing) {
-      return;
-    }
-
-    setState(() => _isSyncing = true);
-    try {
-      await ref.read(appSyncServiceProvider).syncAll();
-      if (!mounted || !showMessage) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('কেনার ডাটা সিঙ্ক হয়েছে')));
-    } catch (_) {
-      if (!mounted || !showMessage) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('সার্ভারে সংযোগ হয়নি, লোকাল ডাটা দেখানো হচ্ছে'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSyncing = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,10 +37,7 @@ class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          _PurchaseHistoryTopBar(
-            isSyncing: _isSyncing,
-            onSync: () => _syncPurchases(),
-          ),
+          const _PurchaseHistoryTopBar(),
           Expanded(
             child: Stack(
               children: [
@@ -124,8 +81,6 @@ class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
-                    isSyncing: _isSyncing,
-                    onRefresh: () => _syncPurchases(),
                   ),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
@@ -144,8 +99,6 @@ class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
-                    isSyncing: _isSyncing,
-                    onRefresh: () => _syncPurchases(),
                     message: 'কেনার ডাটা পাওয়া যায়নি',
                   ),
                 ),
@@ -196,10 +149,7 @@ class _PurchaseHistoryPageState extends ConsumerState<PurchaseHistoryPage> {
 }
 
 class _PurchaseHistoryTopBar extends StatelessWidget {
-  const _PurchaseHistoryTopBar({required this.isSyncing, required this.onSync});
-
-  final bool isSyncing;
-  final VoidCallback onSync;
+  const _PurchaseHistoryTopBar();
 
   @override
   Widget build(BuildContext context) {
@@ -238,19 +188,6 @@ class _PurchaseHistoryTopBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: isSyncing ? null : onSync,
-                  icon: isSyncing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.sync_rounded, color: Colors.white),
-                ),
               ],
             ),
           ),
@@ -270,8 +207,6 @@ class _PurchaseHistoryList extends StatelessWidget {
     required this.onCustomRangeSelected,
     required this.onPreviousRange,
     required this.onNextRange,
-    required this.isSyncing,
-    required this.onRefresh,
     this.message,
   });
 
@@ -283,8 +218,6 @@ class _PurchaseHistoryList extends StatelessWidget {
   final VoidCallback onCustomRangeSelected;
   final VoidCallback onPreviousRange;
   final VoidCallback onNextRange;
-  final bool isSyncing;
-  final Future<void> Function() onRefresh;
   final String? message;
 
   @override
@@ -299,67 +232,59 @@ class _PurchaseHistoryList extends StatelessWidget {
           ),
         )
         .toList();
+    filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final total = filteredEntries.fold<double>(
       0,
       (sum, entry) => sum + entry.total,
     );
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.lg,
-        ),
-        itemCount: filteredEntries.isEmpty ? 4 : filteredEntries.length + 3,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: AppSpacing.md),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _PurchaseHeroCard(
-              total: total,
-              count: filteredEntries.length,
-              rangeLabel: _rangeLabel(
-                selectedRange,
-                rangeAnchorDate,
-                customDateRange,
-              ),
-              canNavigate:
-                  selectedRange != _PurchaseHistoryRange.all &&
-                  selectedRange != _PurchaseHistoryRange.custom,
-              onPrevious: onPreviousRange,
-              onNext: onNextRange,
-            );
-          }
-          if (index == 1) {
-            return _PurchaseFilterTabs(
-              selectedRange: selectedRange,
-              onRangeSelected: onRangeSelected,
-              onCustomRangeSelected: onCustomRangeSelected,
-            );
-          }
-          if (index == 2) {
-            return const _PurchaseSearchBox();
-          }
-          if (index == 3 && filteredEntries.isEmpty) {
-            return _EmptyHistoryCard(
-              message:
-                  message ??
-                  (isSyncing
-                      ? 'সার্ভার থেকে ডাটা আনা হচ্ছে...'
-                      : _emptyMessage(
-                          selectedRange,
-                          rangeAnchorDate,
-                          customDateRange,
-                        )),
-            );
-          }
-
-          return _HistoryItemCard(entry: filteredEntries[index - 3]);
-        },
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.lg,
       ),
+      itemCount: filteredEntries.isEmpty ? 4 : filteredEntries.length + 3,
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.md),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _PurchaseHeroCard(
+            total: total,
+            count: filteredEntries.length,
+            rangeLabel: _rangeLabel(
+              selectedRange,
+              rangeAnchorDate,
+              customDateRange,
+            ),
+            canNavigate:
+                selectedRange != _PurchaseHistoryRange.all &&
+                selectedRange != _PurchaseHistoryRange.custom,
+            onPrevious: onPreviousRange,
+            onNext: onNextRange,
+          );
+        }
+        if (index == 1) {
+          return _PurchaseFilterTabs(
+            selectedRange: selectedRange,
+            onRangeSelected: onRangeSelected,
+            onCustomRangeSelected: onCustomRangeSelected,
+          );
+        }
+        if (index == 2) {
+          return const _PurchaseSearchBox();
+        }
+        if (index == 3 && filteredEntries.isEmpty) {
+          return _EmptyHistoryCard(
+            message:
+                message ??
+                _emptyMessage(selectedRange, rangeAnchorDate, customDateRange),
+          );
+        }
+
+        return _HistoryItemCard(entry: filteredEntries[index - 3]);
+      },
     );
   }
 }
@@ -697,7 +622,8 @@ class _HistoryItemCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.push(AppRoutes.purchaseHistoryDetails),
+        onTap: () =>
+            context.push(AppRoutes.purchaseHistoryDetails, extra: entry.id),
         borderRadius: BorderRadius.circular(AppRadii.xl),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),

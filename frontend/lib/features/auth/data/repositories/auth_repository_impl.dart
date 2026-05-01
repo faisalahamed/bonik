@@ -21,14 +21,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> login({
+  Future<AuthLoginResult> login({
     required String identity,
     required String password,
   }) async {
     final database = _database;
     if (database == null) {
       await _remoteDataSource.login(identity: identity, password: password);
-      return;
+      return AuthLoginResult.online;
     }
 
     final didLoginOffline = await _tryOfflineLogin(
@@ -44,7 +44,7 @@ class AuthRepositoryImpl implements AuthRepository {
           password: password,
         ),
       );
-      return;
+      return AuthLoginResult.offline;
     }
 
     try {
@@ -58,7 +58,7 @@ class AuthRepositoryImpl implements AuthRepository {
         database: database,
         password: password,
       );
-      return;
+      return AuthLoginResult.online;
     } on ApiException {
       rethrow;
     }

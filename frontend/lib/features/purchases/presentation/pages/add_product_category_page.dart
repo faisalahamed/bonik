@@ -7,7 +7,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../data/category_sync_service.dart';
 
 class AddProductCategoryDraft {
   const AddProductCategoryDraft({required this.name, this.details});
@@ -230,7 +229,6 @@ class _AddProductCategoryPageState
         return;
       }
       _clearEditingState();
-      _syncProductCategories();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('ক্যাটাগরি আপডেট হয়েছে')));
@@ -303,7 +301,6 @@ class _AddProductCategoryPageState
       if (_editingCategoryId == category.id) {
         _clearEditingState();
       }
-      _syncProductCategories();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('"${category.name}" ডিলিট হয়েছে')));
@@ -326,7 +323,6 @@ class _AddProductCategoryPageState
       setState(() {
         _categoryPendingRestore = null;
       });
-      _syncProductCategories();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('"${category.name}" ফিরিয়ে আনা হয়েছে')),
       );
@@ -341,17 +337,6 @@ class _AddProductCategoryPageState
       _nameController.clear();
       _descriptionController.clear();
     });
-  }
-
-  void _syncProductCategories() {
-    if (!mounted) {
-      return;
-    }
-
-    ref
-        .read(categorySyncServiceProvider)
-        .syncProductCategories()
-        .catchError((_) {});
   }
 
   void _showError(Object error) {

@@ -56,6 +56,7 @@ class SupplierController extends Controller
         $supplier = Supplier::withTrashed()->updateOrCreate(
             ['id' => $data['id']],
             [
+                'id' => $data['id'],
                 'shop_id' => $data['shop_id'],
                 'name' => $data['name'],
                 'image' => $data['image'] ?? null,

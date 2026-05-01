@@ -388,9 +388,39 @@ final class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  Future<LocalCategory?> getCategoryById(String id) {
+    return (select(
+      localCategories,
+    )..where((category) => category.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<void> ensurePendingProductCategory({
+    required String id,
+    required String shopId,
+    required String name,
+  }) async {
+    final now = DateTime.now();
+    await into(localCategories).insertOnConflictUpdate(
+      LocalCategoriesCompanion(
+        id: Value(id),
+        shopId: Value(shopId),
+        name: Value(name.trim().isEmpty ? 'পণ্য' : name.trim()),
+        type: const Value('product'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
   Future<void> markCategorySynced(String id) async {
     await (update(localCategories)..where((category) => category.id.equals(id)))
         .write(const LocalCategoriesCompanion(syncStatus: Value('synced')));
+  }
+
+  Future<void> markCategoryPending(String id) async {
+    await (update(localCategories)..where((category) => category.id.equals(id)))
+        .write(const LocalCategoriesCompanion(syncStatus: Value('pending')));
   }
 
   Future<void> upsertSyncedCategories(
@@ -398,20 +428,6 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     await transaction(() async {
       for (final row in rows) {
-        final serverId = row.id.value;
-        final shopId = row.shopId.value;
-        final type = row.type.value;
-        final name = row.name.value;
-
-        await (delete(localCategories)..where(
-              (category) =>
-                  category.id.equalsExp(Variable(serverId)).not() &
-                  category.shopId.equals(shopId) &
-                  category.type.equals(type) &
-                  category.name.lower().equals(name.toLowerCase()),
-            ))
-            .go();
-
         await into(localCategories).insertOnConflictUpdate(row);
       }
     });
@@ -432,10 +448,40 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<LocalSupplier?> watchSupplierById(String id) {
+    return (select(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).watchSingleOrNull();
+  }
+
   Future<List<LocalSupplier>> getPendingSuppliers() {
     return (select(
       localSuppliers,
     )..where((supplier) => supplier.syncStatus.equals('pending'))).get();
+  }
+
+  Future<LocalSupplier?> getSupplierById(String id) {
+    return (select(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<void> ensurePendingSupplier({
+    required String id,
+    required String shopId,
+    String name = 'সাপ্লায়ার',
+  }) async {
+    final now = DateTime.now();
+    await into(localSuppliers).insertOnConflictUpdate(
+      LocalSuppliersCompanion(
+        id: Value(id),
+        shopId: Value(shopId),
+        name: Value(name.trim().isEmpty ? 'সাপ্লায়ার' : name.trim()),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
   }
 
   Future<LocalSupplier> createSupplier({
@@ -488,21 +534,14 @@ final class AppDatabase extends _$AppDatabase {
         .write(const LocalSuppliersCompanion(syncStatus: Value('synced')));
   }
 
+  Future<void> markSupplierPending(String id) async {
+    await (update(localSuppliers)..where((supplier) => supplier.id.equals(id)))
+        .write(const LocalSuppliersCompanion(syncStatus: Value('pending')));
+  }
+
   Future<void> upsertSyncedSuppliers(List<LocalSuppliersCompanion> rows) async {
     await transaction(() async {
       for (final row in rows) {
-        final serverId = row.id.value;
-        final shopId = row.shopId.value;
-        final name = row.name.value;
-
-        await (delete(localSuppliers)..where(
-              (supplier) =>
-                  supplier.id.equalsExp(Variable(serverId)).not() &
-                  supplier.shopId.equals(shopId) &
-                  supplier.name.lower().equals(name.toLowerCase()),
-            ))
-            .go();
-
         await into(localSuppliers).insertOnConflictUpdate(row);
       }
     });
@@ -594,6 +633,26 @@ final class AppDatabase extends _$AppDatabase {
           )
           .toList(),
     );
+  }
+
+  Stream<LocalPurchase?> watchPurchaseById(String id) {
+    return (select(
+      localPurchases,
+    )..where((purchase) => purchase.id.equals(id))).watchSingleOrNull();
+  }
+
+  Stream<List<LocalPurchaseItem>> watchPurchaseItems(String purchaseId) {
+    return (select(localPurchaseItems)
+          ..where((item) => item.purchaseId.equals(purchaseId))
+          ..orderBy([(item) => OrderingTerm.asc(item.createdAt)]))
+        .watch();
+  }
+
+  Stream<List<LocalPurchasePayment>> watchPurchasePayments(String purchaseId) {
+    return (select(localPurchasePayments)
+          ..where((payment) => payment.purchaseId.equals(purchaseId))
+          ..orderBy([(payment) => OrderingTerm.asc(payment.createdAt)]))
+        .watch();
   }
 
   Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {

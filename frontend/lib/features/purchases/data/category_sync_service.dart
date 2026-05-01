@@ -31,7 +31,7 @@ class CategorySyncService {
     final pendingCategories = await database.getPendingProductCategories();
 
     for (final category in pendingCategories) {
-      await apiClient.postJson(
+      final response = await apiClient.postJson(
         '/categories',
         body: {
           'id': category.id,
@@ -45,6 +45,13 @@ class CategorySyncService {
           'deleted_at': category.deletedAt?.toIso8601String(),
         },
       );
+      final syncedCategory = response['category'];
+      final syncedId = syncedCategory is Map<String, dynamic>
+          ? syncedCategory['id']?.toString()
+          : null;
+      if (syncedId != category.id) {
+        throw StateError('Category sync returned a different category id.');
+      }
       await database.markCategorySynced(category.id);
     }
   }

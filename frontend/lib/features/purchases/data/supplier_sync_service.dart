@@ -31,7 +31,7 @@ class SupplierSyncService {
     final pendingSuppliers = await database.getPendingSuppliers();
 
     for (final supplier in pendingSuppliers) {
-      await apiClient.postJson(
+      final response = await apiClient.postJson(
         '/suppliers',
         body: {
           'id': supplier.id,
@@ -45,6 +45,13 @@ class SupplierSyncService {
           'deleted_at': supplier.deletedAt?.toIso8601String(),
         },
       );
+      final syncedSupplier = response['supplier'];
+      final syncedId = syncedSupplier is Map<String, dynamic>
+          ? syncedSupplier['id']?.toString()
+          : null;
+      if (syncedId != supplier.id) {
+        throw StateError('Supplier sync returned a different supplier id.');
+      }
       await database.markSupplierSynced(supplier.id);
     }
   }

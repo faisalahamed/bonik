@@ -62,6 +62,7 @@ class CategoryController extends Controller
         $category = Category::withTrashed()->updateOrCreate(
             ['id' => $data['id']],
             [
+                'id' => $data['id'],
                 'shop_id' => $data['shop_id'],
                 'name' => $data['name'],
                 'type' => $data['type'],

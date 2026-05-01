@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['shop_id', 'name', 'image', 'mobile', 'address', 'created_at', 'updated_at', 'deleted_at'])]
+#[Fillable(['id', 'shop_id', 'name', 'image', 'mobile', 'address', 'created_at', 'updated_at', 'deleted_at'])]
 class Supplier extends Model
 {
     use HasUuids;

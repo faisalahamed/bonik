@@ -1,7 +1,12 @@
+enum AuthLoginResult { online, offline }
+
 abstract class AuthRepository {
   Future<bool> isSignedIn();
 
-  Future<void> login({required String identity, required String password});
+  Future<AuthLoginResult> login({
+    required String identity,
+    required String password,
+  });
 
   Future<void> logout();
 

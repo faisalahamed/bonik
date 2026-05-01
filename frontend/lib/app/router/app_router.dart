@@ -113,7 +113,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.purchaseHistoryDetails,
         name: 'purchase-history-details',
-        builder: (context, state) => const PurchaseHistoryDetailsPage(),
+        builder: (context, state) =>
+            PurchaseHistoryDetailsPage(purchaseId: state.extra?.toString()),
       ),
       GoRoute(
         path: AppRoutes.cashPurchaseReview,

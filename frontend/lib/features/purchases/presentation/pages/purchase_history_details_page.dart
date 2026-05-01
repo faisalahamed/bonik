@@ -1,16 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class PurchaseHistoryDetailsPage extends StatelessWidget {
-  const PurchaseHistoryDetailsPage({super.key});
+final _purchaseProvider = StreamProvider.family<LocalPurchase?, String>(
+  (ref, id) => ref.watch(appDatabaseProvider).watchPurchaseById(id),
+);
+
+final _purchaseItemsProvider =
+    StreamProvider.family<List<LocalPurchaseItem>, String>(
+      (ref, id) => ref.watch(appDatabaseProvider).watchPurchaseItems(id),
+    );
+
+final _purchasePaymentsProvider =
+    StreamProvider.family<List<LocalPurchasePayment>, String>(
+      (ref, id) => ref.watch(appDatabaseProvider).watchPurchasePayments(id),
+    );
+
+final _supplierProvider = StreamProvider.family<LocalSupplier?, String>(
+  (ref, id) => ref.watch(appDatabaseProvider).watchSupplierById(id),
+);
+
+class PurchaseHistoryDetailsPage extends ConsumerWidget {
+  const PurchaseHistoryDetailsPage({super.key, required this.purchaseId});
+
+  final String? purchaseId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = purchaseId;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -19,58 +43,136 @@ class PurchaseHistoryDetailsPage extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
-                Positioned(
-                  top: -90,
-                  right: -80,
-                  child: Container(
-                    width: 240,
-                    height: 240,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowTop,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -120,
-                  left: -80,
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowBottom,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    96,
-                  ),
-                  children: const [
-                    _SupplierSummaryCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _SupplierContactCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _OrderListSection(),
-                    SizedBox(height: AppSpacing.md),
-                    _TotalsCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _CommentCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _PaymentReceiptRow(),
-                    SizedBox(height: AppSpacing.md),
-                  ],
-                ),
+                const _BackgroundGlow(),
+                if (id == null || id.isEmpty)
+                  const _CenteredMessage(message: 'ক্রয়ের তথ্য পাওয়া যায়নি')
+                else
+                  ref
+                      .watch(_purchaseProvider(id))
+                      .when(
+                        data: (purchase) {
+                          if (purchase == null) {
+                            return const _CenteredMessage(
+                              message: 'ক্রয়ের তথ্য পাওয়া যায়নি',
+                            );
+                          }
+
+                          final supplier = ref.watch(
+                            _supplierProvider(purchase.supplierId),
+                          );
+                          final items = ref.watch(_purchaseItemsProvider(id));
+                          final payments = ref.watch(
+                            _purchasePaymentsProvider(id),
+                          );
+
+                          return _DetailsContent(
+                            purchase: purchase,
+                            supplier: supplier.valueOrNull,
+                            items: items.valueOrNull ?? const [],
+                            payments: payments.valueOrNull ?? const [],
+                          );
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, stackTrace) => const _CenteredMessage(
+                          message: 'ক্রয়ের তথ্য লোড করা যায়নি',
+                        ),
+                      ),
                 const _DetailsBottomActions(),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BackgroundGlow extends StatelessWidget {
+  const _BackgroundGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned(
+          top: -90,
+          right: -80,
+          child: Container(
+            width: 240,
+            height: 240,
+            decoration: const BoxDecoration(
+              gradient: AppGradients.backgroundGlowTop,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -120,
+          left: -80,
+          child: Container(
+            width: 260,
+            height: 260,
+            decoration: const BoxDecoration(
+              gradient: AppGradients.backgroundGlowBottom,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailsContent extends StatelessWidget {
+  const _DetailsContent({
+    required this.purchase,
+    required this.supplier,
+    required this.items,
+    required this.payments,
+  });
+
+  final LocalPurchase purchase;
+  final LocalSupplier? supplier;
+  final List<LocalPurchaseItem> items;
+  final List<LocalPurchasePayment> payments;
+
+  @override
+  Widget build(BuildContext context) {
+    final paidAmount = payments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.payments,
+    );
+    final dueAmount = purchase.total - paidAmount;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        96,
+      ),
+      children: [
+        _SupplierSummaryCard(purchase: purchase),
+        const SizedBox(height: AppSpacing.md),
+        _SupplierContactCard(supplier: supplier),
+        const SizedBox(height: AppSpacing.md),
+        _OrderListSection(items: items),
+        const SizedBox(height: AppSpacing.md),
+        _TotalsCard(
+          purchase: purchase,
+          paidAmount: paidAmount,
+          dueAmount: dueAmount,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _CommentCard(comment: purchase.description),
+        const SizedBox(height: AppSpacing.md),
+        _PaymentReceiptRow(
+          paidAmount: paidAmount,
+          memoUrl: purchase.buyingMemoUrl,
+        ),
+        const SizedBox(height: AppSpacing.md),
+      ],
     );
   }
 }
@@ -119,7 +221,9 @@ class _HistoryDetailsTopBar extends StatelessWidget {
 }
 
 class _SupplierSummaryCard extends StatelessWidget {
-  const _SupplierSummaryCard();
+  const _SupplierSummaryCard({required this.purchase});
+
+  final LocalPurchase purchase;
 
   @override
   Widget build(BuildContext context) {
@@ -127,11 +231,7 @@ class _SupplierSummaryCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -140,7 +240,7 @@ class _SupplierSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'মোবাইল নম্বর',
+                  'রিসিপ্ট আইডি',
                   style: textTheme.labelSmall?.copyWith(
                     color: AppColors.textMuted,
                     fontWeight: FontWeight.w700,
@@ -148,7 +248,7 @@ class _SupplierSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '#9635285138969',
+                  '#${purchase.id.substring(0, 8).toUpperCase()}',
                   style: textTheme.titleLarge?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -165,7 +265,7 @@ class _SupplierSummaryCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '০৮ জানুয়ারি, ২০২৬ | ১২:০১ AM',
+                        _dateTime(purchase.createdAt),
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w600,
@@ -190,7 +290,7 @@ class _SupplierSummaryCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '১,২৯০ ৳',
+                _money(purchase.total),
                 style: textTheme.titleLarge?.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w800,
@@ -205,7 +305,9 @@ class _SupplierSummaryCard extends StatelessWidget {
 }
 
 class _SupplierContactCard extends StatelessWidget {
-  const _SupplierContactCard();
+  const _SupplierContactCard({required this.supplier});
+
+  final LocalSupplier? supplier;
 
   @override
   Widget build(BuildContext context) {
@@ -213,11 +315,7 @@ class _SupplierContactCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Row(
         children: [
           Container(
@@ -232,8 +330,8 @@ class _SupplierContactCard extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE7F6F1),
+            decoration: const BoxDecoration(
+              color: Color(0xFFE7F6F1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -247,7 +345,7 @@ class _SupplierContactCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'গোল্ডেন ট্রেডহাউস',
+                  supplier?.name ?? 'সাপ্লায়ার',
                   style: textTheme.titleMedium?.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
@@ -255,7 +353,7 @@ class _SupplierContactCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '+৮৮০১৮৮৮৮৮৮৮৮৮\nঢাকা, বাংলাদেশ',
+                  _supplierDetails(supplier),
                   style: textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                     height: 1.45,
@@ -281,20 +379,18 @@ class _SupplierContactCard extends StatelessWidget {
 }
 
 class _OrderListSection extends StatelessWidget {
-  const _OrderListSection();
+  const _OrderListSection({required this.items});
+
+  final List<LocalPurchaseItem> items;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Padding(
+        children: [
+          const Padding(
             padding: EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.lg,
@@ -302,7 +398,7 @@ class _OrderListSection extends StatelessWidget {
               AppSpacing.md,
             ),
             child: Text(
-              'ফরম এবং পণ্যের চার্ট',
+              'পণ্যের চার্ট',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
@@ -310,39 +406,19 @@ class _OrderListSection extends StatelessWidget {
               ),
             ),
           ),
-          _OrderTableHeader(),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _OrderItemRow(
-            emoji: '🥭',
-            name: 'আম',
-            quantity: '৫টি',
-            rate: '১৬০',
-            total: '৮০০',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _OrderItemRow(
-            emoji: '🍪',
-            name: 'কুকি',
-            quantity: '১ প্যাকেট',
-            rate: '২০০',
-            total: '২০০',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _OrderItemRow(
-            emoji: '🧼',
-            name: 'টিস্যু',
-            quantity: '১ পিস',
-            rate: '৯০',
-            total: '৯০',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _OrderItemRow(
-            emoji: '🧈',
-            name: 'পনির',
-            quantity: '৬০০ গ্রাম',
-            rate: '২০০',
-            total: '৮০০',
-          ),
+          const _OrderTableHeader(),
+          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+          if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Text('কোনো পণ্য পাওয়া যায়নি'),
+            )
+          else
+            for (var i = 0; i < items.length; i++) ...[
+              _OrderItemRow(item: items[i]),
+              if (i != items.length - 1)
+                const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+            ],
         ],
       ),
     );
@@ -365,10 +441,10 @@ class _OrderTableHeader extends StatelessWidget {
         children: [
           Expanded(flex: 4, child: Text('পণ্যের নাম', style: style)),
           Expanded(flex: 2, child: Text('পরিমাণ', style: style)),
-          Expanded(flex: 2, child: Text('দর/মূল্য', style: style)),
+          Expanded(flex: 2, child: Text('ক্রয় দর', style: style)),
           Expanded(
             flex: 2,
-            child: Text('মোট মূল্য', style: style, textAlign: TextAlign.right),
+            child: Text('মোট', style: style, textAlign: TextAlign.right),
           ),
         ],
       ),
@@ -377,19 +453,9 @@ class _OrderTableHeader extends StatelessWidget {
 }
 
 class _OrderItemRow extends StatelessWidget {
-  const _OrderItemRow({
-    required this.emoji,
-    required this.name,
-    required this.quantity,
-    required this.rate,
-    required this.total,
-  });
+  const _OrderItemRow({required this.item});
 
-  final String emoji;
-  final String name;
-  final String quantity;
-  final String rate;
-  final String total;
+  final LocalPurchaseItem item;
 
   @override
   Widget build(BuildContext context) {
@@ -401,35 +467,18 @@ class _OrderItemRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 4,
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              item.productName,
+              style: textTheme.titleSmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              quantity,
+              '${_bnNumber(item.quantity)}টি',
               style: textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -439,7 +488,7 @@ class _OrderItemRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              rate,
+              _money(item.buyingPrice),
               style: textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -449,7 +498,7 @@ class _OrderItemRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              total,
+              _money(item.buyingPrice * item.quantity),
               textAlign: TextAlign.right,
               style: textTheme.titleSmall?.copyWith(
                 color: AppColors.primary,
@@ -464,7 +513,15 @@ class _OrderItemRow extends StatelessWidget {
 }
 
 class _TotalsCard extends StatelessWidget {
-  const _TotalsCard();
+  const _TotalsCard({
+    required this.purchase,
+    required this.paidAmount,
+    required this.dueAmount,
+  });
+
+  final LocalPurchase purchase;
+  final double paidAmount;
+  final double dueAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -472,36 +529,33 @@ class _TotalsCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
           _TotalRow(
-            label: 'মোট ফরম মূল্য',
-            value: '৯,১২০',
+            label: 'মোট ক্রয়',
+            value: _money(purchase.total),
             textTheme: textTheme,
           ),
           const SizedBox(height: AppSpacing.sm),
           _TotalRow(
-            label: 'ডিসকাউন্ট',
-            value: '-১৬০',
+            label: 'অন্যান্য খরচ',
+            value: _money(purchase.otherCharge),
             textTheme: textTheme,
-            valueColor: const Color(0xFFD9534F),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _TotalRow(label: 'অন্যান্য খরচ', value: '৮০', textTheme: textTheme),
-          const Divider(
-            height: AppSpacing.xl,
-            color: AppColors.surfaceContainerHigh,
-          ),
           _TotalRow(
-            label: 'সর্বমোট',
-            value: '৳ ৯,২০০',
+            label: 'পরিশোধ',
+            value: _money(paidAmount),
             textTheme: textTheme,
-            emphasize: true,
+            valueColor: AppColors.primary,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _TotalRow(
+            label: 'বাকি',
+            value: _money(dueAmount < 0 ? 0 : dueAmount),
+            textTheme: textTheme,
+            valueColor: dueAmount > 0 ? const Color(0xFFD9534F) : null,
           ),
         ],
       ),
@@ -515,14 +569,12 @@ class _TotalRow extends StatelessWidget {
     required this.value,
     required this.textTheme,
     this.valueColor,
-    this.emphasize = false,
   });
 
   final String label;
   final String value;
   final TextTheme textTheme;
   final Color? valueColor;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
@@ -531,21 +583,17 @@ class _TotalRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: (emphasize ? textTheme.titleLarge : textTheme.titleMedium)
-              ?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
+          style: textTheme.titleMedium?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         Text(
           value,
-          style: (emphasize ? textTheme.headlineSmall : textTheme.titleMedium)
-              ?.copyWith(
-                color:
-                    valueColor ??
-                    (emphasize ? AppColors.primary : AppColors.textSecondary),
-                fontWeight: FontWeight.w800,
-              ),
+          style: textTheme.titleMedium?.copyWith(
+            color: valueColor ?? AppColors.textSecondary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -553,17 +601,15 @@ class _TotalRow extends StatelessWidget {
 }
 
 class _CommentCard extends StatelessWidget {
-  const _CommentCard();
+  const _CommentCard({required this.comment});
+
+  final String? comment;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -575,13 +621,11 @@ class _CommentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          TextField(
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'এখানে নোট লিখুন...',
-              hintStyle: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+          Text(
+            comment?.trim().isNotEmpty == true ? comment!.trim() : 'নোট নেই',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.45,
             ),
           ),
         ],
@@ -591,21 +635,24 @@ class _CommentCard extends StatelessWidget {
 }
 
 class _PaymentReceiptRow extends StatelessWidget {
-  const _PaymentReceiptRow();
+  const _PaymentReceiptRow({required this.paidAmount, required this.memoUrl});
+
+  final double paidAmount;
+  final String? memoUrl;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
+      children: [
         Expanded(
           child: _InfoTile(
-            title: 'মোটের পরিমাণ',
-            value: '৳ ৮,৪৮০',
+            title: 'পরিশোধের পরিমাণ',
+            value: _money(paidAmount),
             showArrow: true,
           ),
         ),
-        SizedBox(width: AppSpacing.md),
-        Expanded(child: _ReceiptTile()),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: _ReceiptTile(memoUrl: memoUrl)),
       ],
     );
   }
@@ -627,11 +674,7 @@ class _InfoTile extends StatelessWidget {
     return Container(
       height: 112,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Row(
         children: [
           Expanded(
@@ -668,18 +711,16 @@ class _InfoTile extends StatelessWidget {
 }
 
 class _ReceiptTile extends StatelessWidget {
-  const _ReceiptTile();
+  const _ReceiptTile({required this.memoUrl});
+
+  final String? memoUrl;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 112,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -698,14 +739,11 @@ class _ReceiptTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLow,
               borderRadius: BorderRadius.circular(AppRadii.md),
-              border: Border.all(
-                color: AppColors.surfaceContainerHigh,
-                style: BorderStyle.solid,
-              ),
+              border: Border.all(color: AppColors.surfaceContainerHigh),
             ),
             alignment: Alignment.center,
             child: Text(
-              'IMG',
+              memoUrl?.trim().isNotEmpty == true ? 'IMG' : 'নেই',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: AppColors.textMuted,
                 fontWeight: FontWeight.w800,
@@ -791,4 +829,88 @@ class _DetailsBottomActions extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CenteredMessage extends StatelessWidget {
+  const _CenteredMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+BoxDecoration _cardDecoration() {
+  return BoxDecoration(
+    color: AppColors.surfaceContainerLowest,
+    borderRadius: BorderRadius.circular(AppRadii.xl),
+    boxShadow: AppShadows.soft,
+  );
+}
+
+String _supplierDetails(LocalSupplier? supplier) {
+  final parts = [
+    supplier?.mobile,
+    supplier?.address,
+  ].where((value) => value != null && value.trim().isNotEmpty).toList();
+
+  if (parts.isEmpty) {
+    return 'যোগাযোগের তথ্য নেই';
+  }
+
+  return parts.join('\n');
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _dateTime(DateTime value) {
+  final hour12 = value.hour % 12 == 0 ? 12 : value.hour % 12;
+  final minute = value.minute.toString().padLeft(2, '0');
+  final period = value.hour >= 12 ? 'PM' : 'AM';
+  return '${_bnNumber(value.day)} ${_bnMonth(value.month)}, ${_bnNumber(value.year)} | ${_bnNumber(hour12)}:${_bnNumber(minute)} $period';
+}
+
+String _bnMonth(int month) {
+  const names = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  return names[month - 1];
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

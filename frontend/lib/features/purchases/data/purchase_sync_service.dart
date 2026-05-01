@@ -5,19 +5,30 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
 import '../application/cash_purchase_draft_controller.dart';
+import 'category_sync_service.dart';
+import 'supplier_sync_service.dart';
 
 final purchaseSyncServiceProvider = Provider<PurchaseSyncService>((ref) {
   return PurchaseSyncService(
     database: ref.watch(appDatabaseProvider),
     apiClient: const ApiClient(),
+    categorySyncService: ref.watch(categorySyncServiceProvider),
+    supplierSyncService: ref.watch(supplierSyncServiceProvider),
   );
 });
 
 class PurchaseSyncService {
-  const PurchaseSyncService({required this.database, required this.apiClient});
+  const PurchaseSyncService({
+    required this.database,
+    required this.apiClient,
+    required this.categorySyncService,
+    required this.supplierSyncService,
+  });
 
   final AppDatabase database;
   final ApiClient apiClient;
+  final CategorySyncService categorySyncService;
+  final SupplierSyncService supplierSyncService;
 
   Future<void> syncPurchases() async {
     final currentUser = await database.getCurrentUser();
@@ -105,11 +116,75 @@ class PurchaseSyncService {
 
   Future<void> syncPendingPurchases() async {
     final bundles = await database.getPendingPurchaseBundles();
+    await _ensurePendingPurchaseCategoriesAreSynced(bundles);
+    await _ensurePendingPurchaseSuppliersAreSynced(bundles);
 
     for (final bundle in bundles) {
       await apiClient.postJson('/purchases', body: _bundleToJson(bundle));
       await database.markPurchaseBundleSynced(bundle.purchase.id);
     }
+  }
+
+  Future<void> _ensurePendingPurchaseCategoriesAreSynced(
+    List<LocalPurchaseBundle> bundles,
+  ) async {
+    final categoryItems = <String, LocalPurchaseItem>{};
+    for (final item in bundles.expand((bundle) => bundle.items)) {
+      final categoryId = item.categoryId;
+      if (categoryId != null) {
+        categoryItems[categoryId] = item;
+      }
+    }
+
+    if (categoryItems.isEmpty) {
+      return;
+    }
+
+    for (final entry in categoryItems.entries) {
+      final categoryId = entry.key;
+      final category = await database.getCategoryById(categoryId);
+      if (category == null) {
+        await database.ensurePendingProductCategory(
+          id: categoryId,
+          shopId: entry.value.shopId,
+          name: entry.value.productName,
+        );
+        continue;
+      }
+
+      await database.markCategoryPending(categoryId);
+    }
+
+    await categorySyncService.syncProductCategories();
+  }
+
+  Future<void> _ensurePendingPurchaseSuppliersAreSynced(
+    List<LocalPurchaseBundle> bundles,
+  ) async {
+    final supplierPurchases = <String, LocalPurchase>{};
+    for (final bundle in bundles) {
+      supplierPurchases[bundle.purchase.supplierId] = bundle.purchase;
+    }
+
+    if (supplierPurchases.isEmpty) {
+      return;
+    }
+
+    for (final entry in supplierPurchases.entries) {
+      final supplierId = entry.key;
+      final supplier = await database.getSupplierById(supplierId);
+      if (supplier == null) {
+        await database.ensurePendingSupplier(
+          id: supplierId,
+          shopId: entry.value.shopId,
+        );
+        continue;
+      }
+
+      await database.markSupplierPending(supplierId);
+    }
+
+    await supplierSyncService.syncSuppliers();
   }
 
   Future<void> _pullCurrentShop(String shopId) async {

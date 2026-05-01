@@ -11,7 +11,6 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../application/cash_purchase_draft_controller.dart';
-import '../../data/category_sync_service.dart';
 import 'add_product_category_page.dart';
 
 class CashPurchasePage extends ConsumerStatefulWidget {
@@ -32,9 +31,6 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
       });
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncProductCategories();
     });
   }
 
@@ -165,10 +161,6 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
       await ref
           .read(appDatabaseProvider)
           .createProductCategory(draft.name, details: draft.details);
-      if (!mounted) {
-        return;
-      }
-      _syncProductCategories();
     } catch (error) {
       if (!mounted) {
         return;
@@ -178,13 +170,6 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
-  }
-
-  void _syncProductCategories() {
-    ref
-        .read(categorySyncServiceProvider)
-        .syncProductCategories()
-        .catchError((_) {});
   }
 
   int get _cartItemCount {

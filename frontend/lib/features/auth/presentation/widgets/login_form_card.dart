@@ -134,7 +134,10 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      Text('অপেক্ষা করুন', style: textTheme.labelLarge),
+                      Text(
+                        authState.submitMessage ?? 'অপেক্ষা করুন',
+                        style: textTheme.labelLarge,
+                      ),
                     ] else ...[
                       Text('লগইন করুন', style: textTheme.labelLarge),
                       const SizedBox(width: AppSpacing.sm),
@@ -163,6 +166,14 @@ class _LoginFormCardState extends ConsumerState<LoginFormCard> {
       await ref
           .read(authControllerProvider.notifier)
           .signIn(identity: identity, password: password);
+      if (!mounted) {
+        return;
+      }
+
+      final warningMessage = ref.read(authControllerProvider).warningMessage;
+      if (warningMessage != null) {
+        _showMessage(warningMessage);
+      }
     } catch (error) {
       if (!mounted) {
         return;

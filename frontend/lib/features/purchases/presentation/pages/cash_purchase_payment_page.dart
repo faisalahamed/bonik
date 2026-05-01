@@ -12,9 +12,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../application/cash_purchase_draft_controller.dart';
-import '../../data/category_sync_service.dart';
 import '../../data/purchase_sync_service.dart';
-import '../../data/supplier_sync_service.dart';
 
 class CashPurchasePaymentPage extends ConsumerStatefulWidget {
   const CashPurchasePaymentPage({super.key});
@@ -34,13 +32,6 @@ class _CashPurchasePaymentPageState
     _paidAmountController = TextEditingController(
       text: ref.read(cashPurchaseDraftProvider).paidAmount,
     )..addListener(_syncPaidAmount);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      ref.read(supplierSyncServiceProvider).syncSuppliers().catchError((_) {});
-    });
   }
 
   @override
@@ -169,7 +160,6 @@ class _CashPurchasePaymentPageState
       }
 
       ref.read(cashPurchaseDraftProvider.notifier).setSupplier(supplier.id);
-      ref.read(supplierSyncServiceProvider).syncSuppliers().catchError((_) {});
     } catch (error) {
       if (!mounted) {
         return;
@@ -1044,18 +1034,6 @@ class _ConfirmPurchasePaymentButton extends ConsumerWidget {
     try {
       final draft = ref.read(cashPurchaseDraftProvider);
       await ref.read(purchaseSyncServiceProvider).saveDraftLocally(draft);
-      await ref
-          .read(supplierSyncServiceProvider)
-          .syncSuppliers()
-          .catchError((_) {});
-      await ref
-          .read(categorySyncServiceProvider)
-          .syncProductCategories()
-          .catchError((_) {});
-      await ref
-          .read(purchaseSyncServiceProvider)
-          .syncPendingPurchases()
-          .catchError((_) {});
       ref.read(cashPurchaseDraftProvider.notifier).clear();
 
       if (context.mounted) {
