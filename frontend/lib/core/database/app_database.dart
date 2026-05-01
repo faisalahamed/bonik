@@ -655,6 +655,41 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<List<LocalSalesProduct>> watchSalesProductsForCurrentShop() {
+    return customSelect(
+      '''
+      SELECT
+        MIN(id) AS id,
+        category_id,
+        product_name,
+        SUM(quantity) AS stock_quantity,
+        COALESCE(MAX(est_selling_price), MAX(buying_price), 0.0) AS selling_price
+      FROM local_purchase_items
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+      GROUP BY COALESCE(category_id, product_name), product_name
+      HAVING stock_quantity > 0
+      ORDER BY product_name ASC
+      ''',
+      readsFrom: {localPurchaseItems, localUsers},
+    ).watch().map(
+      (rows) => rows
+          .map(
+            (row) => LocalSalesProduct(
+              id: row.read<String>('id'),
+              categoryId: row.readNullable<String>('category_id'),
+              name: row.read<String>('product_name'),
+              stockQuantity: row.read<int>('stock_quantity'),
+              sellingPrice: row.read<double>('selling_price'),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {
     final pendingPurchases = await (select(
       localPurchases,
@@ -783,4 +818,20 @@ class LocalPurchaseHistoryEntry {
   final String syncStatus;
 
   double get dueAmount => total - paidAmount;
+}
+
+class LocalSalesProduct {
+  const LocalSalesProduct({
+    required this.id,
+    required this.categoryId,
+    required this.name,
+    required this.stockQuantity,
+    required this.sellingPrice,
+  });
+
+  final String id;
+  final String? categoryId;
+  final String name;
+  final int stockQuantity;
+  final double sellingPrice;
 }
