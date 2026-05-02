@@ -12,7 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('purchase_id')->constrained()->cascadeOnDelete();
-            $table->decimal('payments', 10, 2);
+            $table->decimal('payments', 18, 2);
             $table->text('description')->nullable();
             $table->timestamps();
 
@@ -25,3 +25,4 @@ return new class extends Migration
         Schema::dropIfExists('purchase_payments');
     }
 };
+

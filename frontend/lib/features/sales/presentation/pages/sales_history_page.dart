@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,12 +8,28 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class SalesHistoryPage extends StatelessWidget {
+final _salesHistoryProvider = StreamProvider<List<LocalSalesHistoryEntry>>(
+  (ref) => ref.watch(appDatabaseProvider).watchSalesHistoryForCurrentShop(),
+);
+
+class SalesHistoryPage extends ConsumerStatefulWidget {
   const SalesHistoryPage({super.key});
 
   @override
+  ConsumerState<SalesHistoryPage> createState() => _SalesHistoryPageState();
+}
+
+class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
+  var _selectedRange = _SalesHistoryRange.day;
+  var _rangeAnchorDate = DateTime.now();
+  DateTimeRange? _customDateRange;
+
+  @override
   Widget build(BuildContext context) {
+    final history = ref.watch(_salesHistoryProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -45,62 +62,42 @@ class SalesHistoryPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.lg,
+                history.when(
+                  data: (entries) => _SalesHistoryList(
+                    entries: entries,
+                    selectedRange: _selectedRange,
+                    rangeAnchorDate: _rangeAnchorDate,
+                    customDateRange: _customDateRange,
+                    onRangeSelected: (range) {
+                      setState(() {
+                        _selectedRange = range;
+                        _rangeAnchorDate = DateTime.now();
+                        _customDateRange = null;
+                      });
+                    },
+                    onCustomRangeSelected: _selectCustomDateRange,
+                    onPreviousRange: () => _moveRange(-1),
+                    onNextRange: () => _moveRange(1),
                   ),
-                  children: const [
-                    _SalesHeroCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesFilterTabs(),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesSearchBox(),
-                    SizedBox(height: AppSpacing.lg),
-                    _SectionTitle(title: 'সাম্প্রতিক লেনদেন'),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesHistoryItemCard(
-                      code: '#TKQD9DMA5J0F6DT',
-                      name: 'রুহাইয়া স্টোর',
-                      amount: '১,৪৭৮.৬ ৳',
-                      dateTime: '27 January 2026 | 12:00',
-                      statusText: 'নগদ টাকা',
-                      statusBackground: Color(0xFFE4FBF6),
-                      statusColor: Color(0xFF1A9F83),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesHistoryItemCard(
-                      code: '#LM49ZIPX90W2',
-                      name: 'আতিক মহল',
-                      amount: '৫,৮৩০.০ ৳',
-                      dateTime: '27 January 2026 | 11:15',
-                      statusText: 'বিকাশের টাকা',
-                      statusBackground: Color(0xFFE9F5F0),
-                      statusColor: AppColors.primary,
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesHistoryItemCard(
-                      code: '#B077Y2RKTS4',
-                      name: 'মো: কামাল হোসেন',
-                      amount: '২,১৫০.০ ৳',
-                      dateTime: '26 January 2026 | 18:45',
-                      statusText: 'বাকি',
-                      statusBackground: Color(0xFFFFECEC),
-                      statusColor: Color(0xFFD9534F),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _SalesHistoryItemCard(
-                      code: '#P2K8MV55T9',
-                      name: 'আনিকা তাসনুম',
-                      amount: '৮৯০.৫ ৳',
-                      dateTime: '26 January 2026 | 15:20',
-                      statusText: 'নগদ টাকা',
-                      statusBackground: Color(0xFFE4FBF6),
-                      statusColor: Color(0xFF1A9F83),
-                    ),
-                  ],
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => _SalesHistoryList(
+                    entries: const [],
+                    selectedRange: _selectedRange,
+                    rangeAnchorDate: _rangeAnchorDate,
+                    customDateRange: _customDateRange,
+                    onRangeSelected: (range) {
+                      setState(() {
+                        _selectedRange = range;
+                        _rangeAnchorDate = DateTime.now();
+                        _customDateRange = null;
+                      });
+                    },
+                    onCustomRangeSelected: _selectCustomDateRange,
+                    onPreviousRange: () => _moveRange(-1),
+                    onNextRange: () => _moveRange(1),
+                    message: 'বিক্রির ডাটা পাওয়া যায়নি',
+                  ),
                 ),
               ],
             ),
@@ -109,6 +106,43 @@ class SalesHistoryPage extends StatelessWidget {
       ),
     );
   }
+
+  void _moveRange(int step) {
+    if (_selectedRange == _SalesHistoryRange.all ||
+        _selectedRange == _SalesHistoryRange.custom) {
+      return;
+    }
+
+    setState(() {
+      _rangeAnchorDate = _shiftRangeDate(
+        _rangeAnchorDate,
+        _selectedRange,
+        step,
+      );
+    });
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final now = DateTime.now();
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5, 12, 31),
+      initialDateRange: _customDateRange ?? DateTimeRange(start: now, end: now),
+      helpText: 'তারিখের রেঞ্জ নির্বাচন করুন',
+      cancelText: 'বাতিল',
+      confirmText: 'ঠিক আছে',
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedRange = _SalesHistoryRange.custom;
+      _customDateRange = selected;
+      _rangeAnchorDate = selected.start;
+    });
+  }
 }
 
 class _SalesHistoryTopBar extends StatelessWidget {
@@ -116,51 +150,38 @@ class _SalesHistoryTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 72,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'বেচার খাতা',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'বেচার খাতা',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
-                ),
-              ),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE7F6F1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-            ],
+                const Icon(Icons.person_rounded, color: Colors.white, size: 22),
+              ],
+            ),
           ),
         ),
       ),
@@ -168,8 +189,117 @@ class _SalesHistoryTopBar extends StatelessWidget {
   }
 }
 
+class _SalesHistoryList extends StatelessWidget {
+  const _SalesHistoryList({
+    required this.entries,
+    required this.selectedRange,
+    required this.rangeAnchorDate,
+    required this.customDateRange,
+    required this.onRangeSelected,
+    required this.onCustomRangeSelected,
+    required this.onPreviousRange,
+    required this.onNextRange,
+    this.message,
+  });
+
+  final List<LocalSalesHistoryEntry> entries;
+  final _SalesHistoryRange selectedRange;
+  final DateTime rangeAnchorDate;
+  final DateTimeRange? customDateRange;
+  final ValueChanged<_SalesHistoryRange> onRangeSelected;
+  final VoidCallback onCustomRangeSelected;
+  final VoidCallback onPreviousRange;
+  final VoidCallback onNextRange;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredEntries = entries
+        .where(
+          (entry) => _isInRange(
+            entry.createdAt,
+            selectedRange,
+            rangeAnchorDate,
+            customDateRange,
+          ),
+        )
+        .toList();
+    filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final total = filteredEntries.fold<double>(
+      0,
+      (sum, entry) => sum + entry.total,
+    );
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      itemCount: filteredEntries.isEmpty ? 5 : filteredEntries.length + 4,
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.md),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _SalesHeroCard(
+            total: total,
+            count: filteredEntries.length,
+            rangeLabel: _rangeLabel(
+              selectedRange,
+              rangeAnchorDate,
+              customDateRange,
+            ),
+            canNavigate:
+                selectedRange != _SalesHistoryRange.all &&
+                selectedRange != _SalesHistoryRange.custom,
+            onPrevious: onPreviousRange,
+            onNext: onNextRange,
+          );
+        }
+        if (index == 1) {
+          return _SalesFilterTabs(
+            selectedRange: selectedRange,
+            onRangeSelected: onRangeSelected,
+            onCustomRangeSelected: onCustomRangeSelected,
+          );
+        }
+        if (index == 2) {
+          return const _SalesSearchBox();
+        }
+        if (index == 3) {
+          return const _SectionTitle(title: 'সাম্প্রতিক লেনদেন');
+        }
+        if (index == 4 && filteredEntries.isEmpty) {
+          return _EmptySalesHistoryCard(
+            message:
+                message ??
+                _emptyMessage(selectedRange, rangeAnchorDate, customDateRange),
+          );
+        }
+
+        return _SalesHistoryItemCard(entry: filteredEntries[index - 4]);
+      },
+    );
+  }
+}
+
 class _SalesHeroCard extends StatelessWidget {
-  const _SalesHeroCard();
+  const _SalesHeroCard({
+    required this.total,
+    required this.count,
+    required this.rangeLabel,
+    required this.canNavigate,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final double total;
+  final int count;
+  final String rangeLabel;
+  final bool canNavigate;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -184,72 +314,71 @@ class _SalesHeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '০১ জানুয়ারি, ২০২৪ - ৩১ ডিসেম্বর, ২০২৪',
-              style: textTheme.labelMedium?.copyWith(
-                color: Colors.white.withOpacity(0.92),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'মোট বিক্রি',
-            style: textTheme.titleMedium?.copyWith(
-              color: Colors.white.withOpacity(0.84),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.chevron_left_rounded,
-                color: Colors.white,
-                size: 30,
+                Icons.calendar_today_rounded,
+                size: 16,
+                color: Color(0xFFE6FFF4),
               ),
-              Expanded(
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
                 child: Text(
-                  '৩,৯২,৫৬৩.৩ ৳',
+                  rangeLabel,
                   textAlign: TextAlign.center,
-                  style: textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFFE6FFF4),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.white,
-                size: 30,
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              _RangeNavButton(
+                icon: Icons.chevron_left_rounded,
+                enabled: canNavigate,
+                onTap: onPrevious,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'মোট বিক্রি',
+                      style: textTheme.titleSmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _money(total),
+                      style: textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              _RangeNavButton(
+                icon: Icons.chevron_right_rounded,
+                enabled: canNavigate,
+                onTap: onNext,
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'গত মাসের চেয়ে ২৫% বেশি',
-              style: textTheme.labelMedium?.copyWith(
-                color: Colors.white.withOpacity(0.92),
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            '${_bnNumber(count)}টি বিক্রির রেকর্ড',
+            style: textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -259,71 +388,163 @@ class _SalesHeroCard extends StatelessWidget {
 }
 
 class _SalesFilterTabs extends StatelessWidget {
-  const _SalesFilterTabs();
+  const _SalesFilterTabs({
+    required this.selectedRange,
+    required this.onRangeSelected,
+    required this.onCustomRangeSelected,
+  });
+
+  final _SalesHistoryRange selectedRange;
+  final ValueChanged<_SalesHistoryRange> onRangeSelected;
+  final VoidCallback onCustomRangeSelected;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
-        Expanded(child: _SalesFilterChip(label: 'দিন', active: true)),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _SalesFilterChip(label: 'মাস')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _SalesFilterChip(label: 'বছর')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _SalesFilterChip(label: 'সব সময়')),
-        SizedBox(width: AppSpacing.sm),
-        _SalesSortChip(),
+      children: [
+        Expanded(
+          child: _FilterChip(
+            label: 'দিন',
+            active: selectedRange == _SalesHistoryRange.day,
+            onTap: () => onRangeSelected(_SalesHistoryRange.day),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
+            label: 'মাস',
+            active: selectedRange == _SalesHistoryRange.month,
+            onTap: () => onRangeSelected(_SalesHistoryRange.month),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
+            label: 'বছর',
+            active: selectedRange == _SalesHistoryRange.year,
+            onTap: () => onRangeSelected(_SalesHistoryRange.year),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
+            label: 'সব',
+            active: selectedRange == _SalesHistoryRange.all,
+            onTap: () => onRangeSelected(_SalesHistoryRange.all),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _SortChip(
+          active: selectedRange == _SalesHistoryRange.custom,
+          onTap: onCustomRangeSelected,
+        ),
       ],
     );
   }
 }
 
-class _SalesFilterChip extends StatelessWidget {
-  const _SalesFilterChip({
-    required this.label,
-    this.active = false,
+class _RangeNavButton extends StatelessWidget {
+  const _RangeNavButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
   });
 
-  final String label;
-  final bool active;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : AppColors.surfaceContainer,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: active ? Colors.white : AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+        child: Ink(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: enabled ? 0.12 : 0.06),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: enabled ? 1 : 0.45),
+            size: 30,
+          ),
+        ),
       ),
     );
   }
 }
 
-class _SalesSortChip extends StatelessWidget {
-  const _SalesSortChip();
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Ink(
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: active ? AppGradients.primaryButton : null,
+            color: active ? null : AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: active ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
       ),
-      child: const Icon(
-        Icons.tune_rounded,
-        color: AppColors.textSecondary,
+    );
+  }
+}
+
+class _SortChip extends StatelessWidget {
+  const _SortChip({required this.active, required this.onTap});
+
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Ink(
+          width: 52,
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: active ? AppGradients.primaryButton : null,
+            color: active ? null : AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Icon(
+            Icons.date_range_rounded,
+            color: active ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -358,9 +579,7 @@ class _SalesSearchBox extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-  });
+  const _SectionTitle({required this.title});
 
   final String title;
 
@@ -369,40 +588,54 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _EmptySalesHistoryCard extends StatelessWidget {
+  const _EmptySalesHistoryCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
 
 class _SalesHistoryItemCard extends StatelessWidget {
-  const _SalesHistoryItemCard({
-    required this.code,
-    required this.name,
-    required this.amount,
-    required this.dateTime,
-    required this.statusText,
-    required this.statusBackground,
-    required this.statusColor,
-  });
+  const _SalesHistoryItemCard({required this.entry});
 
-  final String code;
-  final String name;
-  final String amount;
-  final String dateTime;
-  final String statusText;
-  final Color statusBackground;
-  final Color statusColor;
+  final LocalSalesHistoryEntry entry;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final status = _statusStyle(entry);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.push(AppRoutes.salesHistoryDetails),
+        onTap: () =>
+            context.push(AppRoutes.salesHistoryDetails, extra: entry.id),
         borderRadius: BorderRadius.circular(AppRadii.xl),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -415,7 +648,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                code,
+                '#${entry.id.substring(0, 8).toUpperCase()}',
                 style: textTheme.labelSmall?.copyWith(
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w700,
@@ -427,7 +660,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      name,
+                      _customerLabel(entry),
                       style: textTheme.titleLarge?.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w800,
@@ -436,7 +669,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    amount,
+                    _money(entry.total),
                     style: textTheme.titleLarge?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
@@ -458,7 +691,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            dateTime,
+                            _dateTime(entry.createdAt),
                             style: textTheme.labelMedium?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w600,
@@ -475,15 +708,38 @@ class _SalesHistoryItemCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: statusBackground,
+                      color: status.background,
                       borderRadius: BorderRadius.circular(AppRadii.lg),
                     ),
                     child: Text(
-                      statusText,
+                      status.text,
                       style: textTheme.labelSmall?.copyWith(
-                        color: statusColor,
+                        color: status.color,
                         fontWeight: FontWeight.w800,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_bnNumber(entry.itemCount)}টি পণ্য',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    entry.syncStatus == 'pending'
+                        ? 'সিঙ্ক বাকি'
+                        : 'সার্ভারে সিঙ্কড',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -494,4 +750,237 @@ class _SalesHistoryItemCard extends StatelessWidget {
       ),
     );
   }
+}
+
+_StatusStyle _statusStyle(LocalSalesHistoryEntry entry) {
+  if (entry.dueAmount <= 0) {
+    return _StatusStyle(
+      text: _paymentMethodText(entry.paymentMethod),
+      background: const Color(0xFFE4FBF6),
+      color: const Color(0xFF1A9F83),
+    );
+  }
+
+  if (entry.paidAmount > 0) {
+    return _StatusStyle(
+      text: 'বাকি ${_money(entry.dueAmount)}',
+      background: const Color(0xFFFFF1E8),
+      color: const Color(0xFFDC7A37),
+    );
+  }
+
+  return const _StatusStyle(
+    text: 'বাকি',
+    background: Color(0xFFFFECEC),
+    color: Color(0xFFD9534F),
+  );
+}
+
+class _StatusStyle {
+  const _StatusStyle({
+    required this.text,
+    required this.background,
+    required this.color,
+  });
+
+  final String text;
+  final Color background;
+  final Color color;
+}
+
+enum _SalesHistoryRange { day, month, year, all, custom }
+
+bool _isInRange(
+  DateTime value,
+  _SalesHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  if (range == _SalesHistoryRange.custom) {
+    if (customRange == null) {
+      return false;
+    }
+
+    final day = DateTime(value.year, value.month, value.day);
+    final start = DateTime(
+      customRange.start.year,
+      customRange.start.month,
+      customRange.start.day,
+    );
+    final end = DateTime(
+      customRange.end.year,
+      customRange.end.month,
+      customRange.end.day,
+    );
+    return !day.isBefore(start) && !day.isAfter(end);
+  }
+
+  if (range == _SalesHistoryRange.all) {
+    return true;
+  }
+
+  if (range == _SalesHistoryRange.day) {
+    return value.year == anchorDate.year &&
+        value.month == anchorDate.month &&
+        value.day == anchorDate.day;
+  }
+
+  if (range == _SalesHistoryRange.month) {
+    return value.year == anchorDate.year && value.month == anchorDate.month;
+  }
+
+  return value.year == anchorDate.year;
+}
+
+DateTime _shiftRangeDate(DateTime date, _SalesHistoryRange range, int step) {
+  return switch (range) {
+    _SalesHistoryRange.day => date.add(Duration(days: step)),
+    _SalesHistoryRange.month => DateTime(
+      date.year,
+      date.month + step,
+      _safeDayForMonth(date.year, date.month + step, date.day),
+    ),
+    _SalesHistoryRange.year => DateTime(
+      date.year + step,
+      date.month,
+      _safeDayForMonth(date.year + step, date.month, date.day),
+    ),
+    _SalesHistoryRange.all => date,
+    _SalesHistoryRange.custom => date,
+  };
+}
+
+String _rangeLabel(
+  _SalesHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  return switch (range) {
+    _SalesHistoryRange.day => _dateOnly(anchorDate),
+    _SalesHistoryRange.month =>
+      '${_bnMonth(anchorDate.month)} ${_bnNumber(anchorDate.year)}',
+    _SalesHistoryRange.year => _bnNumber(anchorDate.year),
+    _SalesHistoryRange.all => 'সব সময়',
+    _SalesHistoryRange.custom =>
+      customRange == null
+          ? 'তারিখের রেঞ্জ'
+          : '${_dateOnly(customRange.start)} - ${_dateOnly(customRange.end)}',
+  };
+}
+
+String _emptyMessage(
+  _SalesHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  if (_isFutureRange(range, anchorDate, customRange)) {
+    return switch (range) {
+      _SalesHistoryRange.day =>
+        'এই দিনটি এখনও আসেনি। সময় এলে বিক্রির হিস্টোরি এখানে দেখা যাবে।',
+      _SalesHistoryRange.month =>
+        'এই মাসটি এখনও আসেনি। সামনে ভালো বিক্রির প্রস্তুতি থাকুক।',
+      _SalesHistoryRange.year =>
+        'এই বছরটি এখনও আসেনি। সময় হলে নতুন বিক্রির হিস্টোরি এখানে জমা হবে।',
+      _SalesHistoryRange.all => 'এখনও কোনো বিক্রির হিস্টোরি নেই',
+      _SalesHistoryRange.custom =>
+        'এই তারিখের রেঞ্জ এখনও আসেনি। সময় এলে হিস্টোরি এখানে দেখা যাবে।',
+    };
+  }
+
+  return 'এখনও কোনো বিক্রির হিস্টোরি নেই';
+}
+
+bool _isFutureRange(
+  _SalesHistoryRange range,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  final now = DateTime.now();
+  return switch (range) {
+    _SalesHistoryRange.day => DateTime(
+      anchorDate.year,
+      anchorDate.month,
+      anchorDate.day,
+    ).isAfter(DateTime(now.year, now.month, now.day)),
+    _SalesHistoryRange.month => DateTime(
+      anchorDate.year,
+      anchorDate.month,
+    ).isAfter(DateTime(now.year, now.month)),
+    _SalesHistoryRange.year => anchorDate.year > now.year,
+    _SalesHistoryRange.all => false,
+    _SalesHistoryRange.custom =>
+      customRange != null &&
+          DateTime(
+            customRange.start.year,
+            customRange.start.month,
+            customRange.start.day,
+          ).isAfter(DateTime(now.year, now.month, now.day)),
+  };
+}
+
+int _safeDayForMonth(int year, int month, int preferredDay) {
+  final lastDay = DateTime(year, month + 1, 0).day;
+  return preferredDay > lastDay ? lastDay : preferredDay;
+}
+
+String _customerLabel(LocalSalesHistoryEntry entry) {
+  final phone = entry.customerPhone.trim();
+  if (phone.isEmpty) {
+    return entry.customerName;
+  }
+  return '${entry.customerName} · ${_bnNumber(phone)}';
+}
+
+String _paymentMethodText(String? method) {
+  return switch (method) {
+    'cash' => 'নগদ টাকা',
+    'mobile_banking' => 'বিকাশ/নগদ',
+    'due' => 'বাকি',
+    _ => 'পরিশোধ',
+  };
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _dateTime(DateTime value) {
+  final date = '${value.year}-${_two(value.month)}-${_two(value.day)}';
+  final time = '${_two(value.hour)}:${_two(value.minute)}';
+  return _bnNumber('$date $time');
+}
+
+String _dateOnly(DateTime value) {
+  return '${_bnNumber(value.day)} ${_bnMonth(value.month)} ${_bnNumber(value.year)}';
+}
+
+String _bnMonth(int month) {
+  const names = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  return names[month - 1];
+}
+
+String _two(int value) => value.toString().padLeft(2, '0');
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

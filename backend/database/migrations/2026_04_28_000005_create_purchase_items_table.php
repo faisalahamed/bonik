@@ -14,11 +14,11 @@ return new class extends Migration
             $table->foreignUuid('purchase_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignUuid('category_id')->nullable()->constrained()->nullOnDelete();
             $table->string('product_name');
-            $table->decimal('buying_price', 10, 2);
-            $table->decimal('est_selling_price', 10, 2)->nullable();
+            $table->decimal('buying_price', 18, 2);
+            $table->decimal('est_selling_price', 18, 2)->nullable();
             $table->integer('quantity')->default(0);
             $table->string('barcode')->nullable();
-            $table->decimal('other_charge', 10, 2)->default(0);
+            $table->decimal('other_charge', 18, 2)->default(0);
             $table->text('description')->nullable();
             $table->string('product_image')->nullable();
             $table->timestamps();
@@ -33,3 +33,4 @@ return new class extends Migration
         Schema::dropIfExists('purchase_items');
     }
 };
+

@@ -65,6 +65,7 @@ class PurchaseSyncService {
     final now = DateTime.now();
     final purchaseId = const Uuid().v4();
     final paidAmount = _paidAmountForDraft(draft);
+    final paymentId = paidAmount > 0 ? const Uuid().v4() : null;
     final status = paidAmount >= draft.purchaseTotal ? 'completed' : 'pending';
 
     await database.insertPurchaseBundle(
@@ -99,11 +100,29 @@ class PurchaseSyncService {
       ],
       payment: paidAmount > 0
           ? LocalPurchasePaymentsCompanion(
-              id: Value(const Uuid().v4()),
+              id: Value(paymentId!),
               shopId: Value(currentUser.shopId),
               purchaseId: Value(purchaseId),
               payments: Value(paidAmount),
               description: Value(_paymentDescription(draft.paymentMethod)),
+              createdAt: Value(draft.purchaseDate),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            )
+          : null,
+      cashTransaction: paidAmount > 0
+          ? LocalCashTransactionsCompanion(
+              id: Value(const Uuid().v4()),
+              shopId: Value(currentUser.shopId),
+              type: const Value('purchase_payment'),
+              direction: const Value('out'),
+              amount: Value(paidAmount),
+              referenceId: Value(purchaseId),
+              referenceType: const Value('purchase'),
+              method: Value(
+                _paymentMethodForCashTransaction(draft.paymentMethod),
+              ),
+              note: Value(_paymentDescription(draft.paymentMethod)),
               createdAt: Value(draft.purchaseDate),
               updatedAt: Value(now),
               syncStatus: const Value('pending'),
@@ -197,11 +216,30 @@ class PurchaseSyncService {
     if (rawPurchases is! List) {
       return;
     }
+    final rawCashTransactions = response['cash_transactions'];
+    final cashTransactionsByPurchaseId = <String, List<Map<String, dynamic>>>{};
+    if (rawCashTransactions is List) {
+      for (final row in rawCashTransactions.whereType<Map<String, dynamic>>()) {
+        final purchaseId = row['reference_id']?.toString();
+        if (purchaseId == null || purchaseId.isEmpty) {
+          continue;
+        }
+        cashTransactionsByPurchaseId
+            .putIfAbsent(purchaseId, () => <Map<String, dynamic>>[])
+            .add(row);
+      }
+    }
 
     await database.upsertSyncedPurchaseBundles(
       rawPurchases
           .whereType<Map<String, dynamic>>()
-          .map(_bundleFromJson)
+          .map(
+            (purchase) => _bundleFromJson({
+              ...purchase,
+              'cash_transactions':
+                  cashTransactionsByPurchaseId[purchase['id']?.toString()],
+            }),
+          )
           .toList(),
     );
   }
@@ -251,6 +289,22 @@ class PurchaseSyncService {
             'updated_at': payment.updatedAt.toIso8601String(),
           },
       ],
+      'cash_transactions': [
+        for (final transaction in bundle.cashTransactions)
+          {
+            'id': transaction.id,
+            'shop_id': transaction.shopId,
+            'type': transaction.type,
+            'direction': transaction.direction,
+            'amount': transaction.amount,
+            'reference_id': transaction.referenceId,
+            'reference_type': transaction.referenceType,
+            'method': transaction.method,
+            'note': transaction.note,
+            'created_at': transaction.createdAt.toIso8601String(),
+            'updated_at': transaction.updatedAt.toIso8601String(),
+          },
+      ],
     };
   }
 
@@ -258,6 +312,7 @@ class PurchaseSyncService {
     final purchaseId = json['id'].toString();
     final rawItems = json['items'];
     final rawPayments = json['payments'];
+    final rawCashTransactions = json['cash_transactions'];
 
     return LocalPurchaseBundleCompanion(
       purchase: LocalPurchasesCompanion(
@@ -312,6 +367,29 @@ class PurchaseSyncService {
               syncStatus: const Value('synced'),
             ),
       ],
+      cashTransactions: [
+        if (rawCashTransactions is List)
+          for (final transaction
+              in rawCashTransactions.whereType<Map<String, dynamic>>())
+            LocalCashTransactionsCompanion(
+              id: Value(transaction['id'].toString()),
+              shopId: Value(transaction['shop_id'].toString()),
+              type: Value(
+                transaction['type']?.toString() ?? 'purchase_payment',
+              ),
+              direction: Value(transaction['direction']?.toString() ?? 'out'),
+              amount: Value(_double(transaction['amount'])),
+              referenceId: Value(_nullableString(transaction['reference_id'])),
+              referenceType: Value(
+                _nullableString(transaction['reference_type']) ?? 'purchase',
+              ),
+              method: Value(_nullableString(transaction['method'])),
+              note: Value(_nullableString(transaction['note'])),
+              createdAt: Value(_dateTime(transaction['created_at'])),
+              updatedAt: Value(_dateTime(transaction['updated_at'])),
+              syncStatus: const Value('synced'),
+            ),
+      ],
     );
   }
 
@@ -331,6 +409,15 @@ class PurchaseSyncService {
       'partial' => 'আংশিক পেমেন্ট',
       'due' => 'বাকি',
       _ => paymentMethod,
+    };
+  }
+
+  String _paymentMethodForCashTransaction(String paymentMethod) {
+    return switch (paymentMethod) {
+      'online' => 'online',
+      'cheque' => 'cheque',
+      'partial' => 'partial',
+      _ => 'cash',
     };
   }
 

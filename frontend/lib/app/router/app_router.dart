@@ -279,7 +279,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.salesHistoryDetails,
         name: 'sales-history-details',
-        builder: (context, state) => const SalesHistoryDetailsPage(),
+        builder: (context, state) =>
+            SalesHistoryDetailsPage(saleId: state.extra as String?),
       ),
       GoRoute(
         path: AppRoutes.salesReturn,

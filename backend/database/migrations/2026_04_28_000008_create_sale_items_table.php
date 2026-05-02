@@ -13,10 +13,10 @@ return new class extends Migration
             $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('order_id')->constrained('sales')->cascadeOnDelete();
             $table->foreignUuid('product_id')->constrained('purchase_items')->cascadeOnDelete();
-            $table->decimal('buy_price', 10, 2);
-            $table->decimal('sale_price', 10, 2);
+            $table->decimal('buy_price', 18, 2);
+            $table->decimal('sale_price', 18, 2);
             $table->integer('quantity')->default(0);
-            $table->decimal('price', 10, 2);
+            $table->decimal('price', 18, 2);
             $table->timestamps();
 
             $table->index(['shop_id', 'order_id', 'product_id']);
@@ -28,3 +28,4 @@ return new class extends Migration
         Schema::dropIfExists('sale_items');
     }
 };
+

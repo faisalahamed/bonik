@@ -12,8 +12,8 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('supplier_id')->constrained()->cascadeOnDelete();
-            $table->decimal('total', 10, 2);
-            $table->decimal('other_charge', 10, 2)->default(0);
+            $table->decimal('total', 18, 2);
+            $table->decimal('other_charge', 18, 2)->default(0);
             $table->text('description')->nullable();
             $table->string('buying_memo_url')->nullable();
             $table->enum('status', ['pending', 'completed'])->default('pending');
@@ -28,3 +28,4 @@ return new class extends Migration
         Schema::dropIfExists('purchases');
     }
 };
+

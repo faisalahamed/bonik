@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../application/sales_cart_controller.dart';
+import '../../data/sales_save_service.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
 enum _SalesPaymentMethod { cash, due, mobileBanking }
+
+extension on _SalesPaymentMethod {
+  String get value {
+    return switch (this) {
+      _SalesPaymentMethod.cash => 'cash',
+      _SalesPaymentMethod.due => 'due',
+      _SalesPaymentMethod.mobileBanking => 'mobile_banking',
+    };
+  }
+}
 
 class SalesPaymentPage extends ConsumerStatefulWidget {
   const SalesPaymentPage({super.key});
@@ -27,6 +40,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
   double _cashReceived = 0;
   double _lastGrandTotal = -1;
   bool _editingCash = false;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -132,7 +146,12 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                           ],
                         ),
                 ),
-                _CompletePaymentButton(enabled: cartLines.isNotEmpty),
+                _CompletePaymentButton(
+                  enabled: cartLines.isNotEmpty && !_submitting,
+                  submitting: _submitting,
+                  onPressed: () =>
+                      _confirmSale(cartLines: cartLines, checkout: checkout),
+                ),
               ],
             ),
           ),
@@ -175,6 +194,52 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
       return 0;
     }
     return double.tryParse(normalized) ?? 0;
+  }
+
+  Future<void> _confirmSale({
+    required List<SalesCartLine> cartLines,
+    required SalesCheckoutState checkout,
+  }) async {
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      await ref
+          .read(salesSaveServiceProvider)
+          .saveSaleLocally(
+            cartLines: cartLines,
+            checkout: checkout,
+            cashReceived: _cashReceived,
+            paymentMethod: _paymentMethod.value,
+            customerName: _customerNameController.text,
+            customerMobile: _customerMobileController.text,
+          );
+
+      ref.read(salesCartProvider.notifier).clear();
+      ref.read(salesCheckoutProvider.notifier).clear();
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('বিক্রি সফলভাবে সেভ হয়েছে')));
+      context.go(AppRoutes.dashboard);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
   }
 }
 
@@ -759,9 +824,15 @@ class _CustomerField extends StatelessWidget {
 }
 
 class _CompletePaymentButton extends StatelessWidget {
-  const _CompletePaymentButton({required this.enabled});
+  const _CompletePaymentButton({
+    required this.enabled,
+    required this.submitting,
+    required this.onPressed,
+  });
 
   final bool enabled;
+  final bool submitting;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -784,7 +855,7 @@ class _CompletePaymentButton extends StatelessWidget {
             width: double.infinity,
             height: 72,
             child: ElevatedButton.icon(
-              onPressed: enabled ? () {} : null,
+              onPressed: enabled ? onPressed : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -795,9 +866,18 @@ class _CompletePaymentButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
               ),
-              icon: const Icon(Icons.verified_rounded),
+              icon: submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.verified_rounded),
               label: Text(
-                'কনফার্ম পেমেন্ট',
+                submitting ? 'সেভ হচ্ছে' : 'কনফার্ম পেমেন্ট',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,

@@ -1,19 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
-class ExpenseCreatePage extends StatelessWidget {
-  const ExpenseCreatePage({
-    super.key,
-    required this.categoryName,
-  });
+class ExpenseCreatePage extends ConsumerStatefulWidget {
+  const ExpenseCreatePage({super.key, required this.categoryName});
 
   final String categoryName;
+
+  @override
+  ConsumerState<ExpenseCreatePage> createState() => _ExpenseCreatePageState();
+}
+
+class _ExpenseCreatePageState extends ConsumerState<ExpenseCreatePage> {
+  final _amountController = TextEditingController();
+  final _reasonController = TextEditingController();
+  final _noteController = TextEditingController();
+  var _expenseDate = DateTime.now();
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _reasonController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,19 +79,29 @@ class ExpenseCreatePage extends StatelessWidget {
                   ),
                   child: ListView(
                     children: [
-                      _AmountCard(categoryName: categoryName),
+                      _AmountCard(
+                        categoryName: widget.categoryName,
+                        controller: _amountController,
+                      ),
                       const SizedBox(height: AppSpacing.lg),
-                      const _ReasonCard(),
+                      _ReasonCard(controller: _reasonController),
                       const SizedBox(height: AppSpacing.lg),
-                      const _DateTimeRow(),
+                      _DateTimeRow(
+                        value: _expenseDate,
+                        onPickDate: _pickDate,
+                        onPickTime: _pickTime,
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       const _ReceiptUploadCard(),
                       const SizedBox(height: AppSpacing.lg),
-                      const _NoteCard(),
+                      _NoteCard(controller: _noteController),
                     ],
                   ),
                 ),
-                const _ExpenseCreateBottomButton(),
+                _ExpenseCreateBottomButton(
+                  saving: _saving,
+                  onPressed: _saving ? null : _saveExpense,
+                ),
               ],
             ),
           ),
@@ -79,14 +109,108 @@ class ExpenseCreatePage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _saveExpense() async {
+    final amount = _parseAmount(_amountController.text);
+    if (amount <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('খরচের পরিমাণ দিন')));
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      await ref
+          .read(appDatabaseProvider)
+          .saveExpenseLocally(
+            categoryName: widget.categoryName,
+            amount: amount,
+            reason: _reasonController.text,
+            note: _noteController.text,
+            expenseDate: _expenseDate,
+          );
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('খরচ সেভ হয়েছে')));
+      context.pop();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(DateTime.now().year + 5, 12, 31),
+      initialDate: _expenseDate,
+      helpText: 'তারিখ নির্বাচন করুন',
+      cancelText: 'বাতিল',
+      confirmText: 'ঠিক আছে',
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _expenseDate = DateTime(
+        selected.year,
+        selected.month,
+        selected.day,
+        _expenseDate.hour,
+        _expenseDate.minute,
+      );
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_expenseDate),
+      helpText: 'সময় নির্বাচন করুন',
+      cancelText: 'বাতিল',
+      confirmText: 'ঠিক আছে',
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _expenseDate = DateTime(
+        _expenseDate.year,
+        _expenseDate.month,
+        _expenseDate.day,
+        selected.hour,
+        selected.minute,
+      );
+    });
+  }
 }
 
 class _AmountCard extends StatelessWidget {
-  const _AmountCard({
-    required this.categoryName,
-  });
+  const _AmountCard({required this.categoryName, required this.controller});
 
   final String categoryName;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -110,43 +234,17 @@ class _AmountCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '৳ ',
-                  style: textTheme.headlineLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                TextSpan(
-                  text: '০.০০',
-                  style: textTheme.headlineLarge?.copyWith(
-                    color: const Color(0xFFD3D8D6),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+          TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            style: textTheme.headlineLarge?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: 0.32,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
+            decoration: const InputDecoration(prefixText: '৳ '),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -163,7 +261,9 @@ class _AmountCard extends StatelessWidget {
 }
 
 class _ReasonCard extends StatelessWidget {
-  const _ReasonCard();
+  const _ReasonCard({required this.controller});
+
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -176,14 +276,15 @@ class _ReasonCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SectionTitle(
+        children: [
+          const _SectionTitle(
             icon: Icons.category_rounded,
             title: 'খরচের কারণ',
           ),
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
           TextField(
-            decoration: InputDecoration(
+            controller: controller,
+            decoration: const InputDecoration(
               hintText: 'যেমন: গ্যাস কেনা, বিদ্যুৎ বিল',
             ),
           ),
@@ -194,25 +295,35 @@ class _ReasonCard extends StatelessWidget {
 }
 
 class _DateTimeRow extends StatelessWidget {
-  const _DateTimeRow();
+  const _DateTimeRow({
+    required this.value,
+    required this.onPickDate,
+    required this.onPickTime,
+  });
+
+  final DateTime value;
+  final VoidCallback onPickDate;
+  final VoidCallback onPickTime;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: _MiniInfoCard(
             label: 'তারিখ',
-            value: '১৯ April, ২০২৪',
+            value: _dateOnly(value),
             icon: Icons.calendar_month_rounded,
+            onTap: onPickDate,
           ),
         ),
-        SizedBox(width: AppSpacing.md),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _MiniInfoCard(
             label: 'সময়',
-            value: '১১:৪৫ AM',
+            value: _timeOnly(value),
             icon: Icons.access_time_filled_rounded,
+            onTap: onPickTime,
           ),
         ),
       ],
@@ -225,49 +336,58 @@ class _MiniInfoCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    required this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  value,
-                  style: textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
+        child: Ink(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            boxShadow: AppShadows.soft,
           ),
-          Icon(icon, color: AppColors.primary),
-        ],
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      value,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(icon, color: AppColors.primary),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -285,25 +405,15 @@ class _ReceiptUploadCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
+          _SectionTitle(
             icon: Icons.receipt_long_rounded,
             title: 'রসিদ বা ডকুমেন্ট যোগ করুন',
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: const [
-              Expanded(
-                child: _UploadPlaceholderCard(),
-              ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _UploadedReceiptPreview(),
-              ),
-            ],
-          ),
+          SizedBox(height: AppSpacing.md),
+          _UploadPlaceholderCard(),
         ],
       ),
     );
@@ -319,13 +429,11 @@ class _UploadPlaceholderCard extends StatelessWidget {
 
     return Container(
       height: 112,
+      width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFFBFCFB),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(
-          color: const Color(0xFFD5DFDB),
-          style: BorderStyle.solid,
-        ),
+        border: Border.all(color: const Color(0xFFD5DFDB)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -337,66 +445,8 @@ class _UploadPlaceholderCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'ছবি যুক্ত',
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UploadedReceiptPreview extends StatelessWidget {
-  const _UploadedReceiptPreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 112,
-      decoration: BoxDecoration(
-        color: const Color(0xFF9CB0A8),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Transform.rotate(
-              angle: -0.22,
-              child: Container(
-                width: 64,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFD94343),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.close_rounded,
-                color: Colors.white,
-                size: 14,
-              ),
-            ),
+            'ছবি যুক্ত পরে করা হবে',
+            style: textTheme.labelMedium?.copyWith(color: AppColors.textMuted),
           ),
         ],
       ),
@@ -405,7 +455,9 @@ class _UploadedReceiptPreview extends StatelessWidget {
 }
 
 class _NoteCard extends StatelessWidget {
-  const _NoteCard();
+  const _NoteCard({required this.controller});
+
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -418,15 +470,16 @@ class _NoteCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _SectionTitle(
+        children: [
+          const _SectionTitle(
             icon: Icons.notes_rounded,
             title: 'অতিরিক্ত নোট (ঐচ্ছিক)',
           ),
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
           TextField(
+            controller: controller,
             maxLines: 4,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: 'খরচ সম্পর্কে বিস্তারিত কিছু লিখুন...',
             ),
           ),
@@ -437,10 +490,7 @@ class _NoteCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.icon,
-    required this.title,
-  });
+  const _SectionTitle({required this.icon, required this.title});
 
   final IconData icon;
   final String title;
@@ -451,11 +501,13 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(width: AppSpacing.xs),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w800,
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -464,7 +516,13 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ExpenseCreateBottomButton extends StatelessWidget {
-  const _ExpenseCreateBottomButton();
+  const _ExpenseCreateBottomButton({
+    required this.saving,
+    required this.onPressed,
+  });
+
+  final bool saving;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -483,7 +541,7 @@ class _ExpenseCreateBottomButton extends StatelessWidget {
             width: double.infinity,
             height: 72,
             child: ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: onPressed,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -492,9 +550,18 @@ class _ExpenseCreateBottomButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
               ),
-              icon: const Icon(Icons.check_circle_rounded),
+              icon: saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.check_circle_rounded),
               label: Text(
-                'সেভ করুন',
+                saving ? 'সেভ হচ্ছে' : 'সেভ করুন',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -506,4 +573,45 @@ class _ExpenseCreateBottomButton extends StatelessWidget {
       ),
     );
   }
+}
+
+double _parseAmount(String value) {
+  return double.tryParse(value.trim()) ?? 0;
+}
+
+String _dateOnly(DateTime value) {
+  return '${_bnNumber(value.day)} ${_bnMonth(value.month)} ${_bnNumber(value.year)}';
+}
+
+String _timeOnly(DateTime value) {
+  final hour12 = value.hour % 12 == 0 ? 12 : value.hour % 12;
+  final minute = value.minute.toString().padLeft(2, '0');
+  final period = value.hour >= 12 ? 'PM' : 'AM';
+  return '${_bnNumber(hour12)}:${_bnNumber(minute)} $period';
+}
+
+String _bnMonth(int month) {
+  const names = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  return names[month - 1];
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

@@ -20,7 +20,7 @@ return new class extends Migration
                 'owner_taken',
             ]);
             $table->enum('direction', ['in', 'out']);
-            $table->decimal('amount', 12, 2);
+            $table->decimal('amount', 18, 2);
             $table->nullableUuidMorphs('reference');
             $table->string('method')->nullable();
             $table->text('note')->nullable();
@@ -36,3 +36,4 @@ return new class extends Migration
         Schema::dropIfExists('cash_transactions');
     }
 };
+

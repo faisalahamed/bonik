@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CashTransaction;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\PurchasePayment;
@@ -24,6 +25,11 @@ class PurchaseController extends Controller
             'purchases' => Purchase::query()
                 ->where('shop_id', $validated['shop_id'])
                 ->with(['items', 'payments'])
+                ->orderByDesc('created_at')
+                ->get(),
+            'cash_transactions' => CashTransaction::query()
+                ->where('shop_id', $validated['shop_id'])
+                ->where('type', 'purchase_payment')
                 ->orderByDesc('created_at')
                 ->get(),
         ]);
@@ -68,6 +74,19 @@ class PurchaseController extends Controller
             'payments.*.description' => ['nullable', 'string'],
             'payments.*.created_at' => ['nullable', 'date'],
             'payments.*.updated_at' => ['nullable', 'date'],
+
+            'cash_transactions' => ['nullable', 'array'],
+            'cash_transactions.*.id' => ['required', 'uuid'],
+            'cash_transactions.*.shop_id' => ['required', 'uuid', 'exists:shops,id'],
+            'cash_transactions.*.type' => ['required', Rule::in(['purchase_payment'])],
+            'cash_transactions.*.direction' => ['required', Rule::in(['out'])],
+            'cash_transactions.*.amount' => ['required', 'numeric', 'min:0'],
+            'cash_transactions.*.reference_id' => ['nullable', 'uuid'],
+            'cash_transactions.*.reference_type' => ['nullable', 'string', 'max:255'],
+            'cash_transactions.*.method' => ['nullable', 'string', 'max:255'],
+            'cash_transactions.*.note' => ['nullable', 'string'],
+            'cash_transactions.*.created_at' => ['nullable', 'date'],
+            'cash_transactions.*.updated_at' => ['nullable', 'date'],
         ]);
 
         if ($validator->fails()) {
@@ -130,10 +149,32 @@ class PurchaseController extends Controller
                     ],
                 );
             }
+
+            foreach ($data['cash_transactions'] ?? [] as $cashTransaction) {
+                CashTransaction::query()->updateOrCreate(
+                    ['id' => $cashTransaction['id']],
+                    [
+                        'id' => $cashTransaction['id'],
+                        'shop_id' => $cashTransaction['shop_id'],
+                        'type' => 'purchase_payment',
+                        'direction' => 'out',
+                        'amount' => $cashTransaction['amount'],
+                        'reference_id' => $cashTransaction['reference_id'] ?? $purchaseData['id'],
+                        'reference_type' => $cashTransaction['reference_type'] ?? 'purchase',
+                        'method' => $cashTransaction['method'] ?? null,
+                        'note' => $cashTransaction['note'] ?? null,
+                        'created_at' => $cashTransaction['created_at'] ?? now(),
+                        'updated_at' => $cashTransaction['updated_at'] ?? now(),
+                    ],
+                );
+            }
         });
 
         return response()->json([
             'purchase' => Purchase::query()->find($purchaseData['id']),
+            'cash_transactions' => CashTransaction::query()
+                ->whereIn('id', collect($data['cash_transactions'] ?? [])->pluck('id'))
+                ->get(),
         ], 201);
     }
 }

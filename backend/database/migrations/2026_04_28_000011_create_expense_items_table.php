@@ -12,7 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('category_id')->constrained()->cascadeOnDelete();
-            $table->decimal('amount', 10, 2);
+            $table->decimal('amount', 18, 2);
             $table->text('note')->nullable();
             $table->timestamps();
 
@@ -25,3 +25,4 @@ return new class extends Migration
         Schema::dropIfExists('expense_items');
     }
 };
+

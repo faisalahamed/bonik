@@ -1,16 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class SalesHistoryDetailsPage extends StatelessWidget {
-  const SalesHistoryDetailsPage({super.key});
+final _saleProvider = StreamProvider.family<LocalSale?, String>(
+  (ref, id) => ref.watch(appDatabaseProvider).watchSaleById(id),
+);
+
+final _saleItemsProvider =
+    StreamProvider.family<List<LocalSaleItemDetail>, String>(
+      (ref, id) => ref.watch(appDatabaseProvider).watchSaleItemDetails(id),
+    );
+
+final _salePaymentsProvider =
+    StreamProvider.family<List<LocalCustomerPayment>, String>(
+      (ref, id) => ref.watch(appDatabaseProvider).watchCustomerPayments(id),
+    );
+
+final _customerProvider = StreamProvider.family<LocalCustomer?, String>(
+  (ref, id) => ref.watch(appDatabaseProvider).watchCustomerById(id),
+);
+
+class SalesHistoryDetailsPage extends ConsumerWidget {
+  const SalesHistoryDetailsPage({super.key, required this.saleId});
+
+  final String? saleId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = saleId;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -19,54 +43,125 @@ class SalesHistoryDetailsPage extends StatelessWidget {
           Expanded(
             child: Stack(
               children: [
-                Positioned(
-                  top: -90,
-                  right: -80,
-                  child: Container(
-                    width: 240,
-                    height: 240,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowTop,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -120,
-                  left: -80,
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowBottom,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    96,
-                  ),
-                  children: const [
-                    _CustomerCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _SoldProductsCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _SummaryCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _PaymentInfoCard(),
-                    SizedBox(height: AppSpacing.md),
-                  ],
-                ),
+                const _BackgroundGlow(),
+                if (id == null || id.isEmpty)
+                  const _CenteredMessage(message: 'বিক্রির তথ্য পাওয়া যায়নি')
+                else
+                  ref
+                      .watch(_saleProvider(id))
+                      .when(
+                        data: (sale) {
+                          if (sale == null) {
+                            return const _CenteredMessage(
+                              message: 'বিক্রির তথ্য পাওয়া যায়নি',
+                            );
+                          }
+
+                          final customer = ref.watch(
+                            _customerProvider(sale.customerId),
+                          );
+                          final items = ref.watch(_saleItemsProvider(id));
+                          final payments = ref.watch(_salePaymentsProvider(id));
+
+                          return _DetailsContent(
+                            sale: sale,
+                            customer: customer.valueOrNull,
+                            items: items.valueOrNull ?? const [],
+                            payments: payments.valueOrNull ?? const [],
+                          );
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, stackTrace) => const _CenteredMessage(
+                          message: 'বিক্রির তথ্য লোড করা যায়নি',
+                        ),
+                      ),
                 const _BottomActionBar(),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BackgroundGlow extends StatelessWidget {
+  const _BackgroundGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned(
+          top: -90,
+          right: -80,
+          child: Container(
+            width: 240,
+            height: 240,
+            decoration: const BoxDecoration(
+              gradient: AppGradients.backgroundGlowTop,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -120,
+          left: -80,
+          child: Container(
+            width: 260,
+            height: 260,
+            decoration: const BoxDecoration(
+              gradient: AppGradients.backgroundGlowBottom,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailsContent extends StatelessWidget {
+  const _DetailsContent({
+    required this.sale,
+    required this.customer,
+    required this.items,
+    required this.payments,
+  });
+
+  final LocalSale sale;
+  final LocalCustomer? customer;
+  final List<LocalSaleItemDetail> items;
+  final List<LocalCustomerPayment> payments;
+
+  @override
+  Widget build(BuildContext context) {
+    final paidAmount = payments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.payments,
+    );
+    final dueAmount = sale.total - paidAmount;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        96,
+      ),
+      children: [
+        _SaleSummaryCard(sale: sale),
+        const SizedBox(height: AppSpacing.md),
+        _CustomerCard(customer: customer),
+        const SizedBox(height: AppSpacing.md),
+        _SoldProductsCard(items: items),
+        const SizedBox(height: AppSpacing.md),
+        _SummaryCard(sale: sale, paidAmount: paidAmount, dueAmount: dueAmount),
+        const SizedBox(height: AppSpacing.md),
+        _PaymentInfoCard(payments: payments, paymentMethod: sale.paymentMethod),
+        const SizedBox(height: AppSpacing.md),
+      ],
     );
   }
 }
@@ -115,8 +210,10 @@ class _SalesDetailsTopBar extends StatelessWidget {
   }
 }
 
-class _CustomerCard extends StatelessWidget {
-  const _CustomerCard();
+class _SaleSummaryCard extends StatelessWidget {
+  const _SaleSummaryCard({required this.sale});
+
+  final LocalSale sale;
 
   @override
   Widget build(BuildContext context) {
@@ -124,11 +221,100 @@ class _CustomerCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+      decoration: _cardDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'রিসিপ্ট আইডি',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '#${sale.id.substring(0, 8).toUpperCase()}',
+                  style: textTheme.titleLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      size: 15,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _dateTime(sale.createdAt),
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'মোট মূল্য',
+                style: textTheme.labelSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _money(sale.total),
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                sale.syncStatus == 'pending' ? 'সিঙ্ক বাকি' : 'সিঙ্কড',
+                style: textTheme.labelSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _CustomerCard extends StatelessWidget {
+  const _CustomerCard({required this.customer});
+
+  final LocalCustomer? customer;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final details = _customerDetails(customer);
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: _cardDecoration(),
       child: Row(
         children: [
           Container(
@@ -148,7 +334,7 @@ class _CustomerCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'আতিক আহমেদ',
+                  customer?.name ?? 'Walk-in Customer',
                   style: textTheme.titleLarge?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -156,10 +342,11 @@ class _CustomerCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '📞 +৮৮০ ১৭০০০০০০০০',
+                  details,
                   style: textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -172,20 +359,18 @@ class _CustomerCard extends StatelessWidget {
 }
 
 class _SoldProductsCard extends StatelessWidget {
-  const _SoldProductsCard();
+  const _SoldProductsCard({required this.items});
+
+  final List<LocalSaleItemDetail> items;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Padding(
+        children: [
+          const Padding(
             padding: EdgeInsets.all(AppSpacing.lg),
             child: Row(
               children: [
@@ -202,21 +387,19 @@ class _SoldProductsCard extends StatelessWidget {
               ],
             ),
           ),
-          _SoldTableHeader(),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _SoldItemRow(
-            emoji: '🥣',
-            quantity: 'x৩',
-            unitPrice: '৳ ৬০.০০',
-            totalPrice: '৳ ১৮০.০০',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _SoldItemRow(
-            emoji: '🧴',
-            quantity: 'x১',
-            unitPrice: '৳ ৪৮০.০০',
-            totalPrice: '৳ ৪৮০.০০',
-          ),
+          const _SoldTableHeader(),
+          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+          if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Text('কোনো পণ্য পাওয়া যায়নি'),
+            )
+          else
+            for (var i = 0; i < items.length; i++) ...[
+              _SoldItemRow(item: items[i]),
+              if (i != items.length - 1)
+                const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+            ],
         ],
       ),
     );
@@ -267,17 +450,9 @@ class _SoldTableHeader extends StatelessWidget {
 }
 
 class _SoldItemRow extends StatelessWidget {
-  const _SoldItemRow({
-    required this.emoji,
-    required this.quantity,
-    required this.unitPrice,
-    required this.totalPrice,
-  });
+  const _SoldItemRow({required this.item});
 
-  final String emoji;
-  final String quantity;
-  final String unitPrice;
-  final String totalPrice;
+  final LocalSaleItemDetail item;
 
   @override
   Widget build(BuildContext context) {
@@ -289,25 +464,35 @@ class _SoldItemRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 4,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
+                Text(
+                  item.productName,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
                   ),
-                  alignment: Alignment.center,
-                  child: Text(emoji, style: const TextStyle(fontSize: 28)),
                 ),
+                if (item.description?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.description!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              quantity,
+              'x${_bnNumber(item.quantity)}',
               style: textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
@@ -317,7 +502,7 @@ class _SoldItemRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              unitPrice,
+              _money(item.salePrice),
               style: textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,
@@ -327,7 +512,7 @@ class _SoldItemRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Text(
-              totalPrice,
+              _money(item.price),
               textAlign: TextAlign.right,
               style: textTheme.titleMedium?.copyWith(
                 color: AppColors.primary,
@@ -342,7 +527,15 @@ class _SoldItemRow extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard();
+  const _SummaryCard({
+    required this.sale,
+    required this.paidAmount,
+    required this.dueAmount,
+  });
+
+  final LocalSale sale;
+  final double paidAmount;
+  final double dueAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -350,26 +543,40 @@ class _SummaryCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         children: [
-          _SummaryRow(label: 'মোট', value: '৳ ৬৩০.০০', textTheme: textTheme),
+          _SummaryRow(
+            label: 'সাবটোটাল',
+            value: _money(sale.subtotal),
+            textTheme: textTheme,
+          ),
           const SizedBox(height: AppSpacing.sm),
           _SummaryRow(
-            label: 'ডেলিভারি চার্জ',
-            value: '৳ ৩০.০০',
+            label: 'ভ্যাট',
+            value: _money(sale.vat),
             textTheme: textTheme,
           ),
           const SizedBox(height: AppSpacing.sm),
           _SummaryRow(
             label: 'ডিসকাউন্ট',
-            value: '- ৳ ৩০.০০',
+            value: '- ${_money(sale.discount)}',
             textTheme: textTheme,
             valueColor: const Color(0xFFD9534F),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SummaryRow(
+            label: 'পরিশোধ',
+            value: _money(paidAmount),
+            textTheme: textTheme,
+            valueColor: AppColors.primary,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SummaryRow(
+            label: 'বাকি',
+            value: _money(dueAmount < 0 ? 0 : dueAmount),
+            textTheme: textTheme,
+            valueColor: dueAmount > 0 ? const Color(0xFFD9534F) : null,
           ),
           const SizedBox(height: AppSpacing.lg),
           Row(
@@ -381,13 +588,17 @@ class _SummaryCard extends StatelessWidget {
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFE7E6),
+                  color: dueAmount > 0
+                      ? const Color(0xFFFFE7E6)
+                      : const Color(0xFFE4FBF6),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'পরিশোধ করা হয়নি',
+                  dueAmount > 0 ? 'বাকি আছে' : 'পরিশোধ হয়েছে',
                   style: textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFFD9534F),
+                    color: dueAmount > 0
+                        ? const Color(0xFFD9534F)
+                        : const Color(0xFF1A9F83),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -404,7 +615,7 @@ class _SummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '৳ ৬৬০.০০',
+                    _money(sale.total),
                     style: textTheme.headlineMedium?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
@@ -458,10 +669,18 @@ class _SummaryRow extends StatelessWidget {
 }
 
 class _PaymentInfoCard extends StatelessWidget {
-  const _PaymentInfoCard();
+  const _PaymentInfoCard({required this.payments, required this.paymentMethod});
+
+  final List<LocalCustomerPayment> payments;
+  final String? paymentMethod;
 
   @override
   Widget build(BuildContext context) {
+    final totalPaid = payments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.payments,
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -488,7 +707,7 @@ class _PaymentInfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'কাস্টমারের সকল পেমেন্ট তথ্য',
+                  _paymentMethodText(paymentMethod),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
@@ -496,7 +715,7 @@ class _PaymentInfoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '৳ ২১,৪৫০.০০',
+                  _money(totalPaid),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -587,4 +806,101 @@ class _BottomActionBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CenteredMessage extends StatelessWidget {
+  const _CenteredMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+BoxDecoration _cardDecoration() {
+  return BoxDecoration(
+    color: AppColors.surfaceContainerLowest,
+    borderRadius: BorderRadius.circular(AppRadii.xl),
+    boxShadow: AppShadows.soft,
+  );
+}
+
+String _customerDetails(LocalCustomer? customer) {
+  final parts = [
+    customer?.phone == null || customer!.phone!.trim().isEmpty
+        ? null
+        : 'ফোন: ${_bnNumber(customer.phone!)}',
+    customer?.email,
+    customer?.address,
+    customer?.notes,
+  ].where((value) => value != null && value.trim().isNotEmpty).toList();
+
+  if (parts.isEmpty) {
+    return 'যোগাযোগের তথ্য নেই';
+  }
+
+  return parts.join('\n');
+}
+
+String _paymentMethodText(String? method) {
+  return switch (method) {
+    'cash' => 'নগদ টাকা',
+    'mobile_banking' => 'বিকাশ/নগদ',
+    'due' => 'বাকি',
+    _ => 'পেমেন্ট তথ্য',
+  };
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _dateTime(DateTime value) {
+  final hour12 = value.hour % 12 == 0 ? 12 : value.hour % 12;
+  final minute = value.minute.toString().padLeft(2, '0');
+  final period = value.hour >= 12 ? 'PM' : 'AM';
+  return '${_bnNumber(value.day)} ${_bnMonth(value.month)}, ${_bnNumber(value.year)} | ${_bnNumber(hour12)}:${_bnNumber(minute)} $period';
+}
+
+String _bnMonth(int month) {
+  const names = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  return names[month - 1];
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

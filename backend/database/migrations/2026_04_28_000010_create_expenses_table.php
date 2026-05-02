@@ -12,7 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('shop_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('category_id')->constrained()->cascadeOnDelete();
-            $table->decimal('total', 10, 2);
+            $table->decimal('total', 18, 2);
             $table->timestamps();
 
             $table->index(['shop_id', 'category_id']);
@@ -24,3 +24,4 @@ return new class extends Migration
         Schema::dropIfExists('expenses');
     }
 };
+

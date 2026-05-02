@@ -28,7 +28,7 @@ class CategorySyncService {
   }
 
   Future<void> _pushPending() async {
-    final pendingCategories = await database.getPendingProductCategories();
+    final pendingCategories = await database.getPendingCategories();
 
     for (final category in pendingCategories) {
       final response = await apiClient.postJson(
@@ -59,7 +59,7 @@ class CategorySyncService {
   Future<void> _pullCurrentShop(String shopId) async {
     final response = await apiClient.getJson(
       '/categories',
-      queryParameters: {'shop_id': shopId, 'type': 'product'},
+      queryParameters: {'shop_id': shopId},
     );
 
     final rawCategories = response['categories'];
