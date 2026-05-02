@@ -10,6 +10,10 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/ping', function () {
+    return ['status' => 'ok'];
+});
+
 Route::post('/auth/login', [LoginController::class, 'store']);
 Route::post('/auth/signup/send-otp', [SignupOtpController::class, 'store']);
 Route::post('/auth/signup/verify-otp', [SignupOtpController::class, 'verify']);
