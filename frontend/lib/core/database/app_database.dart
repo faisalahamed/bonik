@@ -1798,9 +1798,43 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<LocalSaleBundle>> getPendingSaleBundles() async {
+    final pendingSaleIds = await customSelect(
+      '''
+      SELECT s.id
+      FROM local_sales s
+      WHERE s.sync_status != 'synced'
+        OR EXISTS (
+          SELECT 1 FROM local_sale_items si
+          WHERE si.order_id = s.id AND si.sync_status != 'synced'
+        )
+        OR EXISTS (
+          SELECT 1 FROM local_customer_payments cp
+          WHERE cp.order_id = s.id AND cp.sync_status != 'synced'
+        )
+        OR EXISTS (
+          SELECT 1 FROM local_cash_transactions ct
+          WHERE ct.reference_id = s.id
+            AND ct.type IN ('sale', 'customer_payment')
+            AND ct.sync_status != 'synced'
+        )
+      ''',
+      readsFrom: {
+        localSales,
+        localSaleItems,
+        localCustomerPayments,
+        localCashTransactions,
+      },
+    ).get();
+    final saleIds = pendingSaleIds
+        .map((row) => row.read<String>('id'))
+        .toList(growable: false);
+    if (saleIds.isEmpty) {
+      return [];
+    }
+
     final pendingSales = await (select(
       localSales,
-    )..where((sale) => sale.syncStatus.equals('pending'))).get();
+    )..where((sale) => sale.id.isIn(saleIds))).get();
     final bundles = <LocalSaleBundle>[];
 
     for (final sale in pendingSales) {
@@ -1814,7 +1848,8 @@ final class AppDatabase extends _$AppDatabase {
           await (select(localCashTransactions)..where(
                 (transaction) =>
                     transaction.referenceId.equals(sale.id) &
-                    transaction.type.equals('sale'),
+                    transaction.type.isIn(['sale', 'customer_payment']) &
+                    transaction.syncStatus.equals('pending'),
               ))
               .get();
       bundles.add(
@@ -1846,7 +1881,7 @@ final class AppDatabase extends _$AppDatabase {
       await (update(localCashTransactions)..where(
             (transaction) =>
                 transaction.referenceId.equals(saleId) &
-                transaction.type.equals('sale'),
+                transaction.type.isIn(['sale', 'customer_payment']),
           ))
           .write(
             const LocalCashTransactionsCompanion(syncStatus: Value('synced')),
@@ -1929,9 +1964,43 @@ final class AppDatabase extends _$AppDatabase {
   Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {
     await ensurePurchasePaymentCashTransactions();
 
+    final pendingPurchaseIds = await customSelect(
+      '''
+      SELECT p.id
+      FROM local_purchases p
+      WHERE p.sync_status != 'synced'
+        OR EXISTS (
+          SELECT 1 FROM local_purchase_items pi
+          WHERE pi.purchase_id = p.id AND pi.sync_status != 'synced'
+        )
+        OR EXISTS (
+          SELECT 1 FROM local_purchase_payments pp
+          WHERE pp.purchase_id = p.id AND pp.sync_status != 'synced'
+        )
+        OR EXISTS (
+          SELECT 1 FROM local_cash_transactions ct
+          WHERE ct.reference_id = p.id
+            AND ct.type = 'purchase_payment'
+            AND ct.sync_status != 'synced'
+        )
+      ''',
+      readsFrom: {
+        localPurchases,
+        localPurchaseItems,
+        localPurchasePayments,
+        localCashTransactions,
+      },
+    ).get();
+    final purchaseIds = pendingPurchaseIds
+        .map((row) => row.read<String>('id'))
+        .toList(growable: false);
+    if (purchaseIds.isEmpty) {
+      return [];
+    }
+
     final pendingPurchases = await (select(
       localPurchases,
-    )..where((purchase) => purchase.syncStatus.equals('pending'))).get();
+    )..where((purchase) => purchase.id.isIn(purchaseIds))).get();
     final bundles = <LocalPurchaseBundle>[];
 
     for (final purchase in pendingPurchases) {
