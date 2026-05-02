@@ -1165,6 +1165,348 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Stream<LocalDuesSummary> watchDuesSummaryForCurrentShop() {
+    return customSelect(
+      '''
+      SELECT
+        COALESCE((
+          SELECT SUM(
+            CASE
+              WHEN (s.total - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+              ), 0.0)) > 0
+              THEN (s.total - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+              ), 0.0))
+              ELSE 0
+            END
+          )
+          FROM local_sales s
+          WHERE s.shop_id IN (
+            SELECT shop_id
+            FROM local_users
+            WHERE is_current = 1
+          )
+        ), 0.0) AS receivable,
+        COALESCE((
+          SELECT SUM(
+            CASE
+              WHEN (p.total - COALESCE((
+                SELECT SUM(pp.payments)
+                FROM local_purchase_payments pp
+                WHERE pp.purchase_id = p.id
+              ), 0.0)) > 0
+              THEN (p.total - COALESCE((
+                SELECT SUM(pp.payments)
+                FROM local_purchase_payments pp
+                WHERE pp.purchase_id = p.id
+              ), 0.0))
+              ELSE 0
+            END
+          )
+          FROM local_purchases p
+          WHERE p.shop_id IN (
+            SELECT shop_id
+            FROM local_users
+            WHERE is_current = 1
+          )
+        ), 0.0) AS payable
+      ''',
+      readsFrom: {
+        localSales,
+        localCustomerPayments,
+        localPurchases,
+        localPurchasePayments,
+        localUsers,
+      },
+    ).watchSingle().map(
+      (row) => LocalDuesSummary(
+        receivable: row.read<double>('receivable'),
+        payable: row.read<double>('payable'),
+      ),
+    );
+  }
+
+  Stream<List<LocalDuesLedgerEntry>> watchDuesLedgerForCurrentShop() {
+    return customSelect(
+      '''
+      SELECT *
+      FROM (
+        SELECT
+          s.id AS id,
+          'receivable' AS type,
+          s.customer_id AS party_id,
+          COALESCE(c.name, 'Walk-in Customer') AS name,
+          COALESCE(c.phone, '') AS phone,
+          (s.total - COALESCE((
+            SELECT SUM(cp.payments)
+            FROM local_customer_payments cp
+            WHERE cp.order_id = s.id
+          ), 0.0)) AS due_amount,
+          s.created_at AS created_at,
+          s.sync_status AS sync_status
+        FROM local_sales s
+        LEFT JOIN local_customers c ON c.id = s.customer_id
+        WHERE s.shop_id IN (
+          SELECT shop_id
+          FROM local_users
+          WHERE is_current = 1
+        )
+
+        UNION ALL
+
+        SELECT
+          p.id AS id,
+          'payable' AS type,
+          p.supplier_id AS party_id,
+          COALESCE(sup.name, 'সাপ্লায়ার') AS name,
+          COALESCE(sup.mobile, '') AS phone,
+          (p.total - COALESCE((
+            SELECT SUM(pp.payments)
+            FROM local_purchase_payments pp
+            WHERE pp.purchase_id = p.id
+          ), 0.0)) AS due_amount,
+          p.created_at AS created_at,
+          p.sync_status AS sync_status
+        FROM local_purchases p
+        LEFT JOIN local_suppliers sup ON sup.id = p.supplier_id
+        WHERE p.shop_id IN (
+          SELECT shop_id
+          FROM local_users
+          WHERE is_current = 1
+        )
+      ) ledger
+      WHERE due_amount > 0
+      ORDER BY created_at DESC
+      ''',
+      readsFrom: {
+        localSales,
+        localCustomers,
+        localCustomerPayments,
+        localPurchases,
+        localSuppliers,
+        localPurchasePayments,
+        localUsers,
+      },
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalDuesLedgerEntry(
+            id: row.read<String>('id'),
+            type: row.read<String>('type'),
+            partyId: row.read<String>('party_id'),
+            name: row.read<String>('name'),
+            phone: row.read<String>('phone'),
+            dueAmount: row.read<double>('due_amount'),
+            createdAt: row.read<DateTime>('created_at'),
+            syncStatus: row.read<String>('sync_status'),
+          ),
+      ],
+    );
+  }
+
+  Stream<List<LocalDueHistoryEntry>> watchDueHistoryForLedgerEntry(
+    LocalDuesLedgerEntry entry,
+  ) {
+    final query = entry.isReceivable
+        ? '''
+      SELECT id, total AS amount, created_at, 'sale' AS source_type
+      FROM local_sales
+      WHERE id = ?
+
+      UNION ALL
+
+      SELECT id, payments AS amount, created_at, 'customer_payment' AS source_type
+      FROM local_customer_payments
+      WHERE order_id = ?
+      '''
+        : '''
+      SELECT id, total AS amount, created_at, 'purchase' AS source_type
+      FROM local_purchases
+      WHERE id = ?
+
+      UNION ALL
+
+      SELECT id, payments AS amount, created_at, 'purchase_payment' AS source_type
+      FROM local_purchase_payments
+      WHERE purchase_id = ?
+      ''';
+
+    return customSelect(
+      query,
+      variables: [Variable<String>(entry.id), Variable<String>(entry.id)],
+      readsFrom: entry.isReceivable
+          ? {localSales, localCustomerPayments}
+          : {localPurchases, localPurchasePayments},
+    ).watch().map((rows) {
+      final entries = [
+        for (final row in rows)
+          LocalDueHistoryEntry(
+            id: row.read<String>('id'),
+            sourceType: row.read<String>('source_type'),
+            amount: row.read<double>('amount'),
+            createdAt: row.read<DateTime>('created_at'),
+          ),
+      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      var balance = 0.0;
+      final withBalance = <LocalDueHistoryEntry>[];
+      for (final item in entries) {
+        final increasesDue = entry.isReceivable
+            ? item.sourceType == 'sale'
+            : item.sourceType == 'purchase';
+        balance += increasesDue ? item.amount : -item.amount;
+        withBalance.add(item.copyWith(balance: balance < 0 ? 0 : balance));
+      }
+
+      return withBalance.reversed.toList();
+    });
+  }
+
+  Future<void> saveDueGivingPayment({
+    required LocalDuesLedgerEntry entry,
+    required double amount,
+    required DateTime paymentDate,
+    String? note,
+  }) async {
+    if (entry.isReceivable) {
+      throw StateError('পাওনা আদায়ের জন্য নিচ্ছি ব্যবহার করুন।');
+    }
+    if (amount <= 0) {
+      throw StateError('টাকার পরিমাণ দিন।');
+    }
+    if (amount > entry.dueAmount) {
+      throw StateError('দেনার চেয়ে বেশি টাকা দেয়া যাবে না।');
+    }
+
+    final purchase = await (select(
+      localPurchases,
+    )..where((table) => table.id.equals(entry.id))).getSingleOrNull();
+    if (purchase == null) {
+      throw StateError('কেনার তথ্য পাওয়া যায়নি।');
+    }
+
+    final paymentId = const Uuid().v4();
+    final cashTransactionId = const Uuid().v4();
+    final now = DateTime.now();
+    final trimmedNote = _nullableTrimmed(note);
+
+    await transaction(() async {
+      await into(localPurchasePayments).insert(
+        LocalPurchasePaymentsCompanion(
+          id: Value(paymentId),
+          shopId: Value(purchase.shopId),
+          purchaseId: Value(purchase.id),
+          payments: Value(amount),
+          description: Value(trimmedNote ?? 'বাকি পরিশোধ'),
+          createdAt: Value(paymentDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localCashTransactions).insert(
+        LocalCashTransactionsCompanion(
+          id: Value(cashTransactionId),
+          shopId: Value(purchase.shopId),
+          type: const Value('purchase_payment'),
+          direction: const Value('out'),
+          amount: Value(amount),
+          referenceId: Value(purchase.id),
+          referenceType: const Value('purchase'),
+          method: const Value('cash'),
+          note: Value(trimmedNote ?? 'বাকি পরিশোধ'),
+          createdAt: Value(paymentDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await (update(
+        localPurchases,
+      )..where((table) => table.id.equals(entry.id))).write(
+        LocalPurchasesCompanion(
+          status: Value(
+            amount >= entry.dueAmount ? 'completed' : purchase.status,
+          ),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+  }
+
+  Future<void> saveDueTakingPayment({
+    required LocalDuesLedgerEntry entry,
+    required double amount,
+    required DateTime paymentDate,
+    String? note,
+  }) async {
+    if (!entry.isReceivable) {
+      throw StateError('দেনা পরিশোধের জন্য দিচ্ছি ব্যবহার করুন।');
+    }
+    if (amount <= 0) {
+      throw StateError('টাকার পরিমাণ দিন।');
+    }
+    if (amount > entry.dueAmount) {
+      throw StateError('পাওনার চেয়ে বেশি টাকা নেয়া যাবে না।');
+    }
+
+    final sale = await (select(
+      localSales,
+    )..where((table) => table.id.equals(entry.id))).getSingleOrNull();
+    if (sale == null) {
+      throw StateError('বিক্রির তথ্য পাওয়া যায়নি।');
+    }
+
+    final paymentId = const Uuid().v4();
+    final cashTransactionId = const Uuid().v4();
+    final now = DateTime.now();
+    final trimmedNote = _nullableTrimmed(note);
+
+    await transaction(() async {
+      await into(localCustomerPayments).insert(
+        LocalCustomerPaymentsCompanion(
+          id: Value(paymentId),
+          shopId: Value(sale.shopId),
+          customerId: Value(sale.customerId),
+          orderId: Value(sale.id),
+          payments: Value(amount),
+          description: Value(trimmedNote ?? 'বাকি আদায়'),
+          createdAt: Value(paymentDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localCashTransactions).insert(
+        LocalCashTransactionsCompanion(
+          id: Value(cashTransactionId),
+          shopId: Value(sale.shopId),
+          type: const Value('customer_payment'),
+          direction: const Value('in'),
+          amount: Value(amount),
+          referenceId: Value(sale.id),
+          referenceType: const Value('sale'),
+          method: const Value('cash'),
+          note: Value(trimmedNote ?? 'বাকি আদায়'),
+          createdAt: Value(paymentDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await (update(localSales)..where((table) => table.id.equals(entry.id)))
+          .write(
+            LocalSalesCompanion(
+              status: Value(amount >= entry.dueAmount ? 'completed' : sale.status),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+    });
+  }
+
   Stream<LocalSale?> watchSaleById(String id) {
     return (select(
       localSales,
@@ -1821,6 +2163,63 @@ class LocalSalesHistoryEntry {
   final String syncStatus;
 
   double get dueAmount => total - paidAmount;
+}
+
+class LocalDuesSummary {
+  const LocalDuesSummary({required this.receivable, required this.payable});
+
+  final double receivable;
+  final double payable;
+}
+
+class LocalDuesLedgerEntry {
+  const LocalDuesLedgerEntry({
+    required this.id,
+    required this.type,
+    required this.partyId,
+    required this.name,
+    required this.phone,
+    required this.dueAmount,
+    required this.createdAt,
+    required this.syncStatus,
+  });
+
+  final String id;
+  final String type;
+  final String partyId;
+  final String name;
+  final String phone;
+  final double dueAmount;
+  final DateTime createdAt;
+  final String syncStatus;
+
+  bool get isReceivable => type == 'receivable';
+}
+
+class LocalDueHistoryEntry {
+  const LocalDueHistoryEntry({
+    required this.id,
+    required this.sourceType,
+    required this.amount,
+    required this.createdAt,
+    this.balance = 0,
+  });
+
+  final String id;
+  final String sourceType;
+  final double amount;
+  final DateTime createdAt;
+  final double balance;
+
+  LocalDueHistoryEntry copyWith({double? balance}) {
+    return LocalDueHistoryEntry(
+      id: id,
+      sourceType: sourceType,
+      amount: amount,
+      createdAt: createdAt,
+      balance: balance ?? this.balance,
+    );
+  }
 }
 
 class LocalSaleItemDetail {

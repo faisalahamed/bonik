@@ -1,13 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class DuesTakingPage extends StatelessWidget {
-  const DuesTakingPage({super.key});
+class DuesTakingPage extends ConsumerStatefulWidget {
+  const DuesTakingPage({super.key, this.entry});
+
+  final LocalDuesLedgerEntry? entry;
+
+  @override
+  ConsumerState<DuesTakingPage> createState() => _DuesTakingPageState();
+}
+
+class _DuesTakingPageState extends ConsumerState<DuesTakingPage> {
+  late final TextEditingController _amountController;
+  late final TextEditingController _noteController;
+  late DateTime _paymentDate;
+  var _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentDate = DateTime.now();
+    _amountController = TextEditingController();
+    _noteController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,20 +81,82 @@ class DuesTakingPage extends StatelessWidget {
                     108,
                   ),
                   child: ListView(
-                    children: const [
-                      _TotalTakingCard(),
-                      SizedBox(height: AppSpacing.lg),
-                      _TakingFormCard(),
-                      SizedBox(height: AppSpacing.lg),
+                    children: [
+                      _TotalTakingCard(entry: widget.entry),
+                      const SizedBox(height: AppSpacing.lg),
+                      _TakingFormCard(
+                        amountController: _amountController,
+                        noteController: _noteController,
+                        paymentDate: _paymentDate,
+                        onSelectDate: _selectDate,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
                     ],
                   ),
                 ),
-                const _TakingUpdateButton(),
+                _TakingUpdateButton(saving: _saving, onPressed: _savePayment),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _selectDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: _paymentDate,
+      helpText: 'তারিখ নির্বাচন করুন',
+      cancelText: 'বাতিল',
+      confirmText: 'ঠিক আছে',
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _paymentDate = selected;
+    });
+  }
+
+  Future<void> _savePayment() async {
+    final entry = widget.entry;
+    if (entry == null) {
+      _showMessage('বাকির তথ্য পাওয়া যায়নি।');
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    setState(() => _saving = true);
+    try {
+      await ref.read(appDatabaseProvider).saveDueTakingPayment(
+            entry: entry,
+            amount: amount,
+            paymentDate: _paymentDate,
+            note: _noteController.text,
+          );
+      if (!mounted) {
+        return;
+      }
+      _showMessage('পেমেন্ট সেভ হয়েছে');
+      Navigator.of(context).maybePop();
+    } catch (error) {
+      if (mounted) {
+        _showMessage(error.toString().replaceFirst('Bad state: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
@@ -113,11 +205,14 @@ class _TakingTopBar extends StatelessWidget {
 }
 
 class _TotalTakingCard extends StatelessWidget {
-  const _TotalTakingCard();
+  const _TotalTakingCard({required this.entry});
+
+  final LocalDuesLedgerEntry? entry;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final amount = entry?.dueAmount ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -133,7 +228,7 @@ class _TotalTakingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'মোট নিচ্ছি',
+                  entry == null ? 'মোট নিচ্ছি' : 'পাওনা ব্যালেন্স',
                   style: textTheme.labelMedium?.copyWith(
                     color: const Color(0xFF2B777F),
                     fontWeight: FontWeight.w700,
@@ -141,7 +236,7 @@ class _TotalTakingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '৳ ৫,৪৫০.০০',
+                  _money(amount),
                   style: textTheme.headlineMedium?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -169,7 +264,17 @@ class _TotalTakingCard extends StatelessWidget {
 }
 
 class _TakingFormCard extends StatelessWidget {
-  const _TakingFormCard();
+  const _TakingFormCard({
+    required this.amountController,
+    required this.noteController,
+    required this.paymentDate,
+    required this.onSelectDate,
+  });
+
+  final TextEditingController amountController;
+  final TextEditingController noteController;
+  final DateTime paymentDate;
+  final VoidCallback onSelectDate;
 
   @override
   Widget build(BuildContext context) {
@@ -193,28 +298,35 @@ class _TakingFormCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _TakingInputShell(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    '০৫ এপ্রিল, ২০২৪',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onSelectDate,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              child: _TakingInputShell(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_month_rounded,
+                      color: AppColors.primary,
                     ),
-                  ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        _dateOnly(paymentDate),
+                        style: textTheme.titleMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.textMuted,
+                    ),
+                  ],
                 ),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.textMuted,
-                ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -229,7 +341,7 @@ class _TakingFormCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
-              vertical: AppSpacing.lg,
+              vertical: AppSpacing.sm,
             ),
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLow,
@@ -245,11 +357,29 @@ class _TakingFormCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '0.00',
-                  style: textTheme.headlineLarge?.copyWith(
-                    color: AppColors.textMuted.withOpacity(0.6),
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: TextField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}'),
+                      ),
+                    ],
+                    style: textTheme.headlineLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0.00',
+                      border: InputBorder.none,
+                      hintStyle: textTheme.headlineLarge?.copyWith(
+                        color: AppColors.textMuted.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -278,11 +408,17 @@ class _TakingFormCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(
-                    'কিসের জন্য নিচ্ছি...',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: AppColors.textMuted.withOpacity(0.65),
-                      fontWeight: FontWeight.w600,
+                  child: TextField(
+                    controller: noteController,
+                    minLines: 3,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      hintText: 'কিসের জন্য নিচ্ছি...',
+                      border: InputBorder.none,
+                      hintStyle: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textMuted.withValues(alpha: 0.65),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -319,7 +455,10 @@ class _TakingInputShell extends StatelessWidget {
 }
 
 class _TakingUpdateButton extends StatelessWidget {
-  const _TakingUpdateButton();
+  const _TakingUpdateButton({required this.saving, required this.onPressed});
+
+  final bool saving;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -337,9 +476,9 @@ class _TakingUpdateButton extends StatelessWidget {
             boxShadow: AppShadows.button,
           ),
           child: TextButton(
-            onPressed: () {},
+            onPressed: saving ? null : onPressed,
             child: Text(
-              'আপডেট',
+              saving ? 'সেভ হচ্ছে...' : 'আপডেট',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -350,4 +489,26 @@ class _TakingUpdateButton extends StatelessWidget {
       ),
     );
   }
+}
+
+String _money(double value) {
+  final fixed = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+  return '৳ ${_banglaNumber(fixed)}';
+}
+
+String _dateOnly(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  return _banglaNumber('$day/$month/${value.year}');
+}
+
+String _banglaNumber(String value) {
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bangla = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+  var result = value;
+  for (var i = 0; i < english.length; i++) {
+    result = result.replaceAll(english[i], bangla[i]);
+  }
+  return result;
 }

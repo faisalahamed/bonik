@@ -140,17 +140,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.duesLedgerDetails,
         name: 'dues-ledger-details',
-        builder: (context, state) => const DuesLedgerDetailsPage(),
+        builder: (context, state) => DuesLedgerDetailsPage(
+          entry: state.extra is LocalDuesLedgerEntry
+              ? state.extra! as LocalDuesLedgerEntry
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.duesGiving,
         name: 'dues-giving',
-        builder: (context, state) => const DuesGivingPage(),
+        builder: (context, state) => DuesGivingPage(
+          entry: state.extra is LocalDuesLedgerEntry
+              ? state.extra! as LocalDuesLedgerEntry
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.duesTaking,
         name: 'dues-taking',
-        builder: (context, state) => const DuesTakingPage(),
+        builder: (context, state) => DuesTakingPage(
+          entry: state.extra is LocalDuesLedgerEntry
+              ? state.extra! as LocalDuesLedgerEntry
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.expenses,

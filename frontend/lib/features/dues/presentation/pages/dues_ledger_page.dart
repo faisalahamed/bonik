@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,12 +8,33 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class DuesLedgerPage extends StatelessWidget {
+final _duesSummaryProvider = StreamProvider<LocalDuesSummary>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.watchDuesSummaryForCurrentShop();
+});
+
+final _duesLedgerProvider = StreamProvider<List<LocalDuesLedgerEntry>>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.watchDuesLedgerForCurrentShop();
+});
+
+class DuesLedgerPage extends ConsumerStatefulWidget {
   const DuesLedgerPage({super.key});
 
   @override
+  ConsumerState<DuesLedgerPage> createState() => _DuesLedgerPageState();
+}
+
+class _DuesLedgerPageState extends ConsumerState<DuesLedgerPage> {
+  var _selectedFilter = _DuesLedgerFilter.all;
+
+  @override
   Widget build(BuildContext context) {
+    final summary = ref.watch(_duesSummaryProvider).valueOrNull;
+    final ledgerEntries = ref.watch(_duesLedgerProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -52,62 +74,54 @@ class DuesLedgerPage extends StatelessWidget {
                     AppSpacing.md,
                     AppSpacing.lg,
                   ),
-                  children: const [
-                    _ReceivablePayableRow(),
-                    SizedBox(height: AppSpacing.lg),
-                    _DuesSearchBox(),
-                    SizedBox(height: AppSpacing.md),
-                    _DuesFilterRow(),
-                    SizedBox(height: AppSpacing.lg),
-                    _DuesSectionTitle(title: 'সাম্প্রতিক লেনদেন'),
-                    SizedBox(height: AppSpacing.md),
-                    _DuesPersonCard(
-                      initials: 'আ',
-                      name: 'আবুুর রহমান',
-                      phone: '০১৭০০-০০০০০০',
-                      timeText: '২ ঘন্টা',
-                      dateText: 'আজ',
-                      amountLabel: 'পাবে',
-                      amount: '৳ ১২,৫০০',
-                      amountBackground: Color(0xFFD8F8E8),
-                      amountColor: AppColors.primary,
+                  children: [
+                    _ReceivablePayableRow(
+                      receivable: summary?.receivable ?? 0,
+                      payable: summary?.payable ?? 0,
                     ),
-                    SizedBox(height: AppSpacing.md),
-                    _DuesPersonCard(
-                      initials: 'ম',
-                      name: 'স্যানিটারি সিস্টেমস',
-                      phone: '০১৮০০-১১১২২২',
-                      timeText: '৩ ঘন্টা',
-                      dateText: 'গতকাল',
-                      amountLabel: 'দিবে',
-                      amount: '৳ ৪৫,০০০',
-                      amountBackground: Color(0xFFFFE3E3),
-                      amountColor: Color(0xFFD9534F),
+                    const SizedBox(height: AppSpacing.lg),
+                    const _DuesSearchBox(),
+                    const SizedBox(height: AppSpacing.md),
+                    _DuesFilterRow(
+                      selectedFilter: _selectedFilter,
+                      onFilterSelected: (filter) {
+                        setState(() {
+                          _selectedFilter = filter;
+                        });
+                      },
                     ),
-                    SizedBox(height: AppSpacing.md),
-                    _DuesPersonCard(
-                      initials: 'ক',
-                      name: 'কামরুল ইসলাম',
-                      phone: '০১৯০০-৩৩৬৮৮৮',
-                      timeText: '১৫ মে, ২০২৪',
-                      dateText: '',
-                      amountLabel: 'পাবে',
-                      amount: '৳ ২,২০০',
-                      amountBackground: Color(0xFFD8F8E8),
-                      amountColor: AppColors.primary,
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _DuesPersonCard(
-                      initials: 'জ',
-                      name: 'জাকির হক',
-                      phone: '০১৬০০-৫৫৫৬৬৬',
-                      timeText: '১০ মে, ২০২৪',
-                      dateText: '',
-                      amountLabel: 'পাবে',
-                      amount: '৳ ৮৫০',
-                      amountBackground: Color(0xFFD8F8E8),
-                      amountColor: AppColors.primary,
-                      mutedAvatar: true,
+                    const SizedBox(height: AppSpacing.lg),
+                    const _DuesSectionTitle(title: 'সাম্প্রতিক লেনদেন'),
+                    const SizedBox(height: AppSpacing.md),
+                    ...ledgerEntries.when(
+                      data: (entries) {
+                        final filteredEntries = _filterEntries(
+                          entries,
+                          _selectedFilter,
+                        );
+
+                        if (filteredEntries.isEmpty) {
+                          return [
+                            _DuesEmptyCard(
+                              message: _emptyMessage(_selectedFilter),
+                            ),
+                          ];
+                        }
+
+                        return [
+                          for (var i = 0; i < filteredEntries.length; i++) ...[
+                            _DuesPersonCard.fromEntry(filteredEntries[i]),
+                            if (i != filteredEntries.length - 1)
+                              const SizedBox(height: AppSpacing.md),
+                          ],
+                        ];
+                      },
+                      loading: () => [
+                        const Center(child: CircularProgressIndicator()),
+                      ],
+                      error: (error, stackTrace) => [
+                        const _DuesEmptyCard(message: 'বাকির ডাটা পাওয়া যায়নি'),
+                      ],
                     ),
                   ],
                 ),
@@ -149,9 +163,9 @@ class _DuesTopBar extends StatelessWidget {
                   child: Text(
                     'বাকির খাতা',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
@@ -164,25 +178,31 @@ class _DuesTopBar extends StatelessWidget {
 }
 
 class _ReceivablePayableRow extends StatelessWidget {
-  const _ReceivablePayableRow();
+  const _ReceivablePayableRow({
+    required this.receivable,
+    required this.payable,
+  });
+
+  final double receivable;
+  final double payable;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: _AmountSummaryCard(
-            title: 'পাবে (RECEIVABLE)',
-            amount: '৳ ৪,৫০,০০০',
+            title: 'পাবো (RECEIVABLE)',
+            amount: _money(receivable),
             accentColor: AppColors.secondary,
             amountColor: AppColors.primary,
           ),
         ),
-        SizedBox(width: AppSpacing.md),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _AmountSummaryCard(
-            title: 'দিবে (PAYABLE)',
-            amount: '৳ ১,২০,০০০',
+            title: 'দিবো (PAYABLE)',
+            amount: _money(payable),
             accentColor: Color(0xFFD9534F),
             amountColor: Color(0xFFD9534F),
           ),
@@ -234,17 +254,17 @@ class _AmountSummaryCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     amount,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: amountColor,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: amountColor,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -285,19 +305,43 @@ class _DuesSearchBox extends StatelessWidget {
 }
 
 class _DuesFilterRow extends StatelessWidget {
-  const _DuesFilterRow();
+  const _DuesFilterRow({
+    required this.selectedFilter,
+    required this.onFilterSelected,
+  });
+
+  final _DuesLedgerFilter selectedFilter;
+  final ValueChanged<_DuesLedgerFilter> onFilterSelected;
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
-        Expanded(child: _DuesFilterChip(label: '∞ সব', active: true)),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _DuesFilterChip(label: '↙ পাবে')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _DuesFilterChip(label: '↗ দিবে')),
-        SizedBox(width: AppSpacing.sm),
-        _DuesSortChip(),
+      children: [
+        Expanded(
+          child: _DuesFilterChip(
+            label: '∞ সব',
+            active: selectedFilter == _DuesLedgerFilter.all,
+            onTap: () => onFilterSelected(_DuesLedgerFilter.all),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _DuesFilterChip(
+            label: '↙ পাবো',
+            active: selectedFilter == _DuesLedgerFilter.receivable,
+            onTap: () => onFilterSelected(_DuesLedgerFilter.receivable),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _DuesFilterChip(
+            label: '↗ দিবো',
+            active: selectedFilter == _DuesLedgerFilter.payable,
+            onTap: () => onFilterSelected(_DuesLedgerFilter.payable),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        const _DuesSortChip(),
       ],
     );
   }
@@ -306,28 +350,38 @@ class _DuesFilterRow extends StatelessWidget {
 class _DuesFilterChip extends StatelessWidget {
   const _DuesFilterChip({
     required this.label,
+    required this.onTap,
     this.active = false,
   });
 
   final String label;
+  final VoidCallback onTap;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : AppColors.surfaceContainer,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: active ? Colors.white : AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
+        child: Ink(
+          height: 42,
+          decoration: BoxDecoration(
+            gradient: active ? AppGradients.primaryButton : null,
+            color: active ? null : AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: active ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+        ),
       ),
     );
   }
@@ -345,18 +399,13 @@ class _DuesSortChip extends StatelessWidget {
         color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.lg),
       ),
-      child: const Icon(
-        Icons.tune_rounded,
-        color: AppColors.primary,
-      ),
+      child: const Icon(Icons.tune_rounded, color: AppColors.primary),
     );
   }
 }
 
 class _DuesSectionTitle extends StatelessWidget {
-  const _DuesSectionTitle({
-    required this.title,
-  });
+  const _DuesSectionTitle({required this.title});
 
   final String title;
 
@@ -365,9 +414,9 @@ class _DuesSectionTitle extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }
@@ -384,7 +433,27 @@ class _DuesPersonCard extends StatelessWidget {
     required this.amountBackground,
     required this.amountColor,
     this.mutedAvatar = false,
+    this.entry,
   });
+
+  factory _DuesPersonCard.fromEntry(LocalDuesLedgerEntry entry) {
+    final receivable = entry.isReceivable;
+    return _DuesPersonCard(
+      initials: _initials(entry.name),
+      name: entry.name,
+      phone: entry.phone.isEmpty ? 'নম্বর নেই' : entry.phone,
+      timeText: _relativeDate(entry.createdAt),
+      dateText: _dateOnly(entry.createdAt),
+      amountLabel: receivable ? 'পাবো' : 'দিবো',
+      amount: _money(entry.dueAmount),
+      amountBackground: receivable
+          ? const Color(0xFFD8F8E8)
+          : const Color(0xFFFFE3E3),
+      amountColor: receivable ? AppColors.primary : const Color(0xFFD9534F),
+      mutedAvatar: !receivable,
+      entry: entry,
+    );
+  }
 
   final String initials;
   final String name;
@@ -396,6 +465,7 @@ class _DuesPersonCard extends StatelessWidget {
   final Color amountBackground;
   final Color amountColor;
   final bool mutedAvatar;
+  final LocalDuesLedgerEntry? entry;
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +474,7 @@ class _DuesPersonCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.push(AppRoutes.duesLedgerDetails),
+        onTap: () => context.push(AppRoutes.duesLedgerDetails, extra: entry),
         borderRadius: BorderRadius.circular(AppRadii.xl),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -416,88 +486,89 @@ class _DuesPersonCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: mutedAvatar
-                  ? const Color(0xFFEAEAE8)
-                  : const Color(0xFFB9F3E7),
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initials,
-              style: textTheme.titleLarge?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: textTheme.titleMedium?.copyWith(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: mutedAvatar
+                      ? const Color(0xFFEAEAE8)
+                      : const Color(0xFFB9F3E7),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initials,
+                  style: textTheme.titleLarge?.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$phone ${dateText.isNotEmpty ? '•' : ''} $timeText'.trim(),
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (dateText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    dateText,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$phone ${dateText.isNotEmpty ? '•' : ''} $timeText'
+                          .trim(),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (dateText.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        dateText,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               const SizedBox(width: AppSpacing.sm),
               Container(
-            width: 98,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: amountBackground,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  amountLabel,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: amountColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+                width: 98,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.sm,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  amount,
-                  textAlign: TextAlign.right,
-                  style: textTheme.titleLarge?.copyWith(
-                    color: amountColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+                decoration: BoxDecoration(
+                  color: amountBackground,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
-              ],
-            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      amountLabel,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: amountColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      amount,
+                      textAlign: TextAlign.right,
+                      style: textTheme.titleLarge?.copyWith(
+                        color: amountColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -505,4 +576,105 @@ class _DuesPersonCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DuesEmptyCard extends StatelessWidget {
+  const _DuesEmptyCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+String _money(double value) {
+  final fixed = value.toStringAsFixed(
+    value.truncateToDouble() == value ? 0 : 2,
+  );
+  return '৳ ${_banglaNumber(fixed)}';
+}
+
+String _initials(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) {
+    return '?';
+  }
+
+  return String.fromCharCode(trimmed.runes.first).toUpperCase();
+}
+
+String _relativeDate(DateTime value) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final date = DateTime(value.year, value.month, value.day);
+  final difference = today.difference(date).inDays;
+
+  if (difference == 0) {
+    return 'আজ';
+  }
+  if (difference == 1) {
+    return 'গতকাল';
+  }
+  if (difference > 1 && difference < 7) {
+    return '${_banglaNumber(difference.toString())} দিন আগে';
+  }
+
+  return _dateOnly(value);
+}
+
+String _dateOnly(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  return _banglaNumber('$day/$month/${value.year}');
+}
+
+enum _DuesLedgerFilter { all, receivable, payable }
+
+List<LocalDuesLedgerEntry> _filterEntries(
+  List<LocalDuesLedgerEntry> entries,
+  _DuesLedgerFilter filter,
+) {
+  return switch (filter) {
+    _DuesLedgerFilter.all => entries,
+    _DuesLedgerFilter.receivable =>
+      entries.where((entry) => entry.isReceivable).toList(),
+    _DuesLedgerFilter.payable =>
+      entries.where((entry) => !entry.isReceivable).toList(),
+  };
+}
+
+String _emptyMessage(_DuesLedgerFilter filter) {
+  return switch (filter) {
+    _DuesLedgerFilter.all => 'কোনো বাকি লেনদেন নেই',
+    _DuesLedgerFilter.receivable => 'পাওয়ার মতো কোনো বাকি নেই',
+    _DuesLedgerFilter.payable => 'দেওয়ার মতো কোনো বাকি নেই',
+  };
+}
+
+String _banglaNumber(String value) {
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bangla = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+  var result = value;
+  for (var i = 0; i < english.length; i++) {
+    result = result.replaceAll(english[i], bangla[i]);
+  }
+  return result;
 }

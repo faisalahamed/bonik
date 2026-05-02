@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,12 +8,25 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class DuesLedgerDetailsPage extends StatelessWidget {
-  const DuesLedgerDetailsPage({super.key});
+final _dueHistoryProvider =
+    StreamProvider.family<List<LocalDueHistoryEntry>, LocalDuesLedgerEntry>(
+      (ref, entry) =>
+          ref.watch(appDatabaseProvider).watchDueHistoryForLedgerEntry(entry),
+    );
+
+class DuesLedgerDetailsPage extends ConsumerWidget {
+  const DuesLedgerDetailsPage({super.key, this.entry});
+
+  final LocalDuesLedgerEntry? entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = entry == null
+        ? null
+        : ref.watch(_dueHistoryProvider(entry!));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -52,20 +66,31 @@ class DuesLedgerDetailsPage extends StatelessWidget {
                     AppSpacing.md,
                     108,
                   ),
-                  children: const [
-                    _ProfileSummaryCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _DateRangeCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _PeriodTabs(),
-                    SizedBox(height: AppSpacing.lg),
-                    _HistoryTitle(),
-                    SizedBox(height: AppSpacing.sm),
-                    _DueHistoryCard(),
-                    SizedBox(height: AppSpacing.xl),
+                  children: [
+                    _ProfileSummaryCard(entry: entry),
+                    const SizedBox(height: AppSpacing.md),
+                    const _HistoryTitle(),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (entry == null)
+                      const _DueHistoryCard(
+                        rows: [],
+                        errorMessage: 'বাকির তথ্য পাওয়া যায়নি',
+                      )
+                    else
+                      history!.when(
+                        data: (rows) =>
+                            _DueHistoryCard(entry: entry!, rows: rows),
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, stackTrace) => const _DueHistoryCard(
+                          rows: [],
+                          errorMessage: 'বাকির হিস্টোরি পাওয়া যায়নি',
+                        ),
+                      ),
+                    const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
-                const _DueBottomActions(),
+                _DueBottomActions(entry: entry),
               ],
             ),
           ),
@@ -80,38 +105,44 @@ class _DueDetailsTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 72,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'Bakir Biboron',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'বাকির বিবরণ (Dues Ledger)',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -120,11 +151,25 @@ class _DueDetailsTopBar extends StatelessWidget {
 }
 
 class _ProfileSummaryCard extends StatelessWidget {
-  const _ProfileSummaryCard();
+  const _ProfileSummaryCard({required this.entry});
+
+  final LocalDuesLedgerEntry? entry;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final name = entry?.name ?? 'Habib Rahman';
+    final phone = entry?.phone.isEmpty ?? true
+        ? '+880 1712-345678'
+        : entry!.phone;
+    final receivable = entry?.isReceivable ?? true;
+    final balance = entry?.dueAmount ?? 500.5;
+    final accentColor = receivable
+        ? AppColors.secondary
+        : const Color(0xFFD9534F);
+    final balanceColor = receivable
+        ? AppColors.primary
+        : const Color(0xFFD9534F);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -146,7 +191,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  'H',
+                  _initials(name),
                   style: textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -159,7 +204,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Habib Rahman',
+                      name,
                       style: textTheme.titleLarge?.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w800,
@@ -167,7 +212,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '+880 1712-345678',
+                      phone,
                       style: textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,
@@ -191,7 +236,7 @@ class _ProfileSummaryCard extends StatelessWidget {
                   width: 4,
                   height: 66,
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
+                    color: accentColor,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -199,9 +244,9 @@ class _ProfileSummaryCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Text(
-                      'বর্তমান ব্যালেন্স: ৫০০.৫ টাকা',
+                      '${receivable ? 'বর্তমান পাওনা' : 'বর্তমান দেনা'}: ${_money(balance)}',
                       style: textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
+                        color: balanceColor,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -247,95 +292,6 @@ class _ProfileSummaryCard extends StatelessWidget {
   }
 }
 
-class _DateRangeCard extends StatelessWidget {
-  const _DateRangeCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          const Icon(Icons.calendar_month_rounded, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'জানুয়ারি ২০২৪ - বর্তমান',
-              style: textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
-        ],
-      ),
-    );
-  }
-}
-
-class _PeriodTabs extends StatelessWidget {
-  const _PeriodTabs();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(child: _PeriodChip(label: 'দিন')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _PeriodChip(label: 'মাস', active: true)),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _PeriodChip(label: 'বছর')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _PeriodChip(label: 'কাস্টম রেঞ্জ')),
-      ],
-    );
-  }
-}
-
-class _PeriodChip extends StatelessWidget {
-  const _PeriodChip({
-    required this.label,
-    this.active = false,
-  });
-
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: active ? AppShadows.button : null,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: active ? Colors.white : AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
 class _HistoryTitle extends StatelessWidget {
   const _HistoryTitle();
 
@@ -344,16 +300,20 @@ class _HistoryTitle extends StatelessWidget {
     return Text(
       'DUE HISTORY',
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.6,
+      ),
     );
   }
 }
 
 class _DueHistoryCard extends StatelessWidget {
-  const _DueHistoryCard();
+  const _DueHistoryCard({required this.rows, this.entry, this.errorMessage});
+
+  final LocalDuesLedgerEntry? entry;
+  final List<LocalDueHistoryEntry> rows;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -364,33 +324,41 @@ class _DueHistoryCard extends StatelessWidget {
         boxShadow: AppShadows.soft,
       ),
       child: Column(
-        children: const [
-          _DueHistoryHeader(),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _DueHistoryRow(
-            dateMonth: 'JAN',
-            dateDay: '15',
-            refText: 'Ref: INV-8821',
-            receiving: '+200.0',
-            balance: '300.5 Tk',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _DueHistoryRow(
-            dateMonth: 'JAN',
-            dateDay: '12',
-            refText: 'Manual Entry',
-            giving: '-800.5',
-            balance: '500.5 Tk',
-          ),
-          Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          _DueHistoryRow(
-            dateMonth: 'JAN',
-            dateDay: '05',
-            refText: 'Cash Payment',
-            receiving: '+300.0',
-            balance: '300.0 Tk',
-          ),
+        children: [
+          const _DueHistoryHeader(),
+          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+          if (errorMessage != null)
+            _DueHistoryEmptyRow(message: errorMessage!)
+          else if (rows.isEmpty)
+            const _DueHistoryEmptyRow(message: 'কোনো হিস্টোরি পাওয়া যায়নি')
+          else
+            for (var i = 0; i < rows.length; i++) ...[
+              _DueHistoryRow.fromEntry(rows[i], entry!),
+              if (i != rows.length - 1)
+                const Divider(height: 1, color: AppColors.surfaceContainerHigh),
+            ],
         ],
+      ),
+    );
+  }
+}
+
+class _DueHistoryEmptyRow extends StatelessWidget {
+  const _DueHistoryEmptyRow({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -402,9 +370,9 @@ class _DueHistoryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textMuted,
-          fontWeight: FontWeight.w800,
-        );
+      color: AppColors.textMuted,
+      fontWeight: FontWeight.w800,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -415,11 +383,7 @@ class _DueHistoryHeader extends StatelessWidget {
           Expanded(flex: 2, child: Text('দিয়েছি', style: style)),
           Expanded(
             flex: 2,
-            child: Text(
-              'ব্যালেন্স',
-              textAlign: TextAlign.right,
-              style: style,
-            ),
+            child: Text('ব্যালেন্স', textAlign: TextAlign.right, style: style),
           ),
         ],
       ),
@@ -436,6 +400,26 @@ class _DueHistoryRow extends StatelessWidget {
     this.giving,
     required this.balance,
   });
+
+  factory _DueHistoryRow.fromEntry(
+    LocalDueHistoryEntry row,
+    LocalDuesLedgerEntry ledger,
+  ) {
+    final isInvoice = ledger.isReceivable
+        ? row.sourceType == 'sale'
+        : row.sourceType == 'purchase';
+    final receivesColumn = ledger.isReceivable ? !isInvoice : isInvoice;
+    final givesColumn = ledger.isReceivable ? isInvoice : !isInvoice;
+
+    return _DueHistoryRow(
+      dateMonth: _monthShort(row.createdAt.month),
+      dateDay: _banglaNumber(row.createdAt.day.toString().padLeft(2, '0')),
+      refText: _historyRef(row),
+      receiving: receivesColumn ? '+${_moneyPlain(row.amount)}' : null,
+      giving: givesColumn ? '-${_moneyPlain(row.amount)}' : null,
+      balance: _money(row.balance),
+    );
+  }
 
   final String dateMonth;
   final String dateDay;
@@ -587,7 +571,9 @@ class _DueHistoryRow extends StatelessWidget {
 }
 
 class _DueBottomActions extends StatelessWidget {
-  const _DueBottomActions();
+  const _DueBottomActions({required this.entry});
+
+  final LocalDuesLedgerEntry? entry;
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +586,7 @@ class _DueBottomActions extends StatelessWidget {
           children: [
             Expanded(
               child: InkWell(
-                onTap: () => context.push(AppRoutes.duesGiving),
+                onTap: () => context.push(AppRoutes.duesGiving, extra: entry),
                 borderRadius: BorderRadius.circular(AppRadii.xl),
                 child: Container(
                   height: 72,
@@ -618,7 +604,8 @@ class _DueBottomActions extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'দিচ্ছি (Giving)',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               color: const Color(0xFFD9534F),
                               fontWeight: FontWeight.w800,
                             ),
@@ -631,7 +618,7 @@ class _DueBottomActions extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: InkWell(
-                onTap: () => context.push(AppRoutes.duesTaking),
+                onTap: () => context.push(AppRoutes.duesTaking, extra: entry),
                 borderRadius: BorderRadius.circular(AppRadii.xl),
                 child: Container(
                   height: 72,
@@ -649,7 +636,8 @@ class _DueBottomActions extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'নিচ্ছি (Taking)',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w800,
                             ),
@@ -664,4 +652,66 @@ class _DueBottomActions extends StatelessWidget {
       ),
     );
   }
+}
+
+String _money(double value) {
+  final fixed = value.toStringAsFixed(
+    value.truncateToDouble() == value ? 0 : 2,
+  );
+  return '৳ ${_banglaNumber(fixed)}';
+}
+
+String _moneyPlain(double value) {
+  final fixed = value.toStringAsFixed(
+    value.truncateToDouble() == value ? 0 : 2,
+  );
+  return _banglaNumber(fixed);
+}
+
+String _historyRef(LocalDueHistoryEntry row) {
+  return switch (row.sourceType) {
+    'sale' => 'বিক্রি ইনভয়েস',
+    'customer_payment' => 'কাস্টমার পেমেন্ট',
+    'purchase' => 'কেনা ইনভয়েস',
+    'purchase_payment' => 'সাপ্লায়ার পেমেন্ট',
+    _ => 'লেনদেন',
+  };
+}
+
+String _monthShort(int month) {
+  const months = [
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
+  return months[month - 1];
+}
+
+String _initials(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) {
+    return '?';
+  }
+
+  return String.fromCharCode(trimmed.runes.first).toUpperCase();
+}
+
+String _banglaNumber(String value) {
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bangla = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+  var result = value;
+  for (var i = 0; i < english.length; i++) {
+    result = result.replaceAll(english[i], bangla[i]);
+  }
+  return result;
 }
