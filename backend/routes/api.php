@@ -8,10 +8,15 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SupplierController;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', function () {
     return ['status' => 'ok'];
+});
+
+Route::get('/db-test', function () {
+    return DB::connection()->getDatabaseName();
 });
 
 Route::post('/auth/login', [LoginController::class, 'store']);
