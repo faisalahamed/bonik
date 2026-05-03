@@ -23,12 +23,12 @@ class ExpenseSyncService {
       return;
     }
 
-    await _pushPending();
+    await _pushPending(currentUser.shopId);
     await _pullCurrentShop(currentUser.shopId);
   }
 
-  Future<void> _pushPending() async {
-    final bundle = await database.getPendingExpenseSyncBundle();
+  Future<void> _pushPending(String shopId) async {
+    final bundle = await database.getPendingExpenseSyncBundle(shopId: shopId);
     if (bundle.isEmpty) {
       return;
     }

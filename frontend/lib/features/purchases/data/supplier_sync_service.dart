@@ -23,12 +23,12 @@ class SupplierSyncService {
       return;
     }
 
-    await _pushPending();
+    await _pushPending(currentUser.shopId);
     await _pullCurrentShop(currentUser.shopId);
   }
 
-  Future<void> _pushPending() async {
-    final pendingSuppliers = await database.getPendingSuppliers();
+  Future<void> _pushPending(String shopId) async {
+    final pendingSuppliers = await database.getPendingSuppliers(shopId: shopId);
 
     for (final supplier in pendingSuppliers) {
       final response = await apiClient.postJson(

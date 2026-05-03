@@ -435,32 +435,77 @@ final class AppDatabase extends _$AppDatabase {
   Stream<bool> watchHasUnsyncedData() {
     return customSelect(
       '''
+      WITH current_shop AS (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+        LIMIT 1
+      )
       SELECT EXISTS(
-        SELECT 1 FROM local_shops WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_shops
+        WHERE sync_status != 'synced'
+          AND id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_users WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_users
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_categories WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_categories
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_suppliers WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_suppliers
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_purchases WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_purchases
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_purchase_items WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_purchase_items
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_purchase_payments WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_purchase_payments
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_customers WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_customers
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_sales WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_sales
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_sale_items WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_sale_items
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_customer_payments WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_customer_payments
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_cash_transactions WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_cash_transactions
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
-        SELECT 1 FROM local_expenses WHERE sync_status != 'synced'
+        SELECT 1
+        FROM local_expenses
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
       ) AS has_unsynced
       ''',
       readsFrom: {
@@ -806,19 +851,27 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<List<LocalCategory>> getPendingProductCategories() {
+  Future<List<LocalCategory>> getPendingProductCategories({String? shopId}) {
     return (select(localCategories)..where(
           (category) =>
               category.type.equals('product') &
-              category.syncStatus.equals('pending'),
+              category.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : category.shopId.equals(shopId)),
         ))
         .get();
   }
 
-  Future<List<LocalCategory>> getPendingCategories() {
-    return (select(
-      localCategories,
-    )..where((category) => category.syncStatus.equals('pending'))).get();
+  Future<List<LocalCategory>> getPendingCategories({String? shopId}) {
+    return (select(localCategories)..where(
+          (category) =>
+              category.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : category.shopId.equals(shopId)),
+        ))
+        .get();
   }
 
   Future<LocalCategory?> getCategoryById(String id) {
@@ -887,10 +940,15 @@ final class AppDatabase extends _$AppDatabase {
     )..where((supplier) => supplier.id.equals(id))).watchSingleOrNull();
   }
 
-  Future<List<LocalSupplier>> getPendingSuppliers() {
-    return (select(
-      localSuppliers,
-    )..where((supplier) => supplier.syncStatus.equals('pending'))).get();
+  Future<List<LocalSupplier>> getPendingSuppliers({String? shopId}) {
+    return (select(localSuppliers)..where(
+          (supplier) =>
+              supplier.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : supplier.shopId.equals(shopId)),
+        ))
+        .get();
   }
 
   Future<LocalSupplier?> getSupplierById(String id) {
@@ -1496,14 +1554,15 @@ final class AppDatabase extends _$AppDatabase {
           syncStatus: const Value('pending'),
         ),
       );
-      await (update(localSales)..where((table) => table.id.equals(entry.id)))
-          .write(
-            LocalSalesCompanion(
-              status: Value(amount >= entry.dueAmount ? 'completed' : sale.status),
-              updatedAt: Value(now),
-              syncStatus: const Value('pending'),
-            ),
-          );
+      await (update(
+        localSales,
+      )..where((table) => table.id.equals(entry.id))).write(
+        LocalSalesCompanion(
+          status: Value(amount >= entry.dueAmount ? 'completed' : sale.status),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
     });
   }
 
@@ -1759,10 +1818,15 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<List<LocalCustomer>> getPendingCustomers() {
-    return (select(
-      localCustomers,
-    )..where((customer) => customer.syncStatus.equals('pending'))).get();
+  Future<List<LocalCustomer>> getPendingCustomers({String? shopId}) {
+    return (select(localCustomers)..where(
+          (customer) =>
+              customer.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : customer.shopId.equals(shopId)),
+        ))
+        .get();
   }
 
   Future<void> markCustomerSynced(String id) async {
@@ -1797,12 +1861,14 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<List<LocalSaleBundle>> getPendingSaleBundles() async {
+  Future<List<LocalSaleBundle>> getPendingSaleBundles({String? shopId}) async {
     final pendingSaleIds = await customSelect(
       '''
       SELECT s.id
       FROM local_sales s
-      WHERE s.sync_status != 'synced'
+      WHERE (?1 IS NULL OR s.shop_id = ?1)
+        AND (
+          s.sync_status != 'synced'
         OR EXISTS (
           SELECT 1 FROM local_sale_items si
           WHERE si.order_id = s.id AND si.sync_status != 'synced'
@@ -1817,7 +1883,9 @@ final class AppDatabase extends _$AppDatabase {
             AND ct.type IN ('sale', 'customer_payment')
             AND ct.sync_status != 'synced'
         )
+        )
       ''',
+      variables: [Variable<String>(shopId)],
       readsFrom: {
         localSales,
         localSaleItems,
@@ -1908,15 +1976,26 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<LocalExpenseSyncBundle> getPendingExpenseSyncBundle() async {
-    final expenses = await (select(
-      localExpenses,
-    )..where((expense) => expense.syncStatus.equals('pending'))).get();
+  Future<LocalExpenseSyncBundle> getPendingExpenseSyncBundle({
+    String? shopId,
+  }) async {
+    final expenses =
+        await (select(localExpenses)..where(
+              (expense) =>
+                  expense.syncStatus.equals('pending') &
+                  (shopId == null
+                      ? const Constant(true)
+                      : expense.shopId.equals(shopId)),
+            ))
+            .get();
     final cashTransactions =
         await (select(localCashTransactions)..where(
               (transaction) =>
                   transaction.type.equals('expense') &
-                  transaction.syncStatus.equals('pending'),
+                  transaction.syncStatus.equals('pending') &
+                  (shopId == null
+                      ? const Constant(true)
+                      : transaction.shopId.equals(shopId)),
             ))
             .get();
 
@@ -1961,14 +2040,18 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles() async {
-    await ensurePurchasePaymentCashTransactions();
+  Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles({
+    String? shopId,
+  }) async {
+    await ensurePurchasePaymentCashTransactions(shopId: shopId);
 
     final pendingPurchaseIds = await customSelect(
       '''
       SELECT p.id
       FROM local_purchases p
-      WHERE p.sync_status != 'synced'
+      WHERE (?1 IS NULL OR p.shop_id = ?1)
+        AND (
+          p.sync_status != 'synced'
         OR EXISTS (
           SELECT 1 FROM local_purchase_items pi
           WHERE pi.purchase_id = p.id AND pi.sync_status != 'synced'
@@ -1983,7 +2066,9 @@ final class AppDatabase extends _$AppDatabase {
             AND ct.type = 'purchase_payment'
             AND ct.sync_status != 'synced'
         )
+        )
       ''',
+      variables: [Variable<String>(shopId)],
       readsFrom: {
         localPurchases,
         localPurchaseItems,
@@ -2031,7 +2116,7 @@ final class AppDatabase extends _$AppDatabase {
     return bundles;
   }
 
-  Future<void> ensurePurchasePaymentCashTransactions() async {
+  Future<void> ensurePurchasePaymentCashTransactions({String? shopId}) async {
     final rows = await customSelect(
       '''
       SELECT
@@ -2045,6 +2130,7 @@ final class AppDatabase extends _$AppDatabase {
         pp.sync_status
       FROM local_purchase_payments pp
       WHERE pp.payments > 0
+        AND (?1 IS NULL OR pp.shop_id = ?1)
         AND NOT EXISTS (
           SELECT 1
           FROM local_cash_transactions ct
@@ -2052,6 +2138,7 @@ final class AppDatabase extends _$AppDatabase {
             AND ct.type = 'purchase_payment'
         )
       ''',
+      variables: [Variable<String>(shopId)],
       readsFrom: {localPurchasePayments, localCashTransactions},
     ).get();
 

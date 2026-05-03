@@ -23,13 +23,13 @@ class SalesSyncService {
       return;
     }
 
-    await _pushPendingCustomers();
-    await _pushPendingSales();
+    await _pushPendingCustomers(currentUser.shopId);
+    await _pushPendingSales(currentUser.shopId);
     await _pullCurrentShop(currentUser.shopId);
   }
 
-  Future<void> _pushPendingCustomers() async {
-    final pendingCustomers = await database.getPendingCustomers();
+  Future<void> _pushPendingCustomers(String shopId) async {
+    final pendingCustomers = await database.getPendingCustomers(shopId: shopId);
 
     for (final customer in pendingCustomers) {
       final response = await apiClient.postJson(
@@ -58,8 +58,8 @@ class SalesSyncService {
     }
   }
 
-  Future<void> _pushPendingSales() async {
-    final bundles = await database.getPendingSaleBundles();
+  Future<void> _pushPendingSales(String shopId) async {
+    final bundles = await database.getPendingSaleBundles(shopId: shopId);
 
     for (final bundle in bundles) {
       final response = await apiClient.postJson(

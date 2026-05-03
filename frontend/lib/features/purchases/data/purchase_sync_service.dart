@@ -36,7 +36,7 @@ class PurchaseSyncService {
       return;
     }
 
-    await syncPendingPurchases();
+    await syncPendingPurchases(shopId: currentUser.shopId);
     await _pullCurrentShop(currentUser.shopId);
   }
 
@@ -133,8 +133,8 @@ class PurchaseSyncService {
     return purchaseId;
   }
 
-  Future<void> syncPendingPurchases() async {
-    final bundles = await database.getPendingPurchaseBundles();
+  Future<void> syncPendingPurchases({String? shopId}) async {
+    final bundles = await database.getPendingPurchaseBundles(shopId: shopId);
     await _ensurePendingPurchaseCategoriesAreSynced(bundles);
     await _ensurePendingPurchaseSuppliersAreSynced(bundles);
 
