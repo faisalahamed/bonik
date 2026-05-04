@@ -122,7 +122,7 @@ class _CashPurchaseReviewPageState
     }
 
     for (final line in lines) {
-      _draftsByCategoryId.putIfAbsent(
+      final draft = _draftsByCategoryId.putIfAbsent(
         line.category.id,
         () => _PurchaseLineDraft(
           line: line,
@@ -130,6 +130,11 @@ class _CashPurchaseReviewPageState
           onRefresh: _refreshTotals,
         ),
       );
+
+      // Auto generate barcode if empty
+      if (draft.barcode.isEmpty) {
+        _generateBarcode(draft);
+      }
     }
   }
 
@@ -141,6 +146,7 @@ class _CashPurchaseReviewPageState
           quantity: draft.quantityController.text,
           buyingPrice: draft.buyingPriceController.text,
           sellingPrice: draft.sellingPriceController.text,
+          barcode: draft.barcodeController.text,
         );
   }
 
@@ -148,6 +154,39 @@ class _CashPurchaseReviewPageState
     ref
         .read(cashPurchaseDraftProvider.notifier)
         .removeCategory(draft.category.id);
+  }
+
+  Future<void> _generateBarcode(_PurchaseLineDraft draft) async {
+    final database = ref.read(appDatabaseProvider);
+    final user = await database.getCurrentUser();
+    if (user == null) return;
+
+    final shopId = user.shopId;
+    final prefix = (shopId.hashCode.abs() % 10000).toString().padLeft(4, '0');
+
+    String barcode;
+    bool isUnique = false;
+    final random = DateTime.now().microsecondsSinceEpoch;
+    var counter = 0;
+
+    do {
+      // 8 random digits for suffix
+      final suffix =
+          ((random + counter) % 100000000).toString().padLeft(8, '0');
+      barcode = '$prefix$suffix';
+      isUnique = await database.isBarcodeUnique(shopId, barcode);
+      counter++;
+    } while (!isUnique && counter < 100);
+
+    if (isUnique) {
+      draft.barcodeController.text = barcode;
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('বারকোড তৈরি করা সম্ভব হয়নি।')),
+        );
+      }
+    }
   }
 
   Future<void> _changePurchaseDate(DateTime currentDate) async {
@@ -178,6 +217,49 @@ class _CashPurchaseReviewPageState
       AppRoutes.cashPurchasePayment,
       extra: _drafts.map((draft) => draft.toInput()).toList(growable: false),
     );
+  }
+
+  Future<void> _showPrintBarcodeDialog(_PurchaseLineDraft draft) async {
+    final count = await showDialog<int>(
+      context: context,
+      builder: (context) => _PrintBarcodeDialog(
+        productName: draft.category.name,
+        barcode: draft.barcode,
+      ),
+    );
+
+    if (count != null && count > 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.print_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: AppSpacing.sm),
+                Text('$count টি বারকোড প্রিন্ট করা হচ্ছে...'),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showBarcodeScanner(_PurchaseLineDraft draft) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => const _BarcodeScannerDialog(),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      draft.barcodeController.text = result;
+      _updateDraftLine(draft);
+    }
   }
 
   @override
@@ -219,6 +301,11 @@ class _CashPurchaseReviewPageState
                           draft: _drafts[i],
                           itemNumber: i + 1,
                           onRemove: () => _removeLine(_drafts[i]),
+                          onPrintBarcode: () =>
+                              _showPrintBarcodeDialog(_drafts[i]),
+                          onScan: () => _showBarcodeScanner(_drafts[i]),
+                          onRegenerateBarcode: () =>
+                              _generateBarcode(_drafts[i]),
                         ),
                         if (i != _drafts.length - 1)
                           const SizedBox(height: AppSpacing.md),
@@ -253,12 +340,14 @@ class CashPurchaseLineInput {
     required this.quantity,
     required this.buyingPrice,
     required this.sellingPrice,
+    this.barcode,
   });
 
   final LocalCategory category;
   final double quantity;
   final double buyingPrice;
   final double sellingPrice;
+  final String? barcode;
 }
 
 class _PurchaseLineDraft {
@@ -279,6 +368,8 @@ class _PurchaseLineDraft {
     buyingPriceController.addListener(_onBuyingPriceChanged);
     sellingPriceController.addListener(_onSellingPriceChanged);
     profitController.addListener(_onProfitChanged);
+    barcodeController.text = line.barcode;
+    barcodeController.addListener(_onBarcodeChanged);
   }
 
   final LocalCategory category;
@@ -288,11 +379,13 @@ class _PurchaseLineDraft {
   final buyingPriceController = TextEditingController();
   final sellingPriceController = TextEditingController();
   final profitController = TextEditingController();
+  final barcodeController = TextEditingController();
 
   double get quantity => _parse(quantityController.text);
   double get buyingPrice => _parse(buyingPriceController.text);
   double get sellingPrice => _parse(sellingPriceController.text);
   double get profitPerItem => _parse(profitController.text);
+  String get barcode => barcodeController.text.trim();
   double get purchaseTotal => quantity * buyingPrice;
   double get profitTotal => quantity * (sellingPrice - buyingPrice);
   double get profitPercent {
@@ -312,6 +405,7 @@ class _PurchaseLineDraft {
       quantity: quantity,
       buyingPrice: buyingPrice,
       sellingPrice: sellingPrice,
+      barcode: barcode.isEmpty ? null : barcode,
     );
   }
 
@@ -328,11 +422,18 @@ class _PurchaseLineDraft {
     profitController
       ..removeListener(_onProfitChanged)
       ..dispose();
+    barcodeController
+      ..removeListener(_onBarcodeChanged)
+      ..dispose();
   }
 
   void _onQuantityChanged() {
     onChanged(this);
     onRefresh();
+  }
+
+  void _onBarcodeChanged() {
+    onChanged(this);
   }
 
   void _onBuyingPriceChanged() {
@@ -475,11 +576,17 @@ class _PurchaseReviewItem extends StatelessWidget {
     required this.draft,
     required this.itemNumber,
     required this.onRemove,
+    required this.onPrintBarcode,
+    required this.onScan,
+    required this.onRegenerateBarcode,
   });
 
   final _PurchaseLineDraft draft;
   final int itemNumber;
   final VoidCallback onRemove;
+  final VoidCallback onPrintBarcode;
+  final VoidCallback onScan;
+  final VoidCallback onRegenerateBarcode;
 
   @override
   Widget build(BuildContext context) {
@@ -623,13 +730,28 @@ class _PurchaseReviewItem extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.sm),
+                _BarcodeField(
+                  controller: draft.barcodeController,
+                  onScan: onScan,
+                  onRegenerate: onRegenerateBarcode,
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     _ActionChip(
-                      icon: Icons.qr_code_2_rounded,
-                      label: 'বারকোড যোগ করুন',
-                      color: AppColors.textSecondary,
-                      backgroundColor: AppColors.surfaceContainerLow,
+                      icon: Icons.qr_code_scanner_rounded,
+                      label: 'স্ক্যান করুন',
+                      color: AppColors.primary,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      onTap: onScan,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _ActionChip(
+                      icon: Icons.print_rounded,
+                      label: 'বারকোড প্রিন্ট করুন',
+                      color: const Color(0xFF673AB7),
+                      backgroundColor: const Color(0xFFF3E5F5),
+                      onTap: onPrintBarcode,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     _ActionChip(
@@ -1117,4 +1239,445 @@ void _setSyncedText(TextEditingController controller, String text) {
     text: text,
     selection: TextSelection.collapsed(offset: text.length),
   );
+}
+
+class _BarcodeField extends StatelessWidget {
+  const _BarcodeField({
+    required this.controller,
+    required this.onScan,
+    required this.onRegenerate,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onScan;
+  final VoidCallback onRegenerate;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.text,
+      decoration: InputDecoration(
+        labelText: 'বারকোড (ঐচ্ছিক)',
+        hintText: 'বারকোড লিখুন বা স্ক্যান করুন',
+        filled: true,
+        fillColor: AppColors.surfaceContainerLow,
+        prefixIcon: IconButton(
+          icon: const Icon(
+            Icons.qr_code_scanner_rounded,
+            size: 22,
+            color: AppColors.primary,
+          ),
+          onPressed: onScan,
+        ),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+          onPressed: onRegenerate,
+        ),
+        labelStyle: textTheme.labelSmall?.copyWith(
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PrintBarcodeDialog extends StatefulWidget {
+  const _PrintBarcodeDialog({
+    required this.productName,
+    required this.barcode,
+  });
+
+  final String productName;
+  final String barcode;
+
+  @override
+  State<_PrintBarcodeDialog> createState() => _PrintBarcodeDialogState();
+}
+
+class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
+  late final TextEditingController _controller;
+  int _count = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _count.toString());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _increment() {
+    setState(() {
+      _count++;
+      _controller.text = _count.toString();
+    });
+  }
+
+  void _decrement() {
+    if (_count > 1) {
+      setState(() {
+        _count--;
+        _controller.text = _count.toString();
+      });
+    }
+  }
+
+  void _onChanged(String value) {
+    final newCount = int.tryParse(value) ?? 0;
+    setState(() {
+      _count = newCount;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                gradient: AppGradients.primaryButton,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadii.xl),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.print_rounded, color: Colors.white),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'বারকোড প্রিন্ট',
+                      style: textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                children: [
+                  Text(
+                    widget.productName,
+                    style: textTheme.titleLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'বারকোড: ${widget.barcode}',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textMuted,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  Text(
+                    'কতগুলো প্রিন্ট করতে চান?',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Counter
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _CounterButton(
+                        icon: Icons.remove_rounded,
+                        onTap: _decrement,
+                        color: AppColors.textMuted,
+                      ),
+                      Container(
+                        width: 100,
+                        height: 64,
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        alignment: Alignment.center,
+                        child: TextField(
+                          controller: _controller,
+                          autofocus: true,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          onChanged: _onChanged,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          style: textTheme.titleLarge?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      _CounterButton(
+                        icon: Icons.add_rounded,
+                        onTap: _increment,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md,
+                            ),
+                          ),
+                          child: const Text('বাতিল'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _count > 0
+                              ? () => Navigator.pop(context, _count)
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md,
+                            ),
+                          ),
+                          child: const Text('প্রিন্ট শুরু করুন'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CounterButton extends StatelessWidget {
+  const _CounterButton({
+    required this.icon,
+    required this.onTap,
+    required this.color,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Icon(icon, color: color, size: 28),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarcodeScannerDialog extends StatelessWidget {
+  const _BarcodeScannerDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(
+                    'বারকোড স্ক্যান করুন',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                margin: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.primary, width: 2),
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white24,
+                            size: 64,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            'ক্যামেরা লোড হচ্ছে...',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: Colors.white38,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _ScanningLine(),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Text(
+                'পণ্যের বারকোডটি ফ্রেমের ভেতরে রাখুন',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanningLine extends StatefulWidget {
+  const _ScanningLine();
+
+  @override
+  State<_ScanningLine> createState() => _ScanningLineState();
+}
+
+class _ScanningLineState extends State<_ScanningLine>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Positioned(
+          top: 250 * _controller.value,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 2,
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.5),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ],
+              color: AppColors.primary,
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

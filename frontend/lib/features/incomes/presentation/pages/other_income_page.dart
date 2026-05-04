@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,6 +8,7 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../application/income_providers.dart';
 
 class OtherIncomePage extends StatelessWidget {
   const OtherIncomePage({super.key});
@@ -108,11 +110,14 @@ class _OtherIncomeTopBar extends StatelessWidget {
   }
 }
 
-class _IncomeSummaryCard extends StatelessWidget {
+class _IncomeSummaryCard extends ConsumerWidget {
   const _IncomeSummaryCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todayTotalAsync = ref.watch(todayIncomeTotalProvider);
+    final todayTotal = todayTotalAsync.valueOrNull ?? 0.0;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -135,7 +140,7 @@ class _IncomeSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '০৳',
+                  '${todayTotal.toStringAsFixed(0)}৳',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -251,101 +256,128 @@ class _IncomeSearchBox extends StatelessWidget {
   }
 }
 
-class _IncomeCategoryGrid extends StatelessWidget {
+class _IncomeCategoryGrid extends ConsumerWidget {
   const _IncomeCategoryGrid();
 
-  static const List<_IncomeCategoryData> _items = [
-    _IncomeCategoryData(
-      label: 'বোনাস',
-      icon: Icons.payments_rounded,
-      iconBg: Color(0xFFB8F5E7),
-    ),
-    _IncomeCategoryData(
-      label: 'কমিশন',
-      icon: Icons.sell_rounded,
-      iconBg: Color(0xFFB8F5E7),
-    ),
-    _IncomeCategoryData(
-      label: 'বিনিয়োগ',
-      icon: Icons.receipt_long_rounded,
-      iconBg: Color(0xFFF0F3F2),
-    ),
-    _IncomeCategoryData(
-      label: 'অন্যান্য',
-      icon: Icons.key_rounded,
-      iconBg: Color(0xFFB8F5E7),
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: _items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: AppSpacing.md,
-        crossAxisSpacing: AppSpacing.md,
-        childAspectRatio: 0.95,
-      ),
-      itemBuilder: (context, index) {
-        final item = _items[index];
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => context.push(
-              '${AppRoutes.otherIncomeCreate}/${Uri.encodeComponent(item.label)}',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(incomeCategoriesProvider);
+
+    return categoriesAsync.when(
+      data: (categories) {
+        if (categories.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: Text('কোনো আয়ের খাত পাওয়া যায়নি।'),
             ),
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(AppRadii.xl),
-                boxShadow: AppShadows.soft,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: item.iconBg,
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                    ),
-                    child: Icon(
-                      item.icon,
-                      color: AppColors.primary,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    item.label,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ],
-              ),
-            ),
+          );
+        }
+        return GridView.builder(
+          itemCount: categories.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: AppSpacing.md,
+            crossAxisSpacing: AppSpacing.md,
+            childAspectRatio: 0.95,
           ),
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            final iconStyle = _iconForIncomeCategory(category.name);
+
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.push(
+                  '${AppRoutes.otherIncomeCreate}/${Uri.encodeComponent(category.name)}',
+                ),
+                borderRadius: BorderRadius.circular(AppRadii.xl),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
+                    boxShadow: AppShadows.soft,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          color: iconStyle.background,
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        child: Icon(
+                          iconStyle.icon,
+                          color: iconStyle.color,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        category.name,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(
+        child: Text('আয়ের খাত লোড করা যায়নি: $error'),
+      ),
     );
   }
 }
 
-class _IncomeCategoryData {
-  const _IncomeCategoryData({
-    required this.label,
+class _IncomeCategoryIconStyle {
+  const _IncomeCategoryIconStyle({
     required this.icon,
-    required this.iconBg,
+    required this.background,
+    required this.color,
   });
 
-  final String label;
   final IconData icon;
-  final Color iconBg;
+  final Color background;
+  final Color color;
+}
+
+_IncomeCategoryIconStyle _iconForIncomeCategory(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('bonus') || lower.contains('বোনাস')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.payments_rounded,
+      background: Color(0xFFE8F6EF),
+      color: AppColors.primary,
+    );
+  }
+  if (lower.contains('commission') || lower.contains('কমিশন')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.sell_rounded,
+      background: Color(0xFFEAF7F2),
+      color: AppColors.secondary,
+    );
+  }
+  if (lower.contains('investment') || lower.contains('বিনিয়োগ')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.receipt_long_rounded,
+      background: Color(0xFFF1F4F2),
+      color: AppColors.primaryContainer,
+    );
+  }
+  return const _IncomeCategoryIconStyle(
+    icon: Icons.category_rounded,
+    background: Color(0xFFE8F6EF),
+    color: AppColors.primary,
+  );
 }

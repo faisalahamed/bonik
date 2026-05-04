@@ -1,4 +1,5 @@
 1. sell item server time fix
+2. returning a product should (added back to stock and removed from all calculations)
 
 
 
@@ -9,7 +10,7 @@ https://laravel-bonik-main-4vxdps.free.laravel.cloud/api
 # Development:
 # php artisan serve --host=0.0.0.0 --port=8000
 # flutter run --dart-define=API_BASE_URL=http://192.168.31.217:8000/api
-# $ flutter build apk --debug --dart-define=API_BASE_URL=https://laravel-bonik-main-4vxdps.free.laravel.cloud/api
+# flutter build apk --debug --dart-define=API_BASE_URL=https://laravel-bonik-main-4vxdps.free.laravel.cloud/api
 
 #
 # Cloud later:

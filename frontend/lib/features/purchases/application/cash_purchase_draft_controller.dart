@@ -53,12 +53,14 @@ class CashPurchaseDraftLine {
     this.quantity = '',
     this.buyingPrice = '',
     this.sellingPrice = '',
+    this.barcode = '',
   });
 
   final LocalCategory category;
   final String quantity;
   final String buyingPrice;
   final String sellingPrice;
+  final String barcode;
 
   double get quantityValue => _parse(quantity);
   double get buyingPriceValue => _parse(buyingPrice);
@@ -84,12 +86,14 @@ class CashPurchaseDraftLine {
     String? quantity,
     String? buyingPrice,
     String? sellingPrice,
+    String? barcode,
   }) {
     return CashPurchaseDraftLine(
       category: category ?? this.category,
       quantity: quantity ?? this.quantity,
       buyingPrice: buyingPrice ?? this.buyingPrice,
       sellingPrice: sellingPrice ?? this.sellingPrice,
+      barcode: barcode ?? this.barcode,
     );
   }
 
@@ -148,6 +152,7 @@ class CashPurchaseDraftController extends Notifier<CashPurchaseDraftState> {
     String? quantity,
     String? buyingPrice,
     String? sellingPrice,
+    String? barcode,
   }) {
     final line = state.lines[categoryId];
     if (line == null) {
@@ -159,6 +164,7 @@ class CashPurchaseDraftController extends Notifier<CashPurchaseDraftState> {
       quantity: quantity,
       buyingPrice: buyingPrice,
       sellingPrice: sellingPrice,
+      barcode: barcode,
     );
     state = state.copyWith(lines: lines);
   }

@@ -9845,6 +9845,615 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
   }
 }
 
+class $LocalIncomesTable extends LocalIncomes
+    with TableInfo<$LocalIncomesTable, LocalIncome> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalIncomesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_categories (id)',
+    ),
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiptUrlMeta = const VerificationMeta(
+    'receiptUrl',
+  );
+  @override
+  late final GeneratedColumn<String> receiptUrl = GeneratedColumn<String>(
+    'receipt_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    shopId,
+    categoryId,
+    amount,
+    reason,
+    note,
+    receiptUrl,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_incomes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalIncome> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('receipt_url')) {
+      context.handle(
+        _receiptUrlMeta,
+        receiptUrl.isAcceptableOrUnknown(data['receipt_url']!, _receiptUrlMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalIncome map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalIncome(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      receiptUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_url'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalIncomesTable createAlias(String alias) {
+    return $LocalIncomesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalIncome extends DataClass implements Insertable<LocalIncome> {
+  final String id;
+  final String shopId;
+  final String categoryId;
+  final double amount;
+  final String? reason;
+  final String? note;
+  final String? receiptUrl;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String syncStatus;
+  const LocalIncome({
+    required this.id,
+    required this.shopId,
+    required this.categoryId,
+    required this.amount,
+    this.reason,
+    this.note,
+    this.receiptUrl,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['shop_id'] = Variable<String>(shopId);
+    map['category_id'] = Variable<String>(categoryId);
+    map['amount'] = Variable<double>(amount);
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || receiptUrl != null) {
+      map['receipt_url'] = Variable<String>(receiptUrl);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  LocalIncomesCompanion toCompanion(bool nullToAbsent) {
+    return LocalIncomesCompanion(
+      id: Value(id),
+      shopId: Value(shopId),
+      categoryId: Value(categoryId),
+      amount: Value(amount),
+      reason: reason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reason),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      receiptUrl: receiptUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptUrl),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory LocalIncome.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalIncome(
+      id: serializer.fromJson<String>(json['id']),
+      shopId: serializer.fromJson<String>(json['shopId']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      reason: serializer.fromJson<String?>(json['reason']),
+      note: serializer.fromJson<String?>(json['note']),
+      receiptUrl: serializer.fromJson<String?>(json['receiptUrl']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'shopId': serializer.toJson<String>(shopId),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'amount': serializer.toJson<double>(amount),
+      'reason': serializer.toJson<String?>(reason),
+      'note': serializer.toJson<String?>(note),
+      'receiptUrl': serializer.toJson<String?>(receiptUrl),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  LocalIncome copyWith({
+    String? id,
+    String? shopId,
+    String? categoryId,
+    double? amount,
+    Value<String?> reason = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<String?> receiptUrl = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? syncStatus,
+  }) => LocalIncome(
+    id: id ?? this.id,
+    shopId: shopId ?? this.shopId,
+    categoryId: categoryId ?? this.categoryId,
+    amount: amount ?? this.amount,
+    reason: reason.present ? reason.value : this.reason,
+    note: note.present ? note.value : this.note,
+    receiptUrl: receiptUrl.present ? receiptUrl.value : this.receiptUrl,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  LocalIncome copyWithCompanion(LocalIncomesCompanion data) {
+    return LocalIncome(
+      id: data.id.present ? data.id.value : this.id,
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      note: data.note.present ? data.note.value : this.note,
+      receiptUrl: data.receiptUrl.present
+          ? data.receiptUrl.value
+          : this.receiptUrl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalIncome(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amount: $amount, ')
+          ..write('reason: $reason, ')
+          ..write('note: $note, ')
+          ..write('receiptUrl: $receiptUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    shopId,
+    categoryId,
+    amount,
+    reason,
+    note,
+    receiptUrl,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalIncome &&
+          other.id == this.id &&
+          other.shopId == this.shopId &&
+          other.categoryId == this.categoryId &&
+          other.amount == this.amount &&
+          other.reason == this.reason &&
+          other.note == this.note &&
+          other.receiptUrl == this.receiptUrl &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
+  final Value<String> id;
+  final Value<String> shopId;
+  final Value<String> categoryId;
+  final Value<double> amount;
+  final Value<String?> reason;
+  final Value<String?> note;
+  final Value<String?> receiptUrl;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const LocalIncomesCompanion({
+    this.id = const Value.absent(),
+    this.shopId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.note = const Value.absent(),
+    this.receiptUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalIncomesCompanion.insert({
+    required String id,
+    required String shopId,
+    required String categoryId,
+    this.amount = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.note = const Value.absent(),
+    this.receiptUrl = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       shopId = Value(shopId),
+       categoryId = Value(categoryId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LocalIncome> custom({
+    Expression<String>? id,
+    Expression<String>? shopId,
+    Expression<String>? categoryId,
+    Expression<double>? amount,
+    Expression<String>? reason,
+    Expression<String>? note,
+    Expression<String>? receiptUrl,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shopId != null) 'shop_id': shopId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (amount != null) 'amount': amount,
+      if (reason != null) 'reason': reason,
+      if (note != null) 'note': note,
+      if (receiptUrl != null) 'receipt_url': receiptUrl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalIncomesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? shopId,
+    Value<String>? categoryId,
+    Value<double>? amount,
+    Value<String?>? reason,
+    Value<String?>? note,
+    Value<String?>? receiptUrl,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return LocalIncomesCompanion(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      categoryId: categoryId ?? this.categoryId,
+      amount: amount ?? this.amount,
+      reason: reason ?? this.reason,
+      note: note ?? this.note,
+      receiptUrl: receiptUrl ?? this.receiptUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (receiptUrl.present) {
+      map['receipt_url'] = Variable<String>(receiptUrl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalIncomesCompanion(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amount: $amount, ')
+          ..write('reason: $reason, ')
+          ..write('note: $note, ')
+          ..write('receiptUrl: $receiptUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9872,6 +10481,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalCashTransactionsTable localCashTransactions =
       $LocalCashTransactionsTable(this);
   late final $LocalExpensesTable localExpenses = $LocalExpensesTable(this);
+  late final $LocalIncomesTable localIncomes = $LocalIncomesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9892,6 +10502,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localCustomerPayments,
     localCashTransactions,
     localExpenses,
+    localIncomes,
   ];
 }
 
@@ -10231,6 +10842,24 @@ final class $$LocalShopsTableReferences
     ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_localExpensesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LocalIncomesTable, List<LocalIncome>>
+  _localIncomesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localIncomes,
+    aliasName: $_aliasNameGenerator(db.localShops.id, db.localIncomes.shopId),
+  );
+
+  $$LocalIncomesTableProcessedTableManager get localIncomesRefs {
+    final manager = $$LocalIncomesTableTableManager(
+      $_db,
+      $_db.localIncomes,
+    ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_localIncomesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -10640,6 +11269,31 @@ class $$LocalShopsTableFilterComposer
           }) => $$LocalExpensesTableFilterComposer(
             $db: $db,
             $table: $db.localExpenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> localIncomesRefs(
+    Expression<bool> Function($$LocalIncomesTableFilterComposer f) f,
+  ) {
+    final $$LocalIncomesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localIncomes,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalIncomesTableFilterComposer(
+            $db: $db,
+            $table: $db.localIncomes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -11111,6 +11765,31 @@ class $$LocalShopsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> localIncomesRefs<T extends Object>(
+    Expression<T> Function($$LocalIncomesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalIncomesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localIncomes,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalIncomesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localIncomes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalShopsTableTableManager
@@ -11141,6 +11820,7 @@ class $$LocalShopsTableTableManager
             bool localCustomerPaymentsRefs,
             bool localCashTransactionsRefs,
             bool localExpensesRefs,
+            bool localIncomesRefs,
           })
         > {
   $$LocalShopsTableTableManager(_$AppDatabase db, $LocalShopsTable table)
@@ -11230,6 +11910,7 @@ class $$LocalShopsTableTableManager
                 localCustomerPaymentsRefs = false,
                 localCashTransactionsRefs = false,
                 localExpensesRefs = false,
+                localIncomesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11248,6 +11929,7 @@ class $$LocalShopsTableTableManager
                     if (localCustomerPaymentsRefs) db.localCustomerPayments,
                     if (localCashTransactionsRefs) db.localCashTransactions,
                     if (localExpensesRefs) db.localExpenses,
+                    if (localIncomesRefs) db.localIncomes,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -11546,6 +12228,27 @@ class $$LocalShopsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (localIncomesRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalIncome
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localIncomesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localIncomesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -11581,6 +12284,7 @@ typedef $$LocalShopsTableProcessedTableManager =
         bool localCustomerPaymentsRefs,
         bool localCashTransactionsRefs,
         bool localExpensesRefs,
+        bool localIncomesRefs,
       })
     >;
 typedef $$LocalUsersTableCreateCompanionBuilder =
@@ -12142,6 +12846,27 @@ final class $$LocalCategoriesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$LocalIncomesTable, List<LocalIncome>>
+  _localIncomesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localIncomes,
+    aliasName: $_aliasNameGenerator(
+      db.localCategories.id,
+      db.localIncomes.categoryId,
+    ),
+  );
+
+  $$LocalIncomesTableProcessedTableManager get localIncomesRefs {
+    final manager = $$LocalIncomesTableTableManager(
+      $_db,
+      $_db.localIncomes,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_localIncomesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$LocalCategoriesTableFilterComposer
@@ -12262,6 +12987,31 @@ class $$LocalCategoriesTableFilterComposer
           }) => $$LocalExpensesTableFilterComposer(
             $db: $db,
             $table: $db.localExpenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> localIncomesRefs(
+    Expression<bool> Function($$LocalIncomesTableFilterComposer f) f,
+  ) {
+    final $$LocalIncomesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localIncomes,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalIncomesTableFilterComposer(
+            $db: $db,
+            $table: $db.localIncomes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -12461,6 +13211,31 @@ class $$LocalCategoriesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> localIncomesRefs<T extends Object>(
+    Expression<T> Function($$LocalIncomesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalIncomesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localIncomes,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalIncomesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localIncomes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalCategoriesTableTableManager
@@ -12480,6 +13255,7 @@ class $$LocalCategoriesTableTableManager
             bool shopId,
             bool localPurchaseItemsRefs,
             bool localExpensesRefs,
+            bool localIncomesRefs,
           })
         > {
   $$LocalCategoriesTableTableManager(
@@ -12560,12 +13336,14 @@ class $$LocalCategoriesTableTableManager
                 shopId = false,
                 localPurchaseItemsRefs = false,
                 localExpensesRefs = false,
+                localIncomesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (localPurchaseItemsRefs) db.localPurchaseItems,
                     if (localExpensesRefs) db.localExpenses,
+                    if (localIncomesRefs) db.localIncomes,
                   ],
                   addJoins:
                       <
@@ -12645,6 +13423,27 @@ class $$LocalCategoriesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (localIncomesRefs)
+                        await $_getPrefetchedData<
+                          LocalCategory,
+                          $LocalCategoriesTable,
+                          LocalIncome
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalCategoriesTableReferences
+                              ._localIncomesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localIncomesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12669,6 +13468,7 @@ typedef $$LocalCategoriesTableProcessedTableManager =
         bool shopId,
         bool localPurchaseItemsRefs,
         bool localExpensesRefs,
+        bool localIncomesRefs,
       })
     >;
 typedef $$LocalSuppliersTableCreateCompanionBuilder =
@@ -20627,6 +21427,512 @@ typedef $$LocalExpensesTableProcessedTableManager =
       LocalExpense,
       PrefetchHooks Function({bool shopId, bool categoryId})
     >;
+typedef $$LocalIncomesTableCreateCompanionBuilder =
+    LocalIncomesCompanion Function({
+      required String id,
+      required String shopId,
+      required String categoryId,
+      Value<double> amount,
+      Value<String?> reason,
+      Value<String?> note,
+      Value<String?> receiptUrl,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$LocalIncomesTableUpdateCompanionBuilder =
+    LocalIncomesCompanion Function({
+      Value<String> id,
+      Value<String> shopId,
+      Value<String> categoryId,
+      Value<double> amount,
+      Value<String?> reason,
+      Value<String?> note,
+      Value<String?> receiptUrl,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$LocalIncomesTableReferences
+    extends BaseReferences<_$AppDatabase, $LocalIncomesTable, LocalIncome> {
+  $$LocalIncomesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LocalShopsTable _shopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(db.localIncomes.shopId, db.localShops.id),
+      );
+
+  $$LocalShopsTableProcessedTableManager get shopId {
+    final $_column = $_itemColumn<String>('shop_id')!;
+
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalCategoriesTable _categoryIdTable(_$AppDatabase db) =>
+      db.localCategories.createAlias(
+        $_aliasNameGenerator(db.localIncomes.categoryId, db.localCategories.id),
+      );
+
+  $$LocalCategoriesTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<String>('category_id')!;
+
+    final manager = $$LocalCategoriesTableTableManager(
+      $_db,
+      $_db.localCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LocalIncomesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalIncomesTable> {
+  $$LocalIncomesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptUrl => $composableBuilder(
+    column: $table.receiptUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalShopsTableFilterComposer get shopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalCategoriesTableFilterComposer get categoryId {
+    final $$LocalCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.localCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.localCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalIncomesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalIncomesTable> {
+  $$LocalIncomesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptUrl => $composableBuilder(
+    column: $table.receiptUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalShopsTableOrderingComposer get shopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalCategoriesTableOrderingComposer get categoryId {
+    final $$LocalCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.localCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.localCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalIncomesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalIncomesTable> {
+  $$LocalIncomesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get receiptUrl => $composableBuilder(
+    column: $table.receiptUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  $$LocalShopsTableAnnotationComposer get shopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalCategoriesTableAnnotationComposer get categoryId {
+    final $$LocalCategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.localCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalCategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalIncomesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalIncomesTable,
+          LocalIncome,
+          $$LocalIncomesTableFilterComposer,
+          $$LocalIncomesTableOrderingComposer,
+          $$LocalIncomesTableAnnotationComposer,
+          $$LocalIncomesTableCreateCompanionBuilder,
+          $$LocalIncomesTableUpdateCompanionBuilder,
+          (LocalIncome, $$LocalIncomesTableReferences),
+          LocalIncome,
+          PrefetchHooks Function({bool shopId, bool categoryId})
+        > {
+  $$LocalIncomesTableTableManager(_$AppDatabase db, $LocalIncomesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalIncomesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalIncomesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalIncomesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> shopId = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> receiptUrl = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalIncomesCompanion(
+                id: id,
+                shopId: shopId,
+                categoryId: categoryId,
+                amount: amount,
+                reason: reason,
+                note: note,
+                receiptUrl: receiptUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String shopId,
+                required String categoryId,
+                Value<double> amount = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> receiptUrl = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalIncomesCompanion.insert(
+                id: id,
+                shopId: shopId,
+                categoryId: categoryId,
+                amount: amount,
+                reason: reason,
+                note: note,
+                receiptUrl: receiptUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalIncomesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({shopId = false, categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (shopId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.shopId,
+                                referencedTable: $$LocalIncomesTableReferences
+                                    ._shopIdTable(db),
+                                referencedColumn: $$LocalIncomesTableReferences
+                                    ._shopIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (categoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.categoryId,
+                                referencedTable: $$LocalIncomesTableReferences
+                                    ._categoryIdTable(db),
+                                referencedColumn: $$LocalIncomesTableReferences
+                                    ._categoryIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LocalIncomesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalIncomesTable,
+      LocalIncome,
+      $$LocalIncomesTableFilterComposer,
+      $$LocalIncomesTableOrderingComposer,
+      $$LocalIncomesTableAnnotationComposer,
+      $$LocalIncomesTableCreateCompanionBuilder,
+      $$LocalIncomesTableUpdateCompanionBuilder,
+      (LocalIncome, $$LocalIncomesTableReferences),
+      LocalIncome,
+      PrefetchHooks Function({bool shopId, bool categoryId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -20661,4 +21967,6 @@ class $AppDatabaseManager {
       $$LocalCashTransactionsTableTableManager(_db, _db.localCashTransactions);
   $$LocalExpensesTableTableManager get localExpenses =>
       $$LocalExpensesTableTableManager(_db, _db.localExpenses);
+  $$LocalIncomesTableTableManager get localIncomes =>
+      $$LocalIncomesTableTableManager(_db, _db.localIncomes);
 }

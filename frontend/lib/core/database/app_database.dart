@@ -259,6 +259,22 @@ class LocalExpenses extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class LocalIncomes extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get categoryId => text().references(LocalCategories, #id)();
+  RealColumn get amount => real().withDefault(const Constant(0))();
+  TextColumn get reason => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get receiptUrl => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalShops,
@@ -276,6 +292,7 @@ class LocalExpenses extends Table {
     LocalCustomerPayments,
     LocalCashTransactions,
     LocalExpenses,
+    LocalIncomes,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -283,7 +300,7 @@ final class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'bonik'));
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -425,6 +442,9 @@ final class AppDatabase extends _$AppDatabase {
         await migrator.createTable(localSaleReturns);
         await migrator.createTable(localSaleReturnItems);
       }
+      if (from < 12) {
+        await migrator.createTable(localIncomes);
+      }
     },
   );
 
@@ -556,6 +576,11 @@ final class AppDatabase extends _$AppDatabase {
         FROM local_expenses
         WHERE sync_status != 'synced'
           AND shop_id IN (SELECT shop_id FROM current_shop)
+        UNION ALL
+        SELECT 1
+        FROM local_incomes
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
       ) AS has_unsynced
       ''',
       readsFrom: {
@@ -574,6 +599,7 @@ final class AppDatabase extends _$AppDatabase {
         localCustomerPayments,
         localCashTransactions,
         localExpenses,
+        localIncomes,
       },
     ).watchSingle().map((row) => row.read<bool>('has_unsynced'));
   }
@@ -582,6 +608,15 @@ final class AppDatabase extends _$AppDatabase {
     return (select(
       localUsers,
     )..where((user) => user.isCurrent.equals(true))).getSingleOrNull();
+  }
+
+  Future<bool> isBarcodeUnique(String shopId, String barcode) async {
+    final query = select(localPurchaseItems)
+      ..where(
+        (item) => item.shopId.equals(shopId) & item.barcode.equals(barcode),
+      );
+    final match = await query.getSingleOrNull();
+    return match == null;
   }
 
   Stream<List<LocalCategory>> watchProductCategoriesForCurrentShop() {
@@ -691,6 +726,60 @@ final class AppDatabase extends _$AppDatabase {
           ),
       ],
     );
+  }
+
+  Stream<List<LocalCategory>> watchIncomeCategoriesForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localCategories)
+          ..where(
+            (category) =>
+                category.type.equals('income') &
+                category.deletedAt.isNull() &
+                category.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(category) => OrderingTerm.asc(category.name)]))
+        .watch();
+  }
+
+  Stream<double> watchTodayIncomeTotalForCurrentShop() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+
+    return customSelect(
+      '''
+      SELECT COALESCE(SUM(amount), 0.0) AS total
+      FROM local_incomes
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND created_at >= ?
+        AND created_at < ?
+      ''',
+      variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
+      readsFrom: {localIncomes, localUsers},
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
+  Stream<List<LocalCategory>> watchDeletedIncomeCategoriesForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localCategories)
+          ..where(
+            (category) =>
+                category.type.equals('income') &
+                category.deletedAt.isNotNull() &
+                category.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(category) => OrderingTerm.desc(category.deletedAt)]))
+        .watch();
   }
 
   Stream<List<LocalOwnerTransactionEntry>>
@@ -919,6 +1008,92 @@ final class AppDatabase extends _$AppDatabase {
     });
 
     return expenseId;
+  }
+
+  Future<LocalCategory> createIncomeCategory(
+    String name, {
+    String? details,
+  }) async {
+    return _createCategory(name, type: 'income', details: details);
+  }
+
+  Future<void> updateIncomeCategory({
+    required String id,
+    required String name,
+    String? details,
+  }) async {
+    await _updateCategory(id: id, name: name, details: details);
+  }
+
+  Future<void> deleteIncomeCategory(String id) async {
+    await _softDeleteCategory(id);
+  }
+
+  Future<String> saveIncomeLocally({
+    required String categoryName,
+    required double amount,
+    required String reason,
+    required String note,
+    required DateTime incomeDate,
+    String? receiptUrl,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+    if (amount <= 0) {
+      throw StateError('Income amount is required.');
+    }
+
+    final category = await _findCategoryByName(
+      shopId: currentUser.shopId,
+      type: 'income',
+      name: categoryName,
+    );
+    if (category == null) {
+      throw StateError('Income category not found.');
+    }
+
+    final incomeId = const Uuid().v4();
+    final cashTransactionId = const Uuid().v4();
+    final now = DateTime.now();
+    final trimmedReason = _nullableTrimmed(reason);
+    final trimmedNote = _nullableTrimmed(note);
+
+    await transaction(() async {
+      await into(localIncomes).insert(
+        LocalIncomesCompanion(
+          id: Value(incomeId),
+          shopId: Value(currentUser.shopId),
+          categoryId: Value(category.id),
+          amount: Value(amount),
+          reason: Value(trimmedReason),
+          note: Value(trimmedNote),
+          receiptUrl: Value(receiptUrl),
+          createdAt: Value(incomeDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localCashTransactions).insert(
+        LocalCashTransactionsCompanion(
+          id: Value(cashTransactionId),
+          shopId: Value(currentUser.shopId),
+          type: const Value('income'),
+          direction: const Value('in'),
+          amount: Value(amount),
+          referenceId: Value(incomeId),
+          referenceType: const Value('income'),
+          method: const Value('cash'),
+          note: Value(trimmedReason ?? trimmedNote ?? category.name),
+          createdAt: Value(incomeDate),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+
+    return incomeId;
   }
 
   Future<LocalCategory> createProductCategory(
@@ -2317,6 +2492,70 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<LocalIncomeSyncBundle> getPendingIncomeSyncBundle({
+    String? shopId,
+  }) async {
+    final incomes =
+        await (select(localIncomes)..where(
+              (income) =>
+                  income.syncStatus.equals('pending') &
+                  (shopId == null
+                      ? const Constant(true)
+                      : income.shopId.equals(shopId)),
+            ))
+            .get();
+    final cashTransactions =
+        await (select(localCashTransactions)..where(
+              (transaction) =>
+                  transaction.type.equals('income') &
+                  transaction.syncStatus.equals('pending') &
+                  (shopId == null
+                      ? const Constant(true)
+                      : transaction.shopId.equals(shopId)),
+            ))
+            .get();
+
+    return LocalIncomeSyncBundle(
+      incomes: incomes,
+      cashTransactions: cashTransactions,
+    );
+  }
+
+  Future<void> markIncomeSyncBundleSynced(
+    LocalIncomeSyncBundle bundle,
+  ) async {
+    await transaction(() async {
+      for (final income in bundle.incomes) {
+        await (update(localIncomes)
+              ..where((table) => table.id.equals(income.id)))
+            .write(const LocalIncomesCompanion(syncStatus: Value('synced')));
+      }
+      for (final cashTransaction in bundle.cashTransactions) {
+        await (update(
+          localCashTransactions,
+        )..where((table) => table.id.equals(cashTransaction.id))).write(
+          const LocalCashTransactionsCompanion(syncStatus: Value('synced')),
+        );
+      }
+    });
+  }
+
+  Future<void> upsertSyncedIncomeData({
+    required List<LocalIncomesCompanion> incomes,
+    required List<LocalCashTransactionsCompanion> cashTransactions,
+  }) {
+    return transaction(() async {
+      for (final income in incomes) {
+        await into(localIncomes).insertOnConflictUpdate(income);
+      }
+      for (final cashTransaction in cashTransactions) {
+        await into(
+          localCashTransactions,
+        ).insertOnConflictUpdate(cashTransaction);
+      }
+    });
+  }
+
   Future<List<LocalPurchaseBundle>> getPendingPurchaseBundles({
     String? shopId,
   }) async {
@@ -2765,6 +3004,18 @@ class LocalExpenseSyncBundle {
   final List<LocalCashTransaction> cashTransactions;
 
   bool get isEmpty => expenses.isEmpty && cashTransactions.isEmpty;
+}
+
+class LocalIncomeSyncBundle {
+  const LocalIncomeSyncBundle({
+    required this.incomes,
+    required this.cashTransactions,
+  });
+
+  final List<LocalIncome> incomes;
+  final List<LocalCashTransaction> cashTransactions;
+
+  bool get isEmpty => incomes.isEmpty && cashTransactions.isEmpty;
 }
 
 class LocalExpenseHistoryEntry {

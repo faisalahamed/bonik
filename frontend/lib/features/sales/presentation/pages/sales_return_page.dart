@@ -24,6 +24,7 @@ const _returnReasons = [
   'ভুল পণ্য',
   'ক্রেতার মত পরিবর্তন',
   'ড্যামেজ',
+  'Replace',
   'অন্যান্য',
 ];
 const _returnReasonsDefault = 'ত্রুটিপূর্ণ পণ্য';

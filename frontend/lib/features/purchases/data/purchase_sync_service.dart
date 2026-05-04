@@ -92,6 +92,7 @@ class PurchaseSyncService {
             buyingPrice: Value(line.buyingPriceValue),
             estSellingPrice: Value(line.sellingPriceValue),
             quantity: Value(line.quantityValue.round()),
+            barcode: Value(_nullableString(line.barcode)),
             description: Value(line.category.details),
             createdAt: Value(draft.purchaseDate),
             updatedAt: Value(now),

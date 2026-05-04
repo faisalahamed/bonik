@@ -1,17 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
+import '../../application/income_providers.dart';
 
-class OtherIncomeCategoriesPage extends StatelessWidget {
+class OtherIncomeCategoriesPage extends ConsumerStatefulWidget {
   const OtherIncomeCategoriesPage({super.key});
 
   @override
+  ConsumerState<OtherIncomeCategoriesPage> createState() =>
+      _OtherIncomeCategoriesPageState();
+}
+
+class _OtherIncomeCategoriesPageState
+    extends ConsumerState<OtherIncomeCategoriesPage> {
+  final _nameController = TextEditingController();
+  LocalCategory? _editingCategory;
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final categoriesAsync = ref.watch(incomeCategoriesProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const AuthTopBar(title: 'নতুন আয়ের খাত'),
@@ -50,14 +72,33 @@ class OtherIncomeCategoriesPage extends StatelessWidget {
                 AppSpacing.md,
                 AppSpacing.xxl,
               ),
-              children: const [
-                _IncomeCategoryFormCard(),
-                SizedBox(height: AppSpacing.xl),
-                _SaveIncomeCategoryButton(),
-                SizedBox(height: AppSpacing.xl),
-                _IncomeCategoryListSection(),
-                SizedBox(height: AppSpacing.xl),
-                _IncomeCategoryFooterNote(),
+              children: [
+                _IncomeCategoryFormCard(
+                  controller: _nameController,
+                  editingCategory: _editingCategory,
+                  onCancelEdit: _clearForm,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _SaveIncomeCategoryButton(
+                  saving: _saving,
+                  editing: _editingCategory != null,
+                  onPressed: _saving ? null : _saveCategory,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                categoriesAsync.when(
+                  data: (items) => _IncomeCategoryListSection(
+                    categories: items,
+                    onEdit: _startEdit,
+                    onDelete: _deleteCategory,
+                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => const _IncomeCategoryListError(
+                    message: 'আয়ের খাত লোড করা যায়নি',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                const _IncomeCategoryFooterNote(),
               ],
             ),
           ),
@@ -65,10 +106,103 @@ class OtherIncomeCategoriesPage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _saveCategory() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('আয়ের খাতের নাম দিন')));
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final database = ref.read(appDatabaseProvider);
+      final editing = _editingCategory;
+      if (editing == null) {
+        await database.createIncomeCategory(name);
+      } else {
+        await database.updateIncomeCategory(id: editing.id, name: name);
+      }
+
+      if (!mounted) {
+        return;
+      }
+      _clearForm();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            editing == null ? 'আয়ের খাত সেভ হয়েছে' : 'আয়ের খাত আপডেট হয়েছে',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  void _startEdit(LocalCategory category) {
+    setState(() {
+      _editingCategory = category;
+      _nameController.text = category.name;
+    });
+  }
+
+  Future<void> _deleteCategory(LocalCategory category) async {
+    try {
+      await ref.read(appDatabaseProvider).deleteIncomeCategory(category.id);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('আয়ের খাত মুছে দেওয়া হয়েছে')),
+      );
+      if (_editingCategory?.id == category.id) {
+        _clearForm();
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  void _clearForm() {
+    setState(() {
+      _editingCategory = null;
+      _nameController.clear();
+    });
+  }
 }
 
 class _IncomeCategoryFormCard extends StatelessWidget {
-  const _IncomeCategoryFormCard();
+  const _IncomeCategoryFormCard({
+    required this.controller,
+    required this.editingCategory,
+    required this.onCancelEdit,
+  });
+
+  final TextEditingController controller;
+  final LocalCategory? editingCategory;
+  final VoidCallback onCancelEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -97,16 +231,30 @@ class _IncomeCategoryFormCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'আয়ের ধরনের নাম',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        editingCategory == null
+                            ? 'আয়ের ধরনের নাম'
+                            : 'আয়ের খাত এডিট',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (editingCategory != null)
+                      TextButton(
+                        onPressed: onCancelEdit,
+                        child: const Text('বাতিল'),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                const TextField(
-                  decoration: InputDecoration(
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
                     hintText: 'আয়ের ধরনের নাম',
                   ),
                 ),
@@ -120,7 +268,15 @@ class _IncomeCategoryFormCard extends StatelessWidget {
 }
 
 class _SaveIncomeCategoryButton extends StatelessWidget {
-  const _SaveIncomeCategoryButton();
+  const _SaveIncomeCategoryButton({
+    required this.saving,
+    required this.editing,
+    required this.onPressed,
+  });
+
+  final bool saving;
+  final bool editing;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +289,7 @@ class _SaveIncomeCategoryButton extends StatelessWidget {
       child: SizedBox(
         height: 60,
         child: ElevatedButton(
-          onPressed: () {},
+          onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             foregroundColor: AppColors.onPrimary,
@@ -143,7 +299,7 @@ class _SaveIncomeCategoryButton extends StatelessWidget {
             ),
           ),
           child: Text(
-            'সেভ করুন',
+            saving ? 'সেভ হচ্ছে' : (editing ? 'আপডেট করুন' : 'সেভ করুন'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -156,38 +312,19 @@ class _SaveIncomeCategoryButton extends StatelessWidget {
 }
 
 class _IncomeCategoryListSection extends StatelessWidget {
-  const _IncomeCategoryListSection();
+  const _IncomeCategoryListSection({
+    required this.categories,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final List<LocalCategory> categories;
+  final ValueChanged<LocalCategory> onEdit;
+  final ValueChanged<LocalCategory> onDelete;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    const categories = [
-      _IncomeCategoryListItemData(
-        label: 'Bonus / বোনাস',
-        icon: Icons.payments_rounded,
-        iconBackground: Color(0xFFE8F6EF),
-        iconColor: AppColors.primary,
-      ),
-      _IncomeCategoryListItemData(
-        label: 'Commission / কমিশন',
-        icon: Icons.sell_rounded,
-        iconBackground: Color(0xFFEAF7F2),
-        iconColor: AppColors.secondary,
-      ),
-      _IncomeCategoryListItemData(
-        label: 'Investment / বিনিয়োগ',
-        icon: Icons.receipt_long_rounded,
-        iconBackground: Color(0xFFF1F4F2),
-        iconColor: AppColors.primaryContainer,
-      ),
-      _IncomeCategoryListItemData(
-        label: 'Other / অন্যান্য',
-        icon: Icons.key_rounded,
-        iconBackground: Color(0xFFE8F6EF),
-        iconColor: AppColors.primary,
-      ),
-    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,33 +346,74 @@ class _IncomeCategoryListSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.xl),
             boxShadow: AppShadows.soft,
           ),
-          child: Column(
-            children: [
-              for (var i = 0; i < categories.length; i++) ...[
-                _IncomeCategoryListItem(item: categories[i]),
-                if (i != categories.length - 1)
-                  const Divider(
-                    height: 1,
-                    color: AppColors.surfaceContainerHigh,
-                  ),
-              ],
-            ],
-          ),
+          child: categories.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: Center(child: Text('এখনও কোনো আয়ের খাত নেই')),
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < categories.length; i++) ...[
+                      _IncomeCategoryListItem(
+                        category: categories[i],
+                        onEdit: () => onEdit(categories[i]),
+                        onDelete: () => onDelete(categories[i]),
+                      ),
+                      if (i != categories.length - 1)
+                        const Divider(
+                          height: 1,
+                          color: AppColors.surfaceContainerHigh,
+                        ),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
   }
 }
 
-class _IncomeCategoryListItem extends StatelessWidget {
-  const _IncomeCategoryListItem({
-    required this.item,
-  });
+class _IncomeCategoryListError extends StatelessWidget {
+  const _IncomeCategoryListError({required this.message});
 
-  final _IncomeCategoryListItemData item;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _IncomeCategoryListItem extends StatelessWidget {
+  const _IncomeCategoryListItem({
+    required this.category,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final LocalCategory category;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconStyle = _iconForIncomeCategory(category.name);
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -247,34 +425,47 @@ class _IncomeCategoryListItem extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: item.iconBackground,
+              color: iconStyle.background,
               shape: BoxShape.circle,
             ),
             child: Icon(
-              item.icon,
-              color: item.iconColor,
+              iconStyle.icon,
+              color: iconStyle.color,
               size: 22,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              item.label,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  category.syncStatus == 'pending' ? 'সিঙ্ক বাকি' : 'সিঙ্কড',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: onEdit,
             icon: const Icon(
               Icons.edit_rounded,
               color: AppColors.textMuted,
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: onDelete,
             icon: const Icon(
               Icons.delete_outline_rounded,
               color: AppColors.textMuted,
@@ -306,16 +497,44 @@ class _IncomeCategoryFooterNote extends StatelessWidget {
   }
 }
 
-class _IncomeCategoryListItemData {
-  const _IncomeCategoryListItemData({
-    required this.label,
+class _IncomeCategoryIconStyle {
+  const _IncomeCategoryIconStyle({
     required this.icon,
-    required this.iconBackground,
-    required this.iconColor,
+    required this.background,
+    required this.color,
   });
 
-  final String label;
   final IconData icon;
-  final Color iconBackground;
-  final Color iconColor;
+  final Color background;
+  final Color color;
+}
+
+_IncomeCategoryIconStyle _iconForIncomeCategory(String name) {
+  final lower = name.toLowerCase();
+  if (lower.contains('bonus') || lower.contains('বোনাস')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.payments_rounded,
+      background: Color(0xFFE8F6EF),
+      color: AppColors.primary,
+    );
+  }
+  if (lower.contains('commission') || lower.contains('কমিশন')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.sell_rounded,
+      background: Color(0xFFEAF7F2),
+      color: AppColors.secondary,
+    );
+  }
+  if (lower.contains('investment') || lower.contains('বিনিয়োগ')) {
+    return const _IncomeCategoryIconStyle(
+      icon: Icons.receipt_long_rounded,
+      background: Color(0xFFF1F4F2),
+      color: AppColors.primaryContainer,
+    );
+  }
+  return const _IncomeCategoryIconStyle(
+    icon: Icons.category_rounded,
+    background: Color(0xFFE8F6EF),
+    color: AppColors.primary,
+  );
 }
