@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,12 +8,21 @@ import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class OwnerTransactionsPage extends StatelessWidget {
+final _ownerTransactionsProvider =
+    StreamProvider<List<LocalOwnerTransactionEntry>>(
+      (ref) =>
+          ref.watch(appDatabaseProvider).watchOwnerTransactionsForCurrentShop(),
+    );
+
+class OwnerTransactionsPage extends ConsumerWidget {
   const OwnerTransactionsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final transactions = ref.watch(_ownerTransactionsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -45,48 +55,12 @@ class OwnerTransactionsPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.xxl,
-                  ),
-                  children: const [
-                    _OwnerProfileCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _OwnerHistoryFilters(),
-                    SizedBox(height: AppSpacing.md),
-                    _OwnerHistoryHeader(),
-                    SizedBox(height: AppSpacing.md),
-                    _OwnerHistoryEntry(
-                      dateMonth: 'JAN',
-                      day: '15',
-                      reference: 'Ref: INV-8821',
-                      credit: '+200.0',
-                      debit: '-',
-                      balance: '300.5 Tk',
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _OwnerHistoryEntry(
-                      dateMonth: 'JAN',
-                      day: '12',
-                      reference: 'Manual Entry',
-                      credit: '-',
-                      debit: '-800.5',
-                      balance: '500.5 Tk',
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _OwnerHistoryEntry(
-                      dateMonth: 'JAN',
-                      day: '05',
-                      reference: 'Cash Payment',
-                      credit: '+300.0',
-                      debit: '-',
-                      balance: '300.0 Tk',
-                    ),
-                    SizedBox(height: 104),
-                  ],
+                transactions.when(
+                  data: (entries) => _OwnerTransactionsList(entries: entries),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) =>
+                      const _OwnerTransactionsList(entries: []),
                 ),
                 const _OwnerBottomActions(),
               ],
@@ -103,38 +77,44 @@ class _OwnerTransactionsTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'মালিক দিলো / নিলো',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 72,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
+                Expanded(
+                  child: Text(
+                    'মালিক দিলো / নিলো',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -142,8 +122,69 @@ class _OwnerTransactionsTopBar extends StatelessWidget {
   }
 }
 
+class _OwnerTransactionsList extends StatelessWidget {
+  const _OwnerTransactionsList({required this.entries});
+
+  final List<LocalOwnerTransactionEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedEntries = [...entries]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final totalGiven = entries
+        .where((entry) => entry.isGiven)
+        .fold<double>(0, (sum, entry) => sum + entry.amount);
+    final totalTaken = entries
+        .where((entry) => entry.isTaken)
+        .fold<double>(0, (sum, entry) => sum + entry.amount);
+    final balance = totalGiven - totalTaken;
+    final balancesById = _runningBalancesById(entries);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xxl,
+      ),
+      children: [
+        _OwnerProfileCard(
+          totalGiven: totalGiven,
+          totalTaken: totalTaken,
+          balance: balance,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        const _OwnerHistoryFilters(),
+        const SizedBox(height: AppSpacing.md),
+        const _OwnerHistoryHeader(),
+        const SizedBox(height: AppSpacing.md),
+        if (sortedEntries.isEmpty)
+          const _OwnerEmptyHistoryCard()
+        else
+          for (var i = 0; i < sortedEntries.length; i++) ...[
+            _OwnerHistoryEntry.fromEntry(
+              sortedEntries[i],
+              balance: balancesById[sortedEntries[i].id] ?? 0,
+            ),
+            if (i != sortedEntries.length - 1)
+              const SizedBox(height: AppSpacing.md),
+          ],
+        const SizedBox(height: 104),
+      ],
+    );
+  }
+}
+
 class _OwnerProfileCard extends StatelessWidget {
-  const _OwnerProfileCard();
+  const _OwnerProfileCard({
+    required this.totalGiven,
+    required this.totalTaken,
+    required this.balance,
+  });
+
+  final double totalGiven;
+  final double totalTaken;
+  final double balance;
 
   @override
   Widget build(BuildContext context) {
@@ -173,28 +214,28 @@ class _OwnerProfileCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
+                    children: [
                       Expanded(
                         child: _OwnerMetricCard(
                           title: 'মোট দিয়েছে',
-                          value: '৫০০.০ টাকা',
-                          background: Color(0xFFE8FBF4),
+                          value: _money(totalGiven),
+                          background: const Color(0xFFE8FBF4),
                           valueColor: AppColors.primary,
                         ),
                       ),
-                      SizedBox(width: AppSpacing.md),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: _OwnerMetricCard(
                           title: 'মোট নিয়েছে',
-                          value: '৮০০.০ টাকা',
-                          background: Color(0xFFFFEAEA),
-                          valueColor: Color(0xFFD9534F),
+                          value: _money(totalTaken),
+                          background: const Color(0xFFFFEAEA),
+                          valueColor: const Color(0xFFD9534F),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const _OwnerBalanceCard(),
+                  _OwnerBalanceCard(balance: balance),
                 ],
               ),
             ),
@@ -237,11 +278,15 @@ class _OwnerMetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: valueColor,
-              fontWeight: FontWeight.w800,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: valueColor,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -251,7 +296,9 @@ class _OwnerMetricCard extends StatelessWidget {
 }
 
 class _OwnerBalanceCard extends StatelessWidget {
-  const _OwnerBalanceCard();
+  const _OwnerBalanceCard({required this.balance});
+
+  final double balance;
 
   @override
   Widget build(BuildContext context) {
@@ -276,9 +323,11 @@ class _OwnerBalanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '-৩০০.৫ টাকা',
+                  _money(balance),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.primary,
+                    color: balance < 0
+                        ? const Color(0xFFD9534F)
+                        : AppColors.primary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -427,6 +476,20 @@ class _OwnerHistoryEntry extends StatelessWidget {
     required this.balance,
   });
 
+  factory _OwnerHistoryEntry.fromEntry(
+    LocalOwnerTransactionEntry entry, {
+    required double balance,
+  }) {
+    return _OwnerHistoryEntry(
+      dateMonth: _monthShort(entry.createdAt.month),
+      day: _banglaNumber(entry.createdAt.day.toString().padLeft(2, '0')),
+      reference: _reference(entry),
+      credit: entry.isGiven ? '+${_plainMoney(entry.amount)}' : '-',
+      debit: entry.isTaken ? '-${_plainMoney(entry.amount)}' : '-',
+      balance: _money(balance),
+    );
+  }
+
   final String dateMonth;
   final String day;
   final String reference;
@@ -504,11 +567,13 @@ class _OwnerHistoryEntry extends StatelessWidget {
                 flex: 2,
                 child: Align(
                   alignment: Alignment.topCenter,
-                  child: _TxnBadge(
-                    text: credit,
-                    background: const Color(0xFFE4FBF6),
-                    color: AppColors.primary,
-                  ),
+                  child: credit == '-'
+                      ? _DashText(text: credit)
+                      : _TxnBadge(
+                          text: credit,
+                          background: const Color(0xFFE4FBF6),
+                          color: AppColors.primary,
+                        ),
                 ),
               ),
               Expanded(
@@ -516,14 +581,7 @@ class _OwnerHistoryEntry extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: debit == '-'
-                      ? Text(
-                          debit,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        )
+                      ? _DashText(text: debit)
                       : _TxnBadge(
                           text: debit,
                           background: const Color(0xFFFFE7E7),
@@ -584,6 +642,23 @@ class _OwnerHistoryEntry extends StatelessWidget {
   }
 }
 
+class _DashText extends StatelessWidget {
+  const _DashText({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        color: AppColors.textMuted,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
 class _TxnBadge extends StatelessWidget {
   const _TxnBadge({
     required this.text,
@@ -611,6 +686,30 @@ class _TxnBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: color,
           fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerEmptyHistoryCard extends StatelessWidget {
+  const _OwnerEmptyHistoryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        'এখনো মালিকের কোনো লেনদেন নেই',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -703,4 +802,73 @@ class _OwnerBottomActions extends StatelessWidget {
       ),
     );
   }
+}
+
+Map<String, double> _runningBalancesById(
+  List<LocalOwnerTransactionEntry> entries,
+) {
+  final sorted = [...entries]
+    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  final balances = <String, double>{};
+  var balance = 0.0;
+  for (final entry in sorted) {
+    balance += entry.isGiven ? entry.amount : -entry.amount;
+    balances[entry.id] = balance;
+  }
+  return balances;
+}
+
+String _reference(LocalOwnerTransactionEntry entry) {
+  final note = entry.note?.trim();
+  if (note != null && note.isNotEmpty) {
+    return note;
+  }
+
+  final referenceId = entry.referenceId?.trim();
+  if (referenceId != null && referenceId.isNotEmpty) {
+    return 'Ref: ${referenceId.length > 8 ? referenceId.substring(0, 8) : referenceId}';
+  }
+
+  return entry.isGiven ? 'Owner given' : 'Owner taken';
+}
+
+String _money(double value) {
+  final sign = value < 0 ? '-' : '';
+  return '$sign৳ ${_plainMoney(value.abs())}';
+}
+
+String _plainMoney(double value) {
+  final fixed = value.toStringAsFixed(
+    value.truncateToDouble() == value ? 0 : 2,
+  );
+  return _banglaNumber(fixed);
+}
+
+String _monthShort(int month) {
+  const names = [
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
+  return names[month - 1];
+}
+
+String _banglaNumber(String value) {
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bangla = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+  var result = value;
+  for (var i = 0; i < english.length; i++) {
+    result = result.replaceAll(english[i], bangla[i]);
+  }
+  return result;
 }

@@ -177,6 +177,40 @@ class LocalSaleItems extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class LocalSaleReturns extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get saleId => text().references(LocalSales, #id)();
+  RealColumn get subtotal => real().withDefault(const Constant(0))();
+  RealColumn get restockingFee => real().withDefault(const Constant(0))();
+  RealColumn get refundTotal => real().withDefault(const Constant(0))();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalSaleReturnItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get returnId => text().references(LocalSaleReturns, #id)();
+  TextColumn get saleItemId => text().references(LocalSaleItems, #id)();
+  TextColumn get productId => text().references(LocalPurchaseItems, #id)();
+  TextColumn get productName => text()();
+  RealColumn get salePrice => real().withDefault(const Constant(0))();
+  IntColumn get quantity => integer().withDefault(const Constant(0))();
+  TextColumn get reason => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class LocalCustomerPayments extends Table {
   TextColumn get id => text()();
   TextColumn get shopId => text().references(LocalShops, #id)();
@@ -237,6 +271,8 @@ class LocalExpenses extends Table {
     LocalCustomers,
     LocalSales,
     LocalSaleItems,
+    LocalSaleReturns,
+    LocalSaleReturnItems,
     LocalCustomerPayments,
     LocalCashTransactions,
     LocalExpenses,
@@ -247,7 +283,7 @@ final class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'bonik'));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -385,6 +421,10 @@ final class AppDatabase extends _$AppDatabase {
           'ALTER TABLE local_expenses_v10 RENAME TO local_expenses',
         );
       }
+      if (from < 11) {
+        await migrator.createTable(localSaleReturns);
+        await migrator.createTable(localSaleReturnItems);
+      }
     },
   );
 
@@ -493,6 +533,16 @@ final class AppDatabase extends _$AppDatabase {
           AND shop_id IN (SELECT shop_id FROM current_shop)
         UNION ALL
         SELECT 1
+        FROM local_sale_returns
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
+        UNION ALL
+        SELECT 1
+        FROM local_sale_return_items
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
+        UNION ALL
+        SELECT 1
         FROM local_customer_payments
         WHERE sync_status != 'synced'
           AND shop_id IN (SELECT shop_id FROM current_shop)
@@ -519,6 +569,8 @@ final class AppDatabase extends _$AppDatabase {
         localCustomers,
         localSales,
         localSaleItems,
+        localSaleReturns,
+        localSaleReturnItems,
         localCustomerPayments,
         localCashTransactions,
         localExpenses,
@@ -639,6 +691,150 @@ final class AppDatabase extends _$AppDatabase {
           ),
       ],
     );
+  }
+
+  Stream<List<LocalOwnerTransactionEntry>>
+  watchOwnerTransactionsForCurrentShop() {
+    return customSelect(
+      '''
+      SELECT
+        id,
+        type,
+        direction,
+        amount,
+        reference_id,
+        reference_type,
+        method,
+        note,
+        created_at,
+        sync_status
+      FROM local_cash_transactions
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND type IN ('owner_given', 'owner_taken')
+      ORDER BY created_at DESC
+      ''',
+      readsFrom: {localCashTransactions, localUsers},
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalOwnerTransactionEntry(
+            id: row.read<String>('id'),
+            type: row.read<String>('type'),
+            direction: row.read<String>('direction'),
+            amount: row.read<double>('amount'),
+            referenceId: row.readNullable<String>('reference_id'),
+            referenceType: row.readNullable<String>('reference_type'),
+            method: row.readNullable<String>('method'),
+            note: row.readNullable<String>('note'),
+            createdAt: row.read<DateTime>('created_at'),
+            syncStatus: row.read<String>('sync_status'),
+          ),
+      ],
+    );
+  }
+
+  Future<String> saveOwnerGivenLocally({
+    required double amount,
+    required DateTime transactionDate,
+    required String note,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+    if (amount <= 0) {
+      throw StateError('Owner given amount is required.');
+    }
+
+    final now = DateTime.now();
+    final id = const Uuid().v4();
+    await into(localCashTransactions).insert(
+      LocalCashTransactionsCompanion(
+        id: Value(id),
+        shopId: Value(currentUser.shopId),
+        type: const Value('owner_given'),
+        direction: const Value('in'),
+        amount: Value(amount),
+        referenceType: const Value('owner'),
+        method: const Value('cash'),
+        note: Value(_nullableTrimmed(note)),
+        createdAt: Value(transactionDate),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    return id;
+  }
+
+  Future<String> saveOwnerTakenLocally({
+    required double amount,
+    required DateTime transactionDate,
+    required String note,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+    if (amount <= 0) {
+      throw StateError('Owner taken amount is required.');
+    }
+
+    final now = DateTime.now();
+    final id = const Uuid().v4();
+    await into(localCashTransactions).insert(
+      LocalCashTransactionsCompanion(
+        id: Value(id),
+        shopId: Value(currentUser.shopId),
+        type: const Value('owner_taken'),
+        direction: const Value('out'),
+        amount: Value(amount),
+        referenceType: const Value('owner'),
+        method: const Value('cash'),
+        note: Value(_nullableTrimmed(note)),
+        createdAt: Value(transactionDate),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    return id;
+  }
+
+  Future<List<LocalCashTransaction>> getPendingOwnerTransactions({
+    String? shopId,
+  }) {
+    return (select(localCashTransactions)..where(
+          (transaction) =>
+              transaction.type.isIn(['owner_given', 'owner_taken']) &
+              transaction.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : transaction.shopId.equals(shopId)),
+        ))
+        .get();
+  }
+
+  Future<void> markOwnerTransactionSynced(String id) async {
+    await (update(
+      localCashTransactions,
+    )..where((transaction) => transaction.id.equals(id))).write(
+      const LocalCashTransactionsCompanion(syncStatus: Value('synced')),
+    );
+  }
+
+  Future<void> upsertSyncedOwnerTransactions(
+    List<LocalCashTransactionsCompanion> rows,
+  ) async {
+    await transaction(() async {
+      for (final row in rows) {
+        await into(localCashTransactions).insertOnConflictUpdate(row);
+      }
+    });
   }
 
   Future<LocalCategory> createExpenseCategory(
@@ -1818,6 +2014,87 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<String> saveSalesReturnLocally({
+    required String saleId,
+    required List<LocalSaleReturnDraftItem> items,
+    required double restockingFee,
+    required String note,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+    if (items.isEmpty) {
+      throw StateError('No return items selected.');
+    }
+
+    final subtotal = items.fold<double>(
+      0,
+      (sum, item) => sum + item.salePrice * item.quantity,
+    );
+    final refundTotal = subtotal - restockingFee;
+    if (refundTotal <= 0) {
+      throw StateError('Return amount must be greater than zero.');
+    }
+
+    final now = DateTime.now();
+    final returnId = const Uuid().v4();
+    await transaction(() async {
+      await into(localSaleReturns).insert(
+        LocalSaleReturnsCompanion(
+          id: Value(returnId),
+          shopId: Value(currentUser.shopId),
+          saleId: Value(saleId),
+          subtotal: Value(subtotal),
+          restockingFee: Value(restockingFee),
+          refundTotal: Value(refundTotal),
+          note: Value(_nullableTrimmed(note)),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+
+      for (final item in items) {
+        await into(localSaleReturnItems).insert(
+          LocalSaleReturnItemsCompanion(
+            id: Value(const Uuid().v4()),
+            shopId: Value(currentUser.shopId),
+            returnId: Value(returnId),
+            saleItemId: Value(item.saleItemId),
+            productId: Value(item.productId),
+            productName: Value(item.productName),
+            salePrice: Value(item.salePrice),
+            quantity: Value(item.quantity),
+            reason: Value(_nullableTrimmed(item.reason)),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+      }
+
+      await into(localCashTransactions).insert(
+        LocalCashTransactionsCompanion(
+          id: Value(const Uuid().v4()),
+          shopId: Value(currentUser.shopId),
+          type: const Value('sales_return'),
+          direction: const Value('out'),
+          amount: Value(refundTotal),
+          referenceId: Value(returnId),
+          referenceType: const Value('sales_return'),
+          method: const Value('cash'),
+          note: Value(_nullableTrimmed(note) ?? 'Sales return refund'),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+
+    return returnId;
+  }
+
   Future<List<LocalCustomer>> getPendingCustomers({String? shopId}) {
     return (select(localCustomers)..where(
           (customer) =>
@@ -2321,6 +2598,24 @@ class LocalSalesHistoryEntry {
   double get dueAmount => total - paidAmount;
 }
 
+class LocalSaleReturnDraftItem {
+  const LocalSaleReturnDraftItem({
+    required this.saleItemId,
+    required this.productId,
+    required this.productName,
+    required this.salePrice,
+    required this.quantity,
+    required this.reason,
+  });
+
+  final String saleItemId;
+  final String productId;
+  final String productName;
+  final double salePrice;
+  final int quantity;
+  final String reason;
+}
+
 class LocalDuesSummary {
   const LocalDuesSummary({required this.receivable, required this.payable});
 
@@ -2492,6 +2787,35 @@ class LocalExpenseHistoryEntry {
   final String? note;
   final DateTime createdAt;
   final String syncStatus;
+}
+
+class LocalOwnerTransactionEntry {
+  const LocalOwnerTransactionEntry({
+    required this.id,
+    required this.type,
+    required this.direction,
+    required this.amount,
+    required this.referenceId,
+    required this.referenceType,
+    required this.method,
+    required this.note,
+    required this.createdAt,
+    required this.syncStatus,
+  });
+
+  final String id;
+  final String type;
+  final String direction;
+  final double amount;
+  final String? referenceId;
+  final String? referenceType;
+  final String? method;
+  final String? note;
+  final DateTime createdAt;
+  final String syncStatus;
+
+  bool get isGiven => type == 'owner_given';
+  bool get isTaken => type == 'owner_taken';
 }
 
 class LocalSalesProduct {

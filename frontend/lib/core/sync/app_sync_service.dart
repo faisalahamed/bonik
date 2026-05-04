@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/expenses/data/expense_sync_service.dart';
+import '../../features/owners/data/owner_transaction_sync_service.dart';
 import '../../features/purchases/data/category_sync_service.dart';
 import '../../features/purchases/data/purchase_sync_service.dart';
 import '../../features/purchases/data/supplier_sync_service.dart';
@@ -21,5 +22,8 @@ class AppSyncService {
     await _ref.read(purchaseSyncServiceProvider).syncPurchases();
     await _ref.read(salesSyncServiceProvider).syncSales();
     await _ref.read(expenseSyncServiceProvider).syncExpenses();
+    await _ref
+        .read(ownerTransactionSyncServiceProvider)
+        .syncOwnerTransactions();
   }
 }

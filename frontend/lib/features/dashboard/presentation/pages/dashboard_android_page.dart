@@ -80,7 +80,7 @@ class DashboardAndroidPage extends StatelessWidget {
                       route: AppRoutes.cashPurchase,
                     ),
                     _DashboardMenuItemData(
-                      label: 'পণ্য তালিকা',
+                      label: 'Barcode Manager',
                       icon: Icons.list_alt_rounded,
                       iconBackground: Color(0xFFEAF7F2),
                       iconColor: AppColors.primaryContainer,
