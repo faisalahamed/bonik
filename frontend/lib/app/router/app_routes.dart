@@ -21,6 +21,7 @@ class AppRoutes {
   static const String otherIncomeCreate = '/other-income/new';
   static const String otherIncomeCategories = '/other-income/categories';
   static const String inventory = '/inventory';
+  static const String inventoryDetails = '/inventory/details';
   static const String ownerTransactions = '/owner-transactions';
   static const String ownerGiving = '/owner-transactions/giving';
   static const String ownerTaking = '/owner-transactions/taking';

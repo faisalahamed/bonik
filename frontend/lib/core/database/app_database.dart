@@ -651,6 +651,22 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<List<LocalPurchaseItem>> watchPurchaseItemsWithBarcodes() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localPurchaseItems)
+          ..where(
+            (item) =>
+                item.barcode.isNotNull() &
+                item.barcode.equals('').not() &
+                item.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(item) => OrderingTerm.asc(item.productName)]))
+        .watch();
+  }
+
   Stream<List<LocalCategory>> watchExpenseCategoriesForCurrentShop() {
     final currentShopIds = selectOnly(localUsers)
       ..addColumns([localUsers.shopId])
@@ -1543,7 +1559,34 @@ final class AppDatabase extends _$AppDatabase {
         s.status,
         s.payment_method,
         s.created_at,
-        s.sync_status,
+        CASE
+          WHEN s.sync_status != 'synced'
+            OR EXISTS (
+              SELECT 1
+              FROM local_sale_returns sr_sync
+              WHERE sr_sync.sale_id = s.id
+                AND sr_sync.sync_status != 'synced'
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM local_sale_return_items sri_sync
+              INNER JOIN local_sale_returns sr_sync_items
+                ON sr_sync_items.id = sri_sync.return_id
+              WHERE sr_sync_items.sale_id = s.id
+                AND sri_sync.sync_status != 'synced'
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM local_cash_transactions ct_sync
+              INNER JOIN local_sale_returns sr_sync_cash
+                ON sr_sync_cash.id = ct_sync.reference_id
+              WHERE sr_sync_cash.sale_id = s.id
+                AND ct_sync.type = 'sales_return'
+                AND ct_sync.sync_status != 'synced'
+            )
+          THEN 'pending'
+          ELSE 'synced'
+        END AS sync_status,
         COALESCE((
           SELECT SUM(payments)
           FROM local_customer_payments
@@ -1553,7 +1596,18 @@ final class AppDatabase extends _$AppDatabase {
           SELECT COUNT(*)
           FROM local_sale_items
           WHERE order_id = s.id
-        ), 0) AS item_count
+        ), 0) AS item_count,
+        COALESCE((
+          SELECT SUM(sr.refund_total)
+          FROM local_sale_returns sr
+          WHERE sr.sale_id = s.id
+        ), 0.0) AS return_refund_total,
+        COALESCE((
+          SELECT SUM(sri.quantity)
+          FROM local_sale_return_items sri
+          INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
+          WHERE sr.sale_id = s.id
+        ), 0) AS returned_item_count
       FROM local_sales s
       LEFT JOIN local_customers c ON c.id = s.customer_id
       WHERE s.shop_id IN (
@@ -1568,6 +1622,9 @@ final class AppDatabase extends _$AppDatabase {
         localCustomers,
         localCustomerPayments,
         localSaleItems,
+        localSaleReturns,
+        localSaleReturnItems,
+        localCashTransactions,
         localUsers,
       },
     ).watch().map(
@@ -1584,6 +1641,8 @@ final class AppDatabase extends _$AppDatabase {
               total: row.read<double>('total'),
               paidAmount: row.read<double>('paid_amount'),
               itemCount: row.read<int>('item_count'),
+              returnRefundTotal: row.read<double>('return_refund_total'),
+              returnedItemCount: row.read<int>('returned_item_count'),
               status: row.read<String>('status'),
               paymentMethod: row.readNullable<String>('payment_method'),
               createdAt: row.read<DateTime>('created_at'),
@@ -1965,14 +2024,19 @@ final class AppDatabase extends _$AppDatabase {
         si.updated_at,
         si.sync_status,
         COALESCE(pi.product_name, 'পণ্য') AS product_name,
-        pi.description AS description
+        pi.description AS description,
+        COALESCE((
+          SELECT SUM(sri.quantity)
+          FROM local_sale_return_items sri
+          WHERE sri.sale_item_id = si.id
+        ), 0) AS returned_quantity
       FROM local_sale_items si
       LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
       WHERE si.order_id = ?
       ORDER BY si.created_at ASC
       ''',
       variables: [Variable<String>(saleId)],
-      readsFrom: {localSaleItems, localPurchaseItems},
+      readsFrom: {localSaleItems, localPurchaseItems, localSaleReturnItems},
     ).watch().map(
       (rows) => rows
           .map(
@@ -1990,6 +2054,7 @@ final class AppDatabase extends _$AppDatabase {
               syncStatus: row.read<String>('sync_status'),
               productName: row.read<String>('product_name'),
               description: row.readNullable<String>('description'),
+              returnedQuantity: row.read<int>('returned_quantity'),
             ),
           )
           .toList(),
@@ -2011,25 +2076,46 @@ final class AppDatabase extends _$AppDatabase {
         category_id,
         product_name,
         MAX(NULLIF(description, '')) AS description,
+        SUM(available_quantity) AS stock_quantity,
+        COALESCE(MAX(buying_price), 0.0) AS buying_price,
+        COALESCE(MAX(est_selling_price), MAX(buying_price), 0.0) AS selling_price,
+        SUM(available_quantity * COALESCE(buying_price, 0.0)) AS stock_value,
         SUM(
-          quantity - COALESCE((
+          available_quantity *
+          (
+            COALESCE(est_selling_price, buying_price, 0.0) -
+            COALESCE(buying_price, 0.0)
+          )
+        ) AS expected_profit
+      FROM (
+        SELECT
+          pi.*,
+          pi.quantity - COALESCE((
             SELECT SUM(si.quantity)
             FROM local_sale_items si
-            WHERE si.product_id = local_purchase_items.id
-          ), 0)
-        ) AS stock_quantity,
-        COALESCE(MAX(est_selling_price), MAX(buying_price), 0.0) AS selling_price
-      FROM local_purchase_items
-      WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
-      )
+            WHERE si.product_id = pi.id
+          ), 0) + COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            WHERE sri.product_id = pi.id
+          ), 0) AS available_quantity
+        FROM local_purchase_items pi
+        WHERE pi.shop_id IN (
+          SELECT shop_id
+          FROM local_users
+          WHERE is_current = 1
+        )
+      ) AS available_batches
       GROUP BY COALESCE(category_id, product_name), product_name
       HAVING stock_quantity > 0
       ORDER BY product_name ASC
       ''',
-      readsFrom: {localPurchaseItems, localSaleItems, localUsers},
+      readsFrom: {
+        localPurchaseItems,
+        localSaleItems,
+        localSaleReturnItems,
+        localUsers,
+      },
     ).watch().map(
       (rows) => rows
           .map(
@@ -2039,7 +2125,10 @@ final class AppDatabase extends _$AppDatabase {
               name: row.read<String>('product_name'),
               description: row.readNullable<String>('description'),
               stockQuantity: row.read<int>('stock_quantity'),
+              buyingPrice: row.read<double>('buying_price'),
               sellingPrice: row.read<double>('selling_price'),
+              stockValue: row.read<double>('stock_value'),
+              expectedProfit: row.read<double>('expected_profit'),
             ),
           )
           .toList(),
@@ -2118,10 +2207,15 @@ final class AppDatabase extends _$AppDatabase {
         pi.product_name,
         pi.buying_price,
         COALESCE(pi.est_selling_price, pi.buying_price, 0.0) AS selling_price,
+        pi.barcode,
         pi.quantity - COALESCE((
           SELECT SUM(si.quantity)
           FROM local_sale_items si
           WHERE si.product_id = pi.id
+        ), 0) + COALESCE((
+          SELECT SUM(sri.quantity)
+          FROM local_sale_return_items sri
+          WHERE sri.product_id = pi.id
         ), 0) AS available_quantity,
         pi.created_at
       FROM local_purchase_items pi
@@ -2136,6 +2230,10 @@ final class AppDatabase extends _$AppDatabase {
             SELECT SUM(si.quantity)
             FROM local_sale_items si
             WHERE si.product_id = pi.id
+          ), 0) + COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            WHERE sri.product_id = pi.id
           ), 0)
         ) > 0
       ORDER BY pi.created_at ASC
@@ -2146,7 +2244,7 @@ final class AppDatabase extends _$AppDatabase {
         Variable<int>(categoryId == null ? 1 : 0),
         Variable<String>(categoryId ?? ''),
       ],
-      readsFrom: {localPurchaseItems, localSaleItems},
+      readsFrom: {localPurchaseItems, localSaleItems, localSaleReturnItems},
     ).get().then(
       (rows) => rows
           .map(
@@ -2157,12 +2255,163 @@ final class AppDatabase extends _$AppDatabase {
               productName: row.read<String>('product_name'),
               buyingPrice: row.read<double>('buying_price'),
               sellingPrice: row.read<double>('selling_price'),
+              barcode: row.readNullable<String>('barcode'),
               availableQuantity: row.read<int>('available_quantity'),
               createdAt: row.read<DateTime>('created_at'),
             ),
           )
           .toList(),
     );
+  }
+
+  Stream<List<LocalAvailablePurchaseBatch>>
+  watchAvailablePurchaseBatchesForProduct({
+    required String productName,
+    required String? categoryId,
+  }) {
+    return customSelect(
+      '''
+      SELECT
+        pi.id,
+        pi.shop_id,
+        pi.category_id,
+        pi.product_name,
+        pi.buying_price,
+        COALESCE(pi.est_selling_price, pi.buying_price, 0.0) AS selling_price,
+        pi.barcode,
+        pi.quantity - COALESCE((
+          SELECT SUM(si.quantity)
+          FROM local_sale_items si
+          WHERE si.product_id = pi.id
+        ), 0) + COALESCE((
+          SELECT SUM(sri.quantity)
+          FROM local_sale_return_items sri
+          WHERE sri.product_id = pi.id
+        ), 0) AS available_quantity,
+        pi.created_at
+      FROM local_purchase_items pi
+      WHERE pi.shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND pi.product_name = ?
+        AND (
+          (? = 1 AND pi.category_id IS NULL)
+          OR pi.category_id = ?
+        )
+        AND (
+          pi.quantity - COALESCE((
+            SELECT SUM(si.quantity)
+            FROM local_sale_items si
+            WHERE si.product_id = pi.id
+          ), 0) + COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            WHERE sri.product_id = pi.id
+          ), 0)
+        ) > 0
+      ORDER BY pi.created_at DESC
+      ''',
+      variables: [
+        Variable<String>(productName),
+        Variable<int>(categoryId == null ? 1 : 0),
+        Variable<String>(categoryId ?? ''),
+      ],
+      readsFrom: {
+        localPurchaseItems,
+        localSaleItems,
+        localSaleReturnItems,
+        localUsers,
+      },
+    ).watch().map(
+      (rows) => rows
+          .map(
+            (row) => LocalAvailablePurchaseBatch(
+              id: row.read<String>('id'),
+              shopId: row.read<String>('shop_id'),
+              categoryId: row.readNullable<String>('category_id'),
+              productName: row.read<String>('product_name'),
+              buyingPrice: row.read<double>('buying_price'),
+              sellingPrice: row.read<double>('selling_price'),
+              barcode: row.readNullable<String>('barcode'),
+              availableQuantity: row.read<int>('available_quantity'),
+              createdAt: row.read<DateTime>('created_at'),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Future<void> updatePurchaseBatchStockLocally({
+    required String id,
+    required double buyingPrice,
+    required double sellingPrice,
+    required int availableQuantity,
+  }) async {
+    if (availableQuantity < 0) {
+      throw ArgumentError.value(
+        availableQuantity,
+        'availableQuantity',
+        'Stock cannot be negative.',
+      );
+    }
+
+    final usedQuantity = await _usedQuantityForPurchaseItem(id);
+    await (update(
+      localPurchaseItems,
+    )..where((item) => item.id.equals(id))).write(
+      LocalPurchaseItemsCompanion(
+        buyingPrice: Value(buyingPrice),
+        estSellingPrice: Value(sellingPrice),
+        quantity: Value(usedQuantity + availableQuantity),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> deletePurchaseBatchStockLocally(String id) async {
+    final usedQuantity = await _usedQuantityForPurchaseItem(id);
+
+    if (usedQuantity <= 0) {
+      await (delete(
+        localPurchaseItems,
+      )..where((item) => item.id.equals(id))).go();
+      return;
+    }
+
+    await (update(
+      localPurchaseItems,
+    )..where((item) => item.id.equals(id))).write(
+      LocalPurchaseItemsCompanion(
+        quantity: Value(usedQuantity),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<int> _usedQuantityForPurchaseItem(String id) async {
+    final row = await customSelect(
+      '''
+          SELECT
+            COALESCE((
+              SELECT SUM(si.quantity)
+              FROM local_sale_items si
+              WHERE si.product_id = ?
+            ), 0) - COALESCE((
+              SELECT SUM(sri.quantity)
+              FROM local_sale_return_items sri
+              WHERE sri.product_id = ?
+            ), 0) AS used_quantity
+          ''',
+      variables: [Variable<String>(id), Variable<String>(id)],
+      readsFrom: {localSaleItems, localSaleReturnItems},
+    ).getSingle();
+
+    final usedQuantity = row.read<int>('used_quantity');
+    return usedQuantity < 0 ? 0 : usedQuantity;
   }
 
   Future<void> insertSaleBundle({
@@ -2201,6 +2450,44 @@ final class AppDatabase extends _$AppDatabase {
     }
     if (items.isEmpty) {
       throw StateError('No return items selected.');
+    }
+
+    for (final item in items) {
+      final alreadyReturnedRow = await customSelect(
+        '''
+            SELECT
+              si.quantity AS sold_quantity,
+              COALESCE((
+                SELECT SUM(sri.quantity)
+                FROM local_sale_return_items sri
+                WHERE sri.sale_item_id = si.id
+              ), 0) AS returned_quantity
+            FROM local_sale_items si
+            WHERE si.id = ?
+              AND si.order_id = ?
+            LIMIT 1
+            ''',
+        variables: [
+          Variable<String>(item.saleItemId),
+          Variable<String>(saleId),
+        ],
+        readsFrom: {localSaleItems, localSaleReturnItems},
+      ).getSingleOrNull();
+
+      if (alreadyReturnedRow == null) {
+        throw StateError('Return item was not found in this sale.');
+      }
+
+      final soldQuantity = alreadyReturnedRow.read<int>('sold_quantity');
+      final returnedQuantity = alreadyReturnedRow.read<int>(
+        'returned_quantity',
+      );
+      final returnableQuantity = soldQuantity - returnedQuantity;
+      if (item.quantity > returnableQuantity) {
+        throw StateError(
+          '${item.productName} এর ফেরতযোগ্য পরিমাণ $returnableQuantityটি।',
+        );
+      }
     }
 
     final subtotal = items.fold<double>(
@@ -2428,6 +2715,92 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<List<LocalSaleReturnBundle>> getPendingSaleReturnBundles({
+    String? shopId,
+  }) async {
+    final pendingReturnIds = await customSelect(
+      '''
+      SELECT sr.id
+      FROM local_sale_returns sr
+      WHERE (?1 IS NULL OR sr.shop_id = ?1)
+        AND (
+          sr.sync_status != 'synced'
+          OR EXISTS (
+            SELECT 1 FROM local_sale_return_items sri
+            WHERE sri.return_id = sr.id AND sri.sync_status != 'synced'
+          )
+          OR EXISTS (
+            SELECT 1 FROM local_cash_transactions ct
+            WHERE ct.reference_id = sr.id
+              AND ct.type = 'sales_return'
+              AND ct.sync_status != 'synced'
+          )
+        )
+      ''',
+      variables: [Variable<String>(shopId)],
+      readsFrom: {
+        localSaleReturns,
+        localSaleReturnItems,
+        localCashTransactions,
+      },
+    ).get();
+
+    final returnIds = pendingReturnIds
+        .map((row) => row.read<String>('id'))
+        .toList(growable: false);
+    if (returnIds.isEmpty) {
+      return [];
+    }
+
+    final returns = await (select(
+      localSaleReturns,
+    )..where((row) => row.id.isIn(returnIds))).get();
+    final bundles = <LocalSaleReturnBundle>[];
+
+    for (final saleReturn in returns) {
+      final items = await (select(
+        localSaleReturnItems,
+      )..where((item) => item.returnId.equals(saleReturn.id))).get();
+      final cashTransactions =
+          await (select(localCashTransactions)..where(
+                (transaction) =>
+                    transaction.referenceId.equals(saleReturn.id) &
+                    transaction.type.equals('sales_return'),
+              ))
+              .get();
+
+      bundles.add(
+        LocalSaleReturnBundle(
+          saleReturn: saleReturn,
+          items: items,
+          cashTransactions: cashTransactions,
+        ),
+      );
+    }
+
+    return bundles;
+  }
+
+  Future<void> markSaleReturnBundleSynced(String returnId) async {
+    await transaction(() async {
+      await (update(localSaleReturns)..where((row) => row.id.equals(returnId)))
+          .write(const LocalSaleReturnsCompanion(syncStatus: Value('synced')));
+      await (update(
+        localSaleReturnItems,
+      )..where((item) => item.returnId.equals(returnId))).write(
+        const LocalSaleReturnItemsCompanion(syncStatus: Value('synced')),
+      );
+      await (update(localCashTransactions)..where(
+            (transaction) =>
+                transaction.referenceId.equals(returnId) &
+                transaction.type.equals('sales_return'),
+          ))
+          .write(
+            const LocalCashTransactionsCompanion(syncStatus: Value('synced')),
+          );
+    });
+  }
+
   Future<LocalExpenseSyncBundle> getPendingExpenseSyncBundle({
     String? shopId,
   }) async {
@@ -2521,9 +2894,7 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> markIncomeSyncBundleSynced(
-    LocalIncomeSyncBundle bundle,
-  ) async {
+  Future<void> markIncomeSyncBundleSynced(LocalIncomeSyncBundle bundle) async {
     await transaction(() async {
       for (final income in bundle.incomes) {
         await (update(localIncomes)
@@ -2813,6 +3184,8 @@ class LocalSalesHistoryEntry {
     required this.total,
     required this.paidAmount,
     required this.itemCount,
+    required this.returnRefundTotal,
+    required this.returnedItemCount,
     required this.status,
     required this.paymentMethod,
     required this.createdAt,
@@ -2829,12 +3202,21 @@ class LocalSalesHistoryEntry {
   final double total;
   final double paidAmount;
   final int itemCount;
+  final double returnRefundTotal;
+  final int returnedItemCount;
   final String status;
   final String? paymentMethod;
   final DateTime createdAt;
   final String syncStatus;
 
-  double get dueAmount => total - paidAmount;
+  double get netTotal =>
+      (total - returnRefundTotal) < 0 ? 0 : total - returnRefundTotal;
+  double get dueAmount {
+    final due = netTotal - paidAmount;
+    return due < 0 ? 0 : due;
+  }
+
+  bool get hasReturns => returnRefundTotal > 0 || returnedItemCount > 0;
 }
 
 class LocalSaleReturnDraftItem {
@@ -2927,6 +3309,7 @@ class LocalSaleItemDetail {
     required this.syncStatus,
     required this.productName,
     required this.description,
+    required this.returnedQuantity,
   });
 
   final String id;
@@ -2942,6 +3325,12 @@ class LocalSaleItemDetail {
   final String syncStatus;
   final String productName;
   final String? description;
+  final int returnedQuantity;
+
+  int get returnableQuantity {
+    final quantityLeft = quantity - returnedQuantity;
+    return quantityLeft < 0 ? 0 : quantityLeft;
+  }
 }
 
 class LocalAvailablePurchaseBatch {
@@ -2952,6 +3341,7 @@ class LocalAvailablePurchaseBatch {
     required this.productName,
     required this.buyingPrice,
     required this.sellingPrice,
+    required this.barcode,
     required this.availableQuantity,
     required this.createdAt,
   });
@@ -2962,6 +3352,7 @@ class LocalAvailablePurchaseBatch {
   final String productName;
   final double buyingPrice;
   final double sellingPrice;
+  final String? barcode;
   final int availableQuantity;
   final DateTime createdAt;
 }
@@ -2992,6 +3383,18 @@ class LocalSaleBundleCompanion {
   final List<LocalSaleItemsCompanion> items;
   final List<LocalCustomerPaymentsCompanion> payments;
   final List<LocalCashTransactionsCompanion> cashTransactions;
+}
+
+class LocalSaleReturnBundle {
+  const LocalSaleReturnBundle({
+    required this.saleReturn,
+    required this.items,
+    required this.cashTransactions,
+  });
+
+  final LocalSaleReturn saleReturn;
+  final List<LocalSaleReturnItem> items;
+  final List<LocalCashTransaction> cashTransactions;
 }
 
 class LocalExpenseSyncBundle {
@@ -3076,7 +3479,10 @@ class LocalSalesProduct {
     required this.name,
     required this.description,
     required this.stockQuantity,
+    required this.buyingPrice,
     required this.sellingPrice,
+    required this.stockValue,
+    required this.expectedProfit,
   });
 
   final String id;
@@ -3084,5 +3490,8 @@ class LocalSalesProduct {
   final String name;
   final String? description;
   final int stockQuantity;
+  final double buyingPrice;
   final double sellingPrice;
+  final double stockValue;
+  final double expectedProfit;
 }

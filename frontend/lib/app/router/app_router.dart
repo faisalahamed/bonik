@@ -19,6 +19,7 @@ import '../../features/expenses/presentation/pages/expense_categories_page.dart'
 import '../../features/expenses/presentation/pages/expense_create_page.dart';
 import '../../features/expenses/presentation/pages/expense_history_page.dart';
 import '../../features/expenses/presentation/pages/expense_page.dart';
+import '../../features/inventory/presentation/pages/inventory_item_details_page.dart';
 import '../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../features/incomes/presentation/pages/other_income_page.dart';
 import '../../features/incomes/presentation/pages/other_income_create_page.dart';
@@ -178,6 +179,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.inventory,
         name: 'inventory',
         builder: (context, state) => const InventoryPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.inventoryDetails,
+        name: 'inventory-details',
+        builder: (context, state) => InventoryItemDetailsPage(
+          product: state.extra is LocalSalesProduct
+              ? state.extra! as LocalSalesProduct
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.otherIncome,

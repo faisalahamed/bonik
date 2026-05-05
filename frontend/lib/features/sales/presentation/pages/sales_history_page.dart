@@ -227,7 +227,7 @@ class _SalesHistoryList extends StatelessWidget {
     filteredEntries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final total = filteredEntries.fold<double>(
       0,
-      (sum, entry) => sum + entry.total,
+      (sum, entry) => sum + entry.netTotal,
     );
 
     return ListView.separated(
@@ -669,7 +669,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    _money(entry.total),
+                    _money(entry.netTotal),
                     style: textTheme.titleLarge?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
@@ -677,6 +677,10 @@ class _SalesHistoryItemCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (entry.hasReturns) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _ReturnInfoStrip(entry: entry),
+              ],
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
@@ -726,7 +730,9 @@ class _SalesHistoryItemCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${_bnNumber(entry.itemCount)}টি পণ্য',
+                      entry.hasReturns
+                          ? '${_bnNumber(entry.itemCount)}টি পণ্য · ফেরত ${_bnNumber(entry.returnedItemCount)}টি'
+                          : '${_bnNumber(entry.itemCount)}টি পণ্য',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w700,
@@ -752,7 +758,55 @@ class _SalesHistoryItemCard extends StatelessWidget {
   }
 }
 
+class _ReturnInfoStrip extends StatelessWidget {
+  const _ReturnInfoStrip({required this.entry});
+
+  final LocalSalesHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1E8),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.assignment_return_rounded,
+            size: 18,
+            color: Color(0xFFDC7A37),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'ফেরত: ${_money(entry.returnRefundTotal)} · মূল বিক্রি: ${_money(entry.total)}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: const Color(0xFFDC7A37),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 _StatusStyle _statusStyle(LocalSalesHistoryEntry entry) {
+  if (entry.hasReturns && entry.dueAmount <= 0) {
+    return const _StatusStyle(
+      text: 'ফেরত হয়েছে',
+      background: Color(0xFFFFF1E8),
+      color: Color(0xFFDC7A37),
+    );
+  }
+
   if (entry.dueAmount <= 0) {
     return _StatusStyle(
       text: _paymentMethodText(entry.paymentMethod),

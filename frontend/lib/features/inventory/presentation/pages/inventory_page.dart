@@ -1,16 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
 
-class InventoryPage extends StatelessWidget {
+final _inventoryProductsProvider = StreamProvider<List<LocalSalesProduct>>(
+  (ref) => ref.watch(appDatabaseProvider).watchSalesProductsForCurrentShop(),
+);
+
+const _inventoryAccentColors = [
+  Color(0xFFFFB11A),
+  Color(0xFF00A884),
+  Color(0xFF4B7BEC),
+  Color(0xFFE056FD),
+];
+
+class InventoryPage extends ConsumerStatefulWidget {
   const InventoryPage({super.key});
 
   @override
+  ConsumerState<InventoryPage> createState() => _InventoryPageState();
+}
+
+class _InventoryPageState extends ConsumerState<InventoryPage> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final productsState = ref.watch(_inventoryProductsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -43,55 +84,122 @@ class InventoryPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.lg,
+                productsState.when(
+                  data: (products) {
+                    final filteredProducts = _filterProducts(products);
+
+                    return _InventoryList(
+                      products: filteredProducts,
+                      allProducts: products,
+                      controller: _searchController,
+                    );
+                  },
+                  loading: () => _InventoryList(
+                    products: const [],
+                    allProducts: const [],
+                    controller: _searchController,
+                    message: 'স্টকের তথ্য লোড হচ্ছে...',
+                    showLoading: true,
                   ),
-                  children: const [
-                    _InventoryStatsRow(),
-                    SizedBox(height: AppSpacing.lg),
-                    _InventorySearchRow(),
-                    SizedBox(height: AppSpacing.lg),
-                    _InventoryHeaderRow(),
-                    SizedBox(height: AppSpacing.md),
-                    _InventoryItemCard(
-                      emoji: '🥭',
-                      title: 'আম (Mango)',
-                      stockText: '৪৫০ টি',
-                      invoiceText: '#INV-001',
-                      priceText: '৳ ১,০০,০০০',
-                      salesText: '৳ ২০,০০০',
-                      accentColor: Color(0xFFFFB11A),
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _InventoryItemCard(
-                      icon: Icons.category_rounded,
-                      title: 'টেস্ট প্রোজেক্ট',
-                      stockText: '২১ পিস',
-                      invoiceText: '#INV-042',
-                      priceText: '৳ ৬,৫০০/পিস',
-                      salesText: '৳ ৮০০',
-                      warningStock: true,
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _InventoryItemCard(
-                      emoji: '🪵',
-                      title: 'সিরামিক টাইলস',
-                      stockText: '৮০ স্কয়ার ফিট',
-                      invoiceText: '#INV-108',
-                      priceText: '৳ ২০/sqft',
-                      salesText: '৳ ৮৫',
-                    ),
-                  ],
+                  error: (error, stackTrace) => _InventoryList(
+                    products: const [],
+                    allProducts: const [],
+                    controller: _searchController,
+                    message: 'স্টকের তথ্য লোড করা যায়নি',
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  List<LocalSalesProduct> _filterProducts(List<LocalSalesProduct> products) {
+    if (_query.isEmpty) {
+      return products;
+    }
+
+    return products
+        .where(
+          (product) =>
+              product.name.toLowerCase().contains(_query) ||
+              (product.description?.toLowerCase().contains(_query) ?? false),
+        )
+        .toList();
+  }
+}
+
+class _InventoryList extends StatelessWidget {
+  const _InventoryList({
+    required this.products,
+    required this.allProducts,
+    required this.controller,
+    this.message,
+    this.showLoading = false,
+  });
+
+  final List<LocalSalesProduct> products;
+  final List<LocalSalesProduct> allProducts;
+  final TextEditingController controller;
+  final String? message;
+  final bool showLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalStock = allProducts.fold<int>(
+      0,
+      (sum, product) => sum + product.stockQuantity,
+    );
+    final stockValue = allProducts.fold<double>(
+      0,
+      (sum, product) => sum + product.stockValue,
+    );
+    final totalProfit = allProducts.fold<double>(
+      0,
+      (sum, product) => sum + product.expectedProfit,
+    );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      children: [
+        _InventoryStatsRow(stockValue: stockValue, totalProfit: totalProfit),
+        const SizedBox(height: AppSpacing.lg),
+        _InventorySearchRow(controller: controller),
+        const SizedBox(height: AppSpacing.lg),
+        _InventoryHeaderRow(totalStock: totalStock),
+        const SizedBox(height: AppSpacing.md),
+        if (showLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (message != null)
+          _InventoryEmptyCard(message: message!)
+        else if (products.isEmpty)
+          const _InventoryEmptyCard(message: 'কোনো পণ্য পাওয়া যায়নি')
+        else
+          for (var i = 0; i < products.length; i++) ...[
+            _InventoryItemCard(
+              icon: Icons.category_rounded,
+              title: products[i].name,
+              invoiceText: '#${products[i].description ?? 'বর্ণনা নেই'}',
+              stockText: '${_bnNumber(products[i].stockQuantity)} টি',
+
+              priceText: '${_money(products[i].sellingPrice)}/পিস',
+              accentColor:
+                  _inventoryAccentColors[i % _inventoryAccentColors.length],
+              salesText: _money(products[i].expectedProfit),
+              warningStock: products[i].stockQuantity <= 5,
+              onTap: () =>
+                  context.push(AppRoutes.inventoryDetails, extra: products[i]),
+            ),
+            if (i != products.length - 1) const SizedBox(height: AppSpacing.md),
+          ],
+      ],
     );
   }
 }
@@ -146,30 +254,30 @@ class _InventoryTopBar extends StatelessWidget {
 }
 
 class _InventoryStatsRow extends StatelessWidget {
-  const _InventoryStatsRow();
+  const _InventoryStatsRow({
+    required this.stockValue,
+    required this.totalProfit,
+  });
+
+  final double stockValue;
+  final double totalProfit;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        // Expanded(
-        //   child: _InventoryStatCard(
-        //     title: 'মোট স্টক',
-        //     value: '২,৮৫০',
-        //   ),
-        // ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _InventoryStatCard(
             title: 'স্টক মূল্য',
-            value: '৳ ১,৮8,00,000',
+            value: _money(stockValue),
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _InventoryStatCard(
             title: 'সামগ্র লাভ',
-            value: '৳ ১,৮8,00,000',
+            value: _money(totalProfit),
             highlighted: true,
           ),
         ),
@@ -225,7 +333,9 @@ class _InventoryStatCard extends StatelessWidget {
 }
 
 class _InventorySearchRow extends StatelessWidget {
-  const _InventorySearchRow();
+  const _InventorySearchRow({required this.controller});
+
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -242,8 +352,9 @@ class _InventorySearchRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.lg),
               boxShadow: AppShadows.soft,
             ),
-            child: const TextField(
-              decoration: InputDecoration(
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
                 hintText: 'পণ্য খুঁজুন...',
                 prefixIcon: Icon(Icons.search_rounded),
               ),
@@ -267,7 +378,9 @@ class _InventorySearchRow extends StatelessWidget {
 }
 
 class _InventoryHeaderRow extends StatelessWidget {
-  const _InventoryHeaderRow();
+  const _InventoryHeaderRow({required this.totalStock});
+
+  final int totalStock;
 
   @override
   Widget build(BuildContext context) {
@@ -283,8 +396,7 @@ class _InventoryHeaderRow extends StatelessWidget {
           ),
         ),
         Text(
-          // '৫টি পণ্য পাওয়া গেছে',
-          'মোট স্টক ৫,৫৫,৫৫৫ টি পণ্য',
+          'মোট স্টক ${_bnNumber(totalStock)} টি পণ্য',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
             color: AppColors.primary,
             fontWeight: FontWeight.w700,
@@ -302,13 +414,12 @@ class _InventoryItemCard extends StatelessWidget {
     required this.invoiceText,
     required this.priceText,
     required this.salesText,
-    this.emoji,
     this.icon,
     this.accentColor,
     this.warningStock = false,
+    this.onTap,
   });
 
-  final String? emoji;
   final IconData? icon;
   final String title;
   final String stockText;
@@ -317,11 +428,125 @@ class _InventoryItemCard extends StatelessWidget {
   final String salesText;
   final Color? accentColor;
   final bool warningStock;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        child: Ink(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            boxShadow: AppShadows.soft,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 74,
+                height: 74,
+                decoration: BoxDecoration(
+                  color: accentColor != null
+                      ? accentColor!.withValues(alpha: 0.15)
+                      : AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon ?? Icons.inventory_2_rounded,
+                  color: AppColors.textSecondary,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.titleLarge?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    RichText(
+                      text: TextSpan(
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: stockText,
+                            style: TextStyle(
+                              color: warningStock
+                                  ? const Color(0xFFD9534F)
+                                  : AppColors.primary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '  $invoiceText',
+                            style: const TextStyle(color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    priceText,
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: TextSpan(
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'লাভ: ',
+                          style: TextStyle(color: AppColors.primary),
+                        ),
+                        TextSpan(
+                          text: salesText,
+                          style: const TextStyle(color: AppColors.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InventoryEmptyCard extends StatelessWidget {
+  const _InventoryEmptyCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -329,96 +554,29 @@ class _InventoryItemCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 74,
-            height: 74,
-            decoration: BoxDecoration(
-              color: accentColor != null
-                  ? accentColor!.withOpacity(0.15)
-                  : AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-            alignment: Alignment.center,
-            child: emoji != null
-                ? Text(emoji!, style: const TextStyle(fontSize: 38))
-                : Icon(
-                    icon ?? Icons.inventory_2_rounded,
-                    color: AppColors.textSecondary,
-                    size: 34,
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                RichText(
-                  text: TextSpan(
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: stockText,
-                        style: TextStyle(
-                          color: warningStock
-                              ? const Color(0xFFD9534F)
-                              : AppColors.primary,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '  $invoiceText',
-                        style: const TextStyle(color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                priceText,
-                style: textTheme.titleMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  children: [
-                    const TextSpan(
-                      text: 'লাভ: ',
-                      style: TextStyle(color: AppColors.primary),
-                    ),
-                    TextSpan(
-                      text: salesText,
-                      style: const TextStyle(color: AppColors.primary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

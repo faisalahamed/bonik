@@ -118,7 +118,7 @@ class _SalesReturnPageState extends ConsumerState<SalesReturnPage> {
       if (quantity <= 0) {
         _returnQuantities.remove(item.id);
       } else {
-        _returnQuantities[item.id] = quantity.clamp(0, item.quantity);
+        _returnQuantities[item.id] = quantity.clamp(0, item.returnableQuantity);
       }
     });
   }
@@ -275,7 +275,10 @@ class _SalesReturnContent extends StatelessWidget {
             for (var i = 0; i < items.length; i++) ...[
               _ReturnItemCard(
                 item: items[i],
-                quantity: returnQuantities[items[i].id] ?? 0,
+                quantity: (returnQuantities[items[i].id] ?? 0).clamp(
+                  0,
+                  items[i].returnableQuantity,
+                ),
                 reason: returnReasons[items[i].id] ?? _returnReasonsDefault,
                 onQuantityChanged: (quantity) =>
                     onQuantityChanged(items[i], quantity),
@@ -608,7 +611,9 @@ class _ReturnItemCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'মূল্য: ${_money(item.salePrice)} · বিক্রি: ${_bnNumber(item.quantity)}টি',
+                      item.returnedQuantity > 0
+                          ? 'মূল্য: ${_money(item.salePrice)} · বিক্রি: ${_bnNumber(item.quantity)}টি · আগে ফেরত: ${_bnNumber(item.returnedQuantity)}টি'
+                          : 'মূল্য: ${_money(item.salePrice)} · বিক্রি: ${_bnNumber(item.quantity)}টি',
                       style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w700,
@@ -643,7 +648,7 @@ class _ReturnItemCard extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        onPressed: quantity >= item.quantity
+                        onPressed: quantity >= item.returnableQuantity
                             ? null
                             : () => onQuantityChanged(quantity + 1),
                         icon: const Icon(Icons.add),
@@ -676,6 +681,19 @@ class _ReturnItemCard extends StatelessWidget {
               ),
             ],
           ),
+          if (item.returnableQuantity <= 0) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'এই পণ্যটি পুরো ফেরত হয়ে গেছে',
+                style: textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFFD9534F),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

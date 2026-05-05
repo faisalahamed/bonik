@@ -6,6 +6,7 @@ import '../../features/owners/data/owner_transaction_sync_service.dart';
 import '../../features/purchases/data/category_sync_service.dart';
 import '../../features/purchases/data/purchase_sync_service.dart';
 import '../../features/purchases/data/supplier_sync_service.dart';
+import '../../features/sales/data/sales_return_sync_service.dart';
 import '../../features/sales/data/sales_sync_service.dart';
 
 final appSyncServiceProvider = Provider<AppSyncService>((ref) {
@@ -22,6 +23,7 @@ class AppSyncService {
     await _ref.read(categorySyncServiceProvider).syncProductCategories();
     await _ref.read(purchaseSyncServiceProvider).syncPurchases();
     await _ref.read(salesSyncServiceProvider).syncSales();
+    await _ref.read(salesReturnSyncServiceProvider).syncSalesReturns();
     await _ref.read(expenseSyncServiceProvider).syncExpenses();
     await _ref.read(incomeSyncServiceProvider).syncIncomes();
     await _ref

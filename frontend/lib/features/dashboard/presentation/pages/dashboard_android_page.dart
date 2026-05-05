@@ -36,6 +36,74 @@ class DashboardAndroidPage extends StatelessWidget {
                 _PrimaryActionsRow(),
                 SizedBox(height: AppSpacing.xl),
                 _DashboardSection(
+                  title: 'আপনার প্রতিষ্ঠান',
+                  items: [
+                    _DashboardMenuItemData(
+                      label: 'নগদ ক্রয়',
+                      icon: Icons.badge_rounded,
+                      iconBackground: Color(0xFFEAF7F2),
+                      iconColor: AppColors.primaryContainer,
+                      route: AppRoutes.cashPurchase,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'স্টক ব্যবস্থাপনা',
+                      icon: Icons.inventory_2_rounded,
+                      iconBackground: Color(0xFFEAF7F2),
+                      iconColor: AppColors.primaryContainer,
+                      route: AppRoutes.inventory,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'রিপোর্ট',
+                      icon: Icons.bar_chart_rounded,
+                      iconBackground: Color(0xFFEAF7F2),
+                      iconColor: AppColors.primaryContainer,
+                      route: AppRoutes.reports,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'Recycle Bin',
+                      icon: Icons.apps_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+                SizedBox(height: AppSpacing.xl),
+                _DashboardSection(
+                  title: 'অন্যান্য ট্রানজেকশন',
+                  items: [
+                    _DashboardMenuItemData(
+                      label: 'মালিক নিলো/দিলো',
+                      icon: Icons.monetization_on_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                      route: AppRoutes.ownerTransactions,
+                    ),
+
+                    _DashboardMenuItemData(
+                      label: 'অন্যান্য আয়',
+                      icon: Icons.campaign_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                      route: AppRoutes.otherIncome,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'পণ্য ফেরত',
+                      icon: Icons.refresh_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                      route: AppRoutes.salesReturn,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'Note Pad',
+                      icon: Icons.apps_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: AppSpacing.xl),
+                _DashboardSection(
                   title: 'হিসাব খাতা',
                   items: [
                     _DashboardMenuItemData(
@@ -65,72 +133,6 @@ class DashboardAndroidPage extends StatelessWidget {
                       iconBackground: Color(0xFFFFEBEB),
                       iconColor: Color(0xFFD54D4D),
                       route: AppRoutes.expenseHistory,
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'আপনার প্রতিষ্ঠান',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'নগদ ক্রয়',
-                      icon: Icons.badge_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.cashPurchase,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'Barcode Manager',
-                      icon: Icons.list_alt_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'স্টক ব্যবস্থাপনা',
-                      icon: Icons.inventory_2_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.inventory,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'রিপোর্ট',
-                      icon: Icons.bar_chart_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.reports,
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'অন্যান্য ট্রানজেকশন',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'মালিক নিলো/দিলো',
-                      icon: Icons.monetization_on_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.ownerTransactions,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'dummy feature 2',
-                      icon: Icons.apps_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'অন্যান্য আয়',
-                      icon: Icons.campaign_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.otherIncome,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'পণ্য ফেরত',
-                      icon: Icons.refresh_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.salesReturn,
                     ),
                   ],
                 ),
@@ -290,7 +292,7 @@ class _SummaryCard extends StatefulWidget {
 }
 
 class _SummaryCardState extends State<_SummaryCard> {
-  bool _isMoneyHidden = true;
+  bool _isMoneyHidden = false;
 
   // ignore: unused_element
   String _displayMoney(String value) {

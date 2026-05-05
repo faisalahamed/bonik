@@ -1,6 +1,9 @@
 1. sell item server time fix
 2. returning a product should (added back to stock and removed from all calculations)
-
+3. same product name/ category save problem
+4. buy khata date problem: buying in advance date not today
+5. on edit stock reload page/ update state
+6. edit barcode on inventory details page
 
 
 
