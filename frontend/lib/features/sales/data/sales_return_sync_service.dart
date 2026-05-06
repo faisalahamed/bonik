@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 
 final salesReturnSyncServiceProvider = Provider<SalesReturnSyncService>((ref) {
   return SalesReturnSyncService(
@@ -54,8 +55,8 @@ class SalesReturnSyncService {
         'restocking_fee': bundle.saleReturn.restockingFee,
         'refund_total': bundle.saleReturn.refundTotal,
         'note': bundle.saleReturn.note,
-        'created_at': bundle.saleReturn.createdAt.toIso8601String(),
-        'updated_at': bundle.saleReturn.updatedAt.toIso8601String(),
+        'created_at': AppTime.isoUtc(bundle.saleReturn.createdAt),
+        'updated_at': AppTime.isoUtc(bundle.saleReturn.updatedAt),
       },
       'items': [
         for (final item in bundle.items)
@@ -69,8 +70,8 @@ class SalesReturnSyncService {
             'sale_price': item.salePrice,
             'quantity': item.quantity,
             'reason': item.reason,
-            'created_at': item.createdAt.toIso8601String(),
-            'updated_at': item.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(item.createdAt),
+            'updated_at': AppTime.isoUtc(item.updatedAt),
           },
       ],
       'cash_transactions': [
@@ -85,8 +86,8 @@ class SalesReturnSyncService {
             'reference_type': transaction.referenceType,
             'method': transaction.method,
             'note': transaction.note,
-            'created_at': transaction.createdAt.toIso8601String(),
-            'updated_at': transaction.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(transaction.createdAt),
+            'updated_at': AppTime.isoUtc(transaction.updatedAt),
           },
       ],
     };

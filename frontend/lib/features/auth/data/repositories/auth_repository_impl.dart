@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/utils/app_time.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 
@@ -193,7 +194,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   DateTime _dateTime(Object? value) {
-    return _nullableDateTime(value) ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 
   DateTime? _nullableDateTime(Object? value) {
@@ -201,7 +202,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return null;
     }
 
-    return DateTime.tryParse(value.toString());
+    return AppTime.tryParseUtc(value);
   }
 
   String _passwordHash(String password) {

@@ -704,6 +704,7 @@ String _money(double value) {
 }
 
 String _dateTime(DateTime value) {
+  value = value.toLocal();
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
   final date =
@@ -719,6 +720,7 @@ bool _isInRange(
   DateTime anchorDate,
   DateTimeRange? customDateRange,
 ) {
+  date = date.toLocal();
   if (range == _ExpenseHistoryRange.custom) {
     if (customDateRange == null) {
       return true;

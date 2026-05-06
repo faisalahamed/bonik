@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 import '../application/cash_purchase_draft_controller.dart';
 import 'category_sync_service.dart';
 import 'supplier_sync_service.dart';
@@ -62,7 +63,8 @@ class PurchaseSyncService {
       throw StateError('সব পণ্যের পরিমাণ, ক্রয় মূল্য এবং বিক্রয় মূল্য দিন।');
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
+    final purchaseDate = AppTime.toUtc(draft.purchaseDate);
     final purchaseId = const Uuid().v4();
     final paidAmount = _paidAmountForDraft(draft);
     final paymentId = paidAmount > 0 ? const Uuid().v4() : null;
@@ -77,7 +79,7 @@ class PurchaseSyncService {
         otherCharge: const Value(0),
         description: Value(_nullableTrimmed(draft.comment)),
         status: Value(status),
-        createdAt: Value(draft.purchaseDate),
+        createdAt: Value(purchaseDate),
         updatedAt: Value(now),
         syncStatus: const Value('pending'),
       ),
@@ -94,7 +96,7 @@ class PurchaseSyncService {
             quantity: Value(line.quantityValue.round()),
             barcode: Value(_nullableString(line.barcode)),
             description: Value(line.category.details),
-            createdAt: Value(draft.purchaseDate),
+            createdAt: Value(purchaseDate),
             updatedAt: Value(now),
             syncStatus: const Value('pending'),
           ),
@@ -106,7 +108,7 @@ class PurchaseSyncService {
               purchaseId: Value(purchaseId),
               payments: Value(paidAmount),
               description: Value(_paymentDescription(draft.paymentMethod)),
-              createdAt: Value(draft.purchaseDate),
+              createdAt: Value(purchaseDate),
               updatedAt: Value(now),
               syncStatus: const Value('pending'),
             )
@@ -124,7 +126,7 @@ class PurchaseSyncService {
                 _paymentMethodForCashTransaction(draft.paymentMethod),
               ),
               note: Value(_paymentDescription(draft.paymentMethod)),
-              createdAt: Value(draft.purchaseDate),
+              createdAt: Value(purchaseDate),
               updatedAt: Value(now),
               syncStatus: const Value('pending'),
             )
@@ -256,8 +258,8 @@ class PurchaseSyncService {
         'description': bundle.purchase.description,
         'buying_memo_url': bundle.purchase.buyingMemoUrl,
         'status': bundle.purchase.status,
-        'created_at': bundle.purchase.createdAt.toIso8601String(),
-        'updated_at': bundle.purchase.updatedAt.toIso8601String(),
+        'created_at': AppTime.isoUtc(bundle.purchase.createdAt),
+        'updated_at': AppTime.isoUtc(bundle.purchase.updatedAt),
       },
       'items': [
         for (final item in bundle.items)
@@ -274,8 +276,8 @@ class PurchaseSyncService {
             'other_charge': item.otherCharge,
             'description': item.description,
             'product_image': item.productImage,
-            'created_at': item.createdAt.toIso8601String(),
-            'updated_at': item.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(item.createdAt),
+            'updated_at': AppTime.isoUtc(item.updatedAt),
           },
       ],
       'payments': [
@@ -286,8 +288,8 @@ class PurchaseSyncService {
             'purchase_id': payment.purchaseId,
             'payments': payment.payments,
             'description': payment.description,
-            'created_at': payment.createdAt.toIso8601String(),
-            'updated_at': payment.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(payment.createdAt),
+            'updated_at': AppTime.isoUtc(payment.updatedAt),
           },
       ],
       'cash_transactions': [
@@ -302,8 +304,8 @@ class PurchaseSyncService {
             'reference_type': transaction.referenceType,
             'method': transaction.method,
             'note': transaction.note,
-            'created_at': transaction.createdAt.toIso8601String(),
-            'updated_at': transaction.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(transaction.createdAt),
+            'updated_at': AppTime.isoUtc(transaction.updatedAt),
           },
       ],
     };
@@ -461,6 +463,6 @@ class PurchaseSyncService {
   }
 
   DateTime _dateTime(Object? value) {
-    return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 }

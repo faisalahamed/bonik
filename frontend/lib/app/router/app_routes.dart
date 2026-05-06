@@ -44,6 +44,8 @@ class AppRoutes {
   static const String salesPayment = '/sales/payment';
   static const String storeSelector = '/stores';
   static const String users = '/users';
+  static const String recycleBin = '/recycle-bin';
+  static const String notePad = '/notes';
 
   const AppRoutes._();
 }

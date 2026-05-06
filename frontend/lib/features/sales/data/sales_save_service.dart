@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/utils/app_time.dart';
 import '../application/sales_cart_controller.dart';
 
 final salesSaveServiceProvider = Provider<SalesSaveService>((ref) {
@@ -30,7 +31,7 @@ class SalesSaveService {
       throw StateError('কার্টে কোনো পণ্য নেই।');
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final customer = await database.getOrCreateCustomer(
       shopId: currentUser.shopId,
       name: customerName.trim().isEmpty ? 'Walk-in Customer' : customerName,

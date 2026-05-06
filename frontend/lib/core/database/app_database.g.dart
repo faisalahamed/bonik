@@ -2671,6 +2671,17 @@ class $LocalPurchasesTable extends LocalPurchases
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -2695,6 +2706,7 @@ class $LocalPurchasesTable extends LocalPurchases
     status,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -2787,6 +2799,12 @@ class $LocalPurchasesTable extends LocalPurchases
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -2842,6 +2860,10 @@ class $LocalPurchasesTable extends LocalPurchases
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -2866,6 +2888,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalPurchase({
     required this.id,
@@ -2878,6 +2901,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -2897,6 +2921,9 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -2917,6 +2944,9 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -2937,6 +2967,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -2954,6 +2985,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -2969,6 +3001,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalPurchase(
     id: id ?? this.id,
@@ -2983,6 +3016,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalPurchase copyWithCompanion(LocalPurchasesCompanion data) {
@@ -3005,6 +3039,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -3024,6 +3059,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -3041,6 +3077,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
     status,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -3057,6 +3094,7 @@ class LocalPurchase extends DataClass implements Insertable<LocalPurchase> {
           other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -3071,6 +3109,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalPurchasesCompanion({
@@ -3084,6 +3123,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3098,6 +3138,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
     this.status = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -3117,6 +3158,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -3131,6 +3173,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3147,6 +3190,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
     Value<String>? status,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -3161,6 +3205,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -3199,6 +3244,9 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -3221,6 +3269,7 @@ class LocalPurchasesCompanion extends UpdateCompanion<LocalPurchase> {
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3395,6 +3444,17 @@ class $LocalPurchaseItemsTable extends LocalPurchaseItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -3423,6 +3483,7 @@ class $LocalPurchaseItemsTable extends LocalPurchaseItems
     productImage,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -3548,6 +3609,12 @@ class $LocalPurchaseItemsTable extends LocalPurchaseItems
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -3619,6 +3686,10 @@ class $LocalPurchaseItemsTable extends LocalPurchaseItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -3648,6 +3719,7 @@ class LocalPurchaseItem extends DataClass
   final String? productImage;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalPurchaseItem({
     required this.id,
@@ -3664,6 +3736,7 @@ class LocalPurchaseItem extends DataClass
     this.productImage,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -3695,6 +3768,9 @@ class LocalPurchaseItem extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -3727,6 +3803,9 @@ class LocalPurchaseItem extends DataClass
           : Value(productImage),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -3751,6 +3830,7 @@ class LocalPurchaseItem extends DataClass
       productImage: serializer.fromJson<String?>(json['productImage']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -3772,6 +3852,7 @@ class LocalPurchaseItem extends DataClass
       'productImage': serializer.toJson<String?>(productImage),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -3791,6 +3872,7 @@ class LocalPurchaseItem extends DataClass
     Value<String?> productImage = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalPurchaseItem(
     id: id ?? this.id,
@@ -3809,6 +3891,7 @@ class LocalPurchaseItem extends DataClass
     productImage: productImage.present ? productImage.value : this.productImage,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalPurchaseItem copyWithCompanion(LocalPurchaseItemsCompanion data) {
@@ -3843,6 +3926,7 @@ class LocalPurchaseItem extends DataClass
           : this.productImage,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -3866,6 +3950,7 @@ class LocalPurchaseItem extends DataClass
           ..write('productImage: $productImage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -3887,6 +3972,7 @@ class LocalPurchaseItem extends DataClass
     productImage,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -3907,6 +3993,7 @@ class LocalPurchaseItem extends DataClass
           other.productImage == this.productImage &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -3925,6 +4012,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
   final Value<String?> productImage;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalPurchaseItemsCompanion({
@@ -3942,6 +4030,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
     this.productImage = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3960,6 +4049,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
     this.productImage = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -3983,6 +4073,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
     Expression<String>? productImage,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -4001,6 +4092,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
       if (productImage != null) 'product_image': productImage,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4021,6 +4113,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
     Value<String?>? productImage,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -4039,6 +4132,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
       productImage: productImage ?? this.productImage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -4089,6 +4183,9 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -4115,6 +4212,7 @@ class LocalPurchaseItemsCompanion extends UpdateCompanion<LocalPurchaseItem> {
           ..write('productImage: $productImage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4207,6 +4305,17 @@ class $LocalPurchasePaymentsTable extends LocalPurchasePayments
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -4228,6 +4337,7 @@ class $LocalPurchasePaymentsTable extends LocalPurchasePayments
     description,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -4296,6 +4406,12 @@ class $LocalPurchasePaymentsTable extends LocalPurchasePayments
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -4339,6 +4455,10 @@ class $LocalPurchasePaymentsTable extends LocalPurchasePayments
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -4361,6 +4481,7 @@ class LocalPurchasePayment extends DataClass
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalPurchasePayment({
     required this.id,
@@ -4370,6 +4491,7 @@ class LocalPurchasePayment extends DataClass
     this.description,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -4384,6 +4506,9 @@ class LocalPurchasePayment extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -4399,6 +4524,9 @@ class LocalPurchasePayment extends DataClass
           : Value(description),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -4416,6 +4544,7 @@ class LocalPurchasePayment extends DataClass
       description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -4430,6 +4559,7 @@ class LocalPurchasePayment extends DataClass
       'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -4442,6 +4572,7 @@ class LocalPurchasePayment extends DataClass
     Value<String?> description = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalPurchasePayment(
     id: id ?? this.id,
@@ -4451,6 +4582,7 @@ class LocalPurchasePayment extends DataClass
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalPurchasePayment copyWithCompanion(LocalPurchasePaymentsCompanion data) {
@@ -4466,6 +4598,7 @@ class LocalPurchasePayment extends DataClass
           : this.description,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -4482,6 +4615,7 @@ class LocalPurchasePayment extends DataClass
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -4496,6 +4630,7 @@ class LocalPurchasePayment extends DataClass
     description,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -4509,6 +4644,7 @@ class LocalPurchasePayment extends DataClass
           other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -4521,6 +4657,7 @@ class LocalPurchasePaymentsCompanion
   final Value<String?> description;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalPurchasePaymentsCompanion({
@@ -4531,6 +4668,7 @@ class LocalPurchasePaymentsCompanion
     this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4542,6 +4680,7 @@ class LocalPurchasePaymentsCompanion
     this.description = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -4558,6 +4697,7 @@ class LocalPurchasePaymentsCompanion
     Expression<String>? description,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -4569,6 +4709,7 @@ class LocalPurchasePaymentsCompanion
       if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4582,6 +4723,7 @@ class LocalPurchasePaymentsCompanion
     Value<String?>? description,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -4593,6 +4735,7 @@ class LocalPurchasePaymentsCompanion
       description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -4622,6 +4765,9 @@ class LocalPurchasePaymentsCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -4641,6 +4787,7 @@ class LocalPurchasePaymentsCompanion
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5428,6 +5575,17 @@ class $LocalSalesTable extends LocalSales
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -5453,6 +5611,7 @@ class $LocalSalesTable extends LocalSales
     paymentMethod,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -5547,6 +5706,12 @@ class $LocalSalesTable extends LocalSales
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -5606,6 +5771,10 @@ class $LocalSalesTable extends LocalSales
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -5631,6 +5800,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
   final String? paymentMethod;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalSale({
     required this.id,
@@ -5644,6 +5814,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
     this.paymentMethod,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -5662,6 +5833,9 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -5681,6 +5855,9 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
           : Value(paymentMethod),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -5702,6 +5879,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
       paymentMethod: serializer.fromJson<String?>(json['paymentMethod']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -5720,6 +5898,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
       'paymentMethod': serializer.toJson<String?>(paymentMethod),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -5736,6 +5915,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
     Value<String?> paymentMethod = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalSale(
     id: id ?? this.id,
@@ -5751,6 +5931,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
         : this.paymentMethod,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalSale copyWithCompanion(LocalSalesCompanion data) {
@@ -5770,6 +5951,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
           : this.paymentMethod,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -5790,6 +5972,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
           ..write('paymentMethod: $paymentMethod, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -5808,6 +5991,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
     paymentMethod,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -5825,6 +6009,7 @@ class LocalSale extends DataClass implements Insertable<LocalSale> {
           other.paymentMethod == this.paymentMethod &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -5840,6 +6025,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
   final Value<String?> paymentMethod;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalSalesCompanion({
@@ -5854,6 +6040,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
     this.paymentMethod = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5869,6 +6056,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
     this.paymentMethod = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -5890,6 +6078,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
     Expression<String>? paymentMethod,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -5905,6 +6094,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
       if (paymentMethod != null) 'payment_method': paymentMethod,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5922,6 +6112,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
     Value<String?>? paymentMethod,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -5937,6 +6128,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -5978,6 +6170,9 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -6001,6 +6196,7 @@ class LocalSalesCompanion extends UpdateCompanion<LocalSale> {
           ..write('paymentMethod: $paymentMethod, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6128,6 +6324,17 @@ class $LocalSaleItemsTable extends LocalSaleItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -6152,6 +6359,7 @@ class $LocalSaleItemsTable extends LocalSaleItems
     price,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -6241,6 +6449,12 @@ class $LocalSaleItemsTable extends LocalSaleItems
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -6296,6 +6510,10 @@ class $LocalSaleItemsTable extends LocalSaleItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -6320,6 +6538,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
   final double price;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalSaleItem({
     required this.id,
@@ -6332,6 +6551,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
     required this.price,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -6347,6 +6567,9 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
     map['price'] = Variable<double>(price);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -6363,6 +6586,9 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
       price: Value(price),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -6383,6 +6609,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
       price: serializer.fromJson<double>(json['price']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -6400,6 +6627,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
       'price': serializer.toJson<double>(price),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -6415,6 +6643,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
     double? price,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalSaleItem(
     id: id ?? this.id,
@@ -6427,6 +6656,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
     price: price ?? this.price,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalSaleItem copyWithCompanion(LocalSaleItemsCompanion data) {
@@ -6441,6 +6671,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
       price: data.price.present ? data.price.value : this.price,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -6460,6 +6691,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
           ..write('price: $price, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -6477,6 +6709,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
     price,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -6493,6 +6726,7 @@ class LocalSaleItem extends DataClass implements Insertable<LocalSaleItem> {
           other.price == this.price &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -6507,6 +6741,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
   final Value<double> price;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalSaleItemsCompanion({
@@ -6520,6 +6755,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
     this.price = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -6534,6 +6770,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
     required double price,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -6556,6 +6793,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
     Expression<double>? price,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -6570,6 +6808,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
       if (price != null) 'price': price,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -6586,6 +6825,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
     Value<double>? price,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -6600,6 +6840,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
       price: price ?? this.price,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -6638,6 +6879,9 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -6660,6 +6904,7 @@ class LocalSaleItemsCompanion extends UpdateCompanion<LocalSaleItem> {
           ..write('price: $price, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6773,6 +7018,17 @@ class $LocalSaleReturnsTable extends LocalSaleReturns
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -6796,6 +7052,7 @@ class $LocalSaleReturnsTable extends LocalSaleReturns
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -6877,6 +7134,12 @@ class $LocalSaleReturnsTable extends LocalSaleReturns
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -6928,6 +7191,10 @@ class $LocalSaleReturnsTable extends LocalSaleReturns
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -6951,6 +7218,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
   final String? note;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalSaleReturn({
     required this.id,
@@ -6962,6 +7230,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
     this.note,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -6978,6 +7247,9 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -6993,6 +7265,9 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -7012,6 +7287,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -7028,6 +7304,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -7042,6 +7319,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalSaleReturn(
     id: id ?? this.id,
@@ -7053,6 +7331,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalSaleReturn copyWithCompanion(LocalSaleReturnsCompanion data) {
@@ -7070,6 +7349,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -7088,6 +7368,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -7104,6 +7385,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -7119,6 +7401,7 @@ class LocalSaleReturn extends DataClass implements Insertable<LocalSaleReturn> {
           other.note == this.note &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -7132,6 +7415,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
   final Value<String?> note;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalSaleReturnsCompanion({
@@ -7144,6 +7428,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -7157,6 +7442,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
     this.note = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -7174,6 +7460,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
     Expression<String>? note,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -7187,6 +7474,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -7202,6 +7490,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
     Value<String?>? note,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -7215,6 +7504,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -7250,6 +7540,9 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -7271,6 +7564,7 @@ class LocalSaleReturnsCompanion extends UpdateCompanion<LocalSaleReturn> {
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -7413,6 +7707,17 @@ class $LocalSaleReturnItemsTable extends LocalSaleReturnItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -7438,6 +7743,7 @@ class $LocalSaleReturnItemsTable extends LocalSaleReturnItems
     reason,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -7537,6 +7843,12 @@ class $LocalSaleReturnItemsTable extends LocalSaleReturnItems
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -7596,6 +7908,10 @@ class $LocalSaleReturnItemsTable extends LocalSaleReturnItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -7622,6 +7938,7 @@ class LocalSaleReturnItem extends DataClass
   final String? reason;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalSaleReturnItem({
     required this.id,
@@ -7635,6 +7952,7 @@ class LocalSaleReturnItem extends DataClass
     this.reason,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -7653,6 +7971,9 @@ class LocalSaleReturnItem extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -7672,6 +7993,9 @@ class LocalSaleReturnItem extends DataClass
           : Value(reason),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -7693,6 +8017,7 @@ class LocalSaleReturnItem extends DataClass
       reason: serializer.fromJson<String?>(json['reason']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -7711,6 +8036,7 @@ class LocalSaleReturnItem extends DataClass
       'reason': serializer.toJson<String?>(reason),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -7727,6 +8053,7 @@ class LocalSaleReturnItem extends DataClass
     Value<String?> reason = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalSaleReturnItem(
     id: id ?? this.id,
@@ -7740,6 +8067,7 @@ class LocalSaleReturnItem extends DataClass
     reason: reason.present ? reason.value : this.reason,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalSaleReturnItem copyWithCompanion(LocalSaleReturnItemsCompanion data) {
@@ -7759,6 +8087,7 @@ class LocalSaleReturnItem extends DataClass
       reason: data.reason.present ? data.reason.value : this.reason,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -7779,6 +8108,7 @@ class LocalSaleReturnItem extends DataClass
           ..write('reason: $reason, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -7797,6 +8127,7 @@ class LocalSaleReturnItem extends DataClass
     reason,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -7814,6 +8145,7 @@ class LocalSaleReturnItem extends DataClass
           other.reason == this.reason &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -7830,6 +8162,7 @@ class LocalSaleReturnItemsCompanion
   final Value<String?> reason;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalSaleReturnItemsCompanion({
@@ -7844,6 +8177,7 @@ class LocalSaleReturnItemsCompanion
     this.reason = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -7859,6 +8193,7 @@ class LocalSaleReturnItemsCompanion
     this.reason = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -7881,6 +8216,7 @@ class LocalSaleReturnItemsCompanion
     Expression<String>? reason,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -7896,6 +8232,7 @@ class LocalSaleReturnItemsCompanion
       if (reason != null) 'reason': reason,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -7913,6 +8250,7 @@ class LocalSaleReturnItemsCompanion
     Value<String?>? reason,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -7928,6 +8266,7 @@ class LocalSaleReturnItemsCompanion
       reason: reason ?? this.reason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -7969,6 +8308,9 @@ class LocalSaleReturnItemsCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -7992,6 +8334,7 @@ class LocalSaleReturnItemsCompanion
           ..write('reason: $reason, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8098,6 +8441,17 @@ class $LocalCustomerPaymentsTable extends LocalCustomerPayments
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -8120,6 +8474,7 @@ class $LocalCustomerPaymentsTable extends LocalCustomerPayments
     description,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -8196,6 +8551,12 @@ class $LocalCustomerPaymentsTable extends LocalCustomerPayments
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -8243,6 +8604,10 @@ class $LocalCustomerPaymentsTable extends LocalCustomerPayments
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -8266,6 +8631,7 @@ class LocalCustomerPayment extends DataClass
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalCustomerPayment({
     required this.id,
@@ -8276,6 +8642,7 @@ class LocalCustomerPayment extends DataClass
     this.description,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -8291,6 +8658,9 @@ class LocalCustomerPayment extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -8307,6 +8677,9 @@ class LocalCustomerPayment extends DataClass
           : Value(description),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -8325,6 +8698,7 @@ class LocalCustomerPayment extends DataClass
       description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -8340,6 +8714,7 @@ class LocalCustomerPayment extends DataClass
       'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -8353,6 +8728,7 @@ class LocalCustomerPayment extends DataClass
     Value<String?> description = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalCustomerPayment(
     id: id ?? this.id,
@@ -8363,6 +8739,7 @@ class LocalCustomerPayment extends DataClass
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalCustomerPayment copyWithCompanion(LocalCustomerPaymentsCompanion data) {
@@ -8379,6 +8756,7 @@ class LocalCustomerPayment extends DataClass
           : this.description,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -8396,6 +8774,7 @@ class LocalCustomerPayment extends DataClass
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -8411,6 +8790,7 @@ class LocalCustomerPayment extends DataClass
     description,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -8425,6 +8805,7 @@ class LocalCustomerPayment extends DataClass
           other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -8438,6 +8819,7 @@ class LocalCustomerPaymentsCompanion
   final Value<String?> description;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalCustomerPaymentsCompanion({
@@ -8449,6 +8831,7 @@ class LocalCustomerPaymentsCompanion
     this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -8461,6 +8844,7 @@ class LocalCustomerPaymentsCompanion
     this.description = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -8479,6 +8863,7 @@ class LocalCustomerPaymentsCompanion
     Expression<String>? description,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -8491,6 +8876,7 @@ class LocalCustomerPaymentsCompanion
       if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -8505,6 +8891,7 @@ class LocalCustomerPaymentsCompanion
     Value<String?>? description,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -8517,6 +8904,7 @@ class LocalCustomerPaymentsCompanion
       description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -8549,6 +8937,9 @@ class LocalCustomerPaymentsCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -8569,6 +8960,7 @@ class LocalCustomerPaymentsCompanion
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -8695,6 +9087,17 @@ class $LocalCashTransactionsTable extends LocalCashTransactions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -8720,6 +9123,7 @@ class $LocalCashTransactionsTable extends LocalCashTransactions
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -8815,6 +9219,12 @@ class $LocalCashTransactionsTable extends LocalCashTransactions
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -8874,6 +9284,10 @@ class $LocalCashTransactionsTable extends LocalCashTransactions
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -8900,6 +9314,7 @@ class LocalCashTransaction extends DataClass
   final String? note;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalCashTransaction({
     required this.id,
@@ -8913,6 +9328,7 @@ class LocalCashTransaction extends DataClass
     this.note,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -8937,6 +9353,9 @@ class LocalCashTransaction extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -8960,6 +9379,9 @@ class LocalCashTransaction extends DataClass
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -8981,6 +9403,7 @@ class LocalCashTransaction extends DataClass
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -8999,6 +9422,7 @@ class LocalCashTransaction extends DataClass
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -9015,6 +9439,7 @@ class LocalCashTransaction extends DataClass
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalCashTransaction(
     id: id ?? this.id,
@@ -9030,6 +9455,7 @@ class LocalCashTransaction extends DataClass
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalCashTransaction copyWithCompanion(LocalCashTransactionsCompanion data) {
@@ -9049,6 +9475,7 @@ class LocalCashTransaction extends DataClass
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -9069,6 +9496,7 @@ class LocalCashTransaction extends DataClass
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -9087,6 +9515,7 @@ class LocalCashTransaction extends DataClass
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -9104,6 +9533,7 @@ class LocalCashTransaction extends DataClass
           other.note == this.note &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -9120,6 +9550,7 @@ class LocalCashTransactionsCompanion
   final Value<String?> note;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalCashTransactionsCompanion({
@@ -9134,6 +9565,7 @@ class LocalCashTransactionsCompanion
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -9149,6 +9581,7 @@ class LocalCashTransactionsCompanion
     this.note = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -9169,6 +9602,7 @@ class LocalCashTransactionsCompanion
     Expression<String>? note,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -9184,6 +9618,7 @@ class LocalCashTransactionsCompanion
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -9201,6 +9636,7 @@ class LocalCashTransactionsCompanion
     Value<String?>? note,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -9216,6 +9652,7 @@ class LocalCashTransactionsCompanion
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -9257,6 +9694,9 @@ class LocalCashTransactionsCompanion
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -9280,6 +9720,7 @@ class LocalCashTransactionsCompanion
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -9378,6 +9819,17 @@ class $LocalExpensesTable extends LocalExpenses
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -9400,6 +9852,7 @@ class $LocalExpensesTable extends LocalExpenses
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -9469,6 +9922,12 @@ class $LocalExpensesTable extends LocalExpenses
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -9516,6 +9975,10 @@ class $LocalExpensesTable extends LocalExpenses
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -9538,6 +10001,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
   final String? note;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalExpense({
     required this.id,
@@ -9548,6 +10012,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     this.note,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -9565,6 +10030,9 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -9581,6 +10049,9 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -9599,6 +10070,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -9614,6 +10086,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -9627,6 +10100,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalExpense(
     id: id ?? this.id,
@@ -9637,6 +10111,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalExpense copyWithCompanion(LocalExpensesCompanion data) {
@@ -9651,6 +10126,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -9668,6 +10144,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -9683,6 +10160,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     note,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -9697,6 +10175,7 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
           other.note == this.note &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -9709,6 +10188,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
   final Value<String?> note;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalExpensesCompanion({
@@ -9720,6 +10200,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -9732,6 +10213,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     this.note = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -9748,6 +10230,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     Expression<String>? note,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -9760,6 +10243,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -9774,6 +10258,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     Value<String?>? note,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -9786,6 +10271,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -9818,6 +10304,9 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -9838,6 +10327,7 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -9947,6 +10437,17 @@ class $LocalIncomesTable extends LocalIncomes
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -9970,6 +10471,7 @@ class $LocalIncomesTable extends LocalIncomes
     receiptUrl,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   ];
   @override
@@ -10045,6 +10547,12 @@ class $LocalIncomesTable extends LocalIncomes
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -10096,6 +10604,10 @@ class $LocalIncomesTable extends LocalIncomes
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -10119,6 +10631,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
   final String? receiptUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   final String syncStatus;
   const LocalIncome({
     required this.id,
@@ -10130,6 +10643,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
     this.receiptUrl,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     required this.syncStatus,
   });
   @override
@@ -10150,6 +10664,9 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
@@ -10169,6 +10686,9 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
           : Value(receiptUrl),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       syncStatus: Value(syncStatus),
     );
   }
@@ -10188,6 +10708,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
       receiptUrl: serializer.fromJson<String?>(json['receiptUrl']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -10204,6 +10725,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
       'receiptUrl': serializer.toJson<String?>(receiptUrl),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -10218,6 +10740,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
     Value<String?> receiptUrl = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
     String? syncStatus,
   }) => LocalIncome(
     id: id ?? this.id,
@@ -10229,6 +10752,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
     receiptUrl: receiptUrl.present ? receiptUrl.value : this.receiptUrl,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   LocalIncome copyWithCompanion(LocalIncomesCompanion data) {
@@ -10246,6 +10770,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
           : this.receiptUrl,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -10264,6 +10789,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
           ..write('receiptUrl: $receiptUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -10280,6 +10806,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
     receiptUrl,
     createdAt,
     updatedAt,
+    deletedAt,
     syncStatus,
   );
   @override
@@ -10295,6 +10822,7 @@ class LocalIncome extends DataClass implements Insertable<LocalIncome> {
           other.receiptUrl == this.receiptUrl &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -10308,6 +10836,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
   final Value<String?> receiptUrl;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const LocalIncomesCompanion({
@@ -10320,6 +10849,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
     this.receiptUrl = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -10333,6 +10863,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
     this.receiptUrl = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -10350,6 +10881,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
     Expression<String>? receiptUrl,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -10363,6 +10895,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
       if (receiptUrl != null) 'receipt_url': receiptUrl,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -10378,6 +10911,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
     Value<String?>? receiptUrl,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -10391,6 +10925,7 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
       receiptUrl: receiptUrl ?? this.receiptUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -10426,6 +10961,9 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -10447,6 +10985,1571 @@ class LocalIncomesCompanion extends UpdateCompanion<LocalIncome> {
           ..write('receiptUrl: $receiptUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRecycleBinEntriesTable extends LocalRecycleBinEntries
+    with TableInfo<$LocalRecycleBinEntriesTable, LocalRecycleBinEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRecycleBinEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _sourceTableNameMeta = const VerificationMeta(
+    'sourceTableName',
+  );
+  @override
+  late final GeneratedColumn<String> sourceTableName = GeneratedColumn<String>(
+    'table_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recordIdMeta = const VerificationMeta(
+    'recordId',
+  );
+  @override
+  late final GeneratedColumn<String> recordId = GeneratedColumn<String>(
+    'record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayTitleMeta = const VerificationMeta(
+    'displayTitle',
+  );
+  @override
+  late final GeneratedColumn<String> displayTitle = GeneratedColumn<String>(
+    'display_title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displaySubtitleMeta = const VerificationMeta(
+    'displaySubtitle',
+  );
+  @override
+  late final GeneratedColumn<String> displaySubtitle = GeneratedColumn<String>(
+    'display_subtitle',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedDataMeta = const VerificationMeta(
+    'deletedData',
+  );
+  @override
+  late final GeneratedColumn<String> deletedData = GeneratedColumn<String>(
+    'deleted_data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relatedDataMeta = const VerificationMeta(
+    'relatedData',
+  );
+  @override
+  late final GeneratedColumn<String> relatedData = GeneratedColumn<String>(
+    'related_data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedByUserIdMeta = const VerificationMeta(
+    'deletedByUserId',
+  );
+  @override
+  late final GeneratedColumn<String> deletedByUserId = GeneratedColumn<String>(
+    'deleted_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _restoredAtMeta = const VerificationMeta(
+    'restoredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> restoredAt = GeneratedColumn<DateTime>(
+    'restored_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _restoreStatusMeta = const VerificationMeta(
+    'restoreStatus',
+  );
+  @override
+  late final GeneratedColumn<String> restoreStatus = GeneratedColumn<String>(
+    'restore_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('deleted'),
+  );
+  static const VerificationMeta _restoreBlockReasonMeta =
+      const VerificationMeta('restoreBlockReason');
+  @override
+  late final GeneratedColumn<String> restoreBlockReason =
+      GeneratedColumn<String>(
+        'restore_block_reason',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    shopId,
+    sourceTableName,
+    recordId,
+    displayTitle,
+    displaySubtitle,
+    deletedData,
+    relatedData,
+    deletedByUserId,
+    deletedAt,
+    restoredAt,
+    restoreStatus,
+    restoreBlockReason,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_recycle_bin_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalRecycleBinEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('table_name')) {
+      context.handle(
+        _sourceTableNameMeta,
+        sourceTableName.isAcceptableOrUnknown(
+          data['table_name']!,
+          _sourceTableNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTableNameMeta);
+    }
+    if (data.containsKey('record_id')) {
+      context.handle(
+        _recordIdMeta,
+        recordId.isAcceptableOrUnknown(data['record_id']!, _recordIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordIdMeta);
+    }
+    if (data.containsKey('display_title')) {
+      context.handle(
+        _displayTitleMeta,
+        displayTitle.isAcceptableOrUnknown(
+          data['display_title']!,
+          _displayTitleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayTitleMeta);
+    }
+    if (data.containsKey('display_subtitle')) {
+      context.handle(
+        _displaySubtitleMeta,
+        displaySubtitle.isAcceptableOrUnknown(
+          data['display_subtitle']!,
+          _displaySubtitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_data')) {
+      context.handle(
+        _deletedDataMeta,
+        deletedData.isAcceptableOrUnknown(
+          data['deleted_data']!,
+          _deletedDataMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedDataMeta);
+    }
+    if (data.containsKey('related_data')) {
+      context.handle(
+        _relatedDataMeta,
+        relatedData.isAcceptableOrUnknown(
+          data['related_data']!,
+          _relatedDataMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_by_user_id')) {
+      context.handle(
+        _deletedByUserIdMeta,
+        deletedByUserId.isAcceptableOrUnknown(
+          data['deleted_by_user_id']!,
+          _deletedByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedAtMeta);
+    }
+    if (data.containsKey('restored_at')) {
+      context.handle(
+        _restoredAtMeta,
+        restoredAt.isAcceptableOrUnknown(data['restored_at']!, _restoredAtMeta),
+      );
+    }
+    if (data.containsKey('restore_status')) {
+      context.handle(
+        _restoreStatusMeta,
+        restoreStatus.isAcceptableOrUnknown(
+          data['restore_status']!,
+          _restoreStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('restore_block_reason')) {
+      context.handle(
+        _restoreBlockReasonMeta,
+        restoreBlockReason.isAcceptableOrUnknown(
+          data['restore_block_reason']!,
+          _restoreBlockReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRecycleBinEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRecycleBinEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      sourceTableName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}table_name'],
+      )!,
+      recordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_id'],
+      )!,
+      displayTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_title'],
+      )!,
+      displaySubtitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_subtitle'],
+      ),
+      deletedData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_data'],
+      )!,
+      relatedData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}related_data'],
+      ),
+      deletedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by_user_id'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+      restoredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}restored_at'],
+      ),
+      restoreStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}restore_status'],
+      )!,
+      restoreBlockReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}restore_block_reason'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalRecycleBinEntriesTable createAlias(String alias) {
+    return $LocalRecycleBinEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRecycleBinEntry extends DataClass
+    implements Insertable<LocalRecycleBinEntry> {
+  final String id;
+  final String shopId;
+  final String sourceTableName;
+  final String recordId;
+  final String displayTitle;
+  final String? displaySubtitle;
+  final String deletedData;
+  final String? relatedData;
+  final String? deletedByUserId;
+  final DateTime deletedAt;
+  final DateTime? restoredAt;
+  final String restoreStatus;
+  final String? restoreBlockReason;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String syncStatus;
+  const LocalRecycleBinEntry({
+    required this.id,
+    required this.shopId,
+    required this.sourceTableName,
+    required this.recordId,
+    required this.displayTitle,
+    this.displaySubtitle,
+    required this.deletedData,
+    this.relatedData,
+    this.deletedByUserId,
+    required this.deletedAt,
+    this.restoredAt,
+    required this.restoreStatus,
+    this.restoreBlockReason,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['shop_id'] = Variable<String>(shopId);
+    map['table_name'] = Variable<String>(sourceTableName);
+    map['record_id'] = Variable<String>(recordId);
+    map['display_title'] = Variable<String>(displayTitle);
+    if (!nullToAbsent || displaySubtitle != null) {
+      map['display_subtitle'] = Variable<String>(displaySubtitle);
+    }
+    map['deleted_data'] = Variable<String>(deletedData);
+    if (!nullToAbsent || relatedData != null) {
+      map['related_data'] = Variable<String>(relatedData);
+    }
+    if (!nullToAbsent || deletedByUserId != null) {
+      map['deleted_by_user_id'] = Variable<String>(deletedByUserId);
+    }
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    if (!nullToAbsent || restoredAt != null) {
+      map['restored_at'] = Variable<DateTime>(restoredAt);
+    }
+    map['restore_status'] = Variable<String>(restoreStatus);
+    if (!nullToAbsent || restoreBlockReason != null) {
+      map['restore_block_reason'] = Variable<String>(restoreBlockReason);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  LocalRecycleBinEntriesCompanion toCompanion(bool nullToAbsent) {
+    return LocalRecycleBinEntriesCompanion(
+      id: Value(id),
+      shopId: Value(shopId),
+      sourceTableName: Value(sourceTableName),
+      recordId: Value(recordId),
+      displayTitle: Value(displayTitle),
+      displaySubtitle: displaySubtitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(displaySubtitle),
+      deletedData: Value(deletedData),
+      relatedData: relatedData == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relatedData),
+      deletedByUserId: deletedByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedByUserId),
+      deletedAt: Value(deletedAt),
+      restoredAt: restoredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restoredAt),
+      restoreStatus: Value(restoreStatus),
+      restoreBlockReason: restoreBlockReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restoreBlockReason),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory LocalRecycleBinEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRecycleBinEntry(
+      id: serializer.fromJson<String>(json['id']),
+      shopId: serializer.fromJson<String>(json['shopId']),
+      sourceTableName: serializer.fromJson<String>(json['sourceTableName']),
+      recordId: serializer.fromJson<String>(json['recordId']),
+      displayTitle: serializer.fromJson<String>(json['displayTitle']),
+      displaySubtitle: serializer.fromJson<String?>(json['displaySubtitle']),
+      deletedData: serializer.fromJson<String>(json['deletedData']),
+      relatedData: serializer.fromJson<String?>(json['relatedData']),
+      deletedByUserId: serializer.fromJson<String?>(json['deletedByUserId']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+      restoredAt: serializer.fromJson<DateTime?>(json['restoredAt']),
+      restoreStatus: serializer.fromJson<String>(json['restoreStatus']),
+      restoreBlockReason: serializer.fromJson<String?>(
+        json['restoreBlockReason'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'shopId': serializer.toJson<String>(shopId),
+      'sourceTableName': serializer.toJson<String>(sourceTableName),
+      'recordId': serializer.toJson<String>(recordId),
+      'displayTitle': serializer.toJson<String>(displayTitle),
+      'displaySubtitle': serializer.toJson<String?>(displaySubtitle),
+      'deletedData': serializer.toJson<String>(deletedData),
+      'relatedData': serializer.toJson<String?>(relatedData),
+      'deletedByUserId': serializer.toJson<String?>(deletedByUserId),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+      'restoredAt': serializer.toJson<DateTime?>(restoredAt),
+      'restoreStatus': serializer.toJson<String>(restoreStatus),
+      'restoreBlockReason': serializer.toJson<String?>(restoreBlockReason),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  LocalRecycleBinEntry copyWith({
+    String? id,
+    String? shopId,
+    String? sourceTableName,
+    String? recordId,
+    String? displayTitle,
+    Value<String?> displaySubtitle = const Value.absent(),
+    String? deletedData,
+    Value<String?> relatedData = const Value.absent(),
+    Value<String?> deletedByUserId = const Value.absent(),
+    DateTime? deletedAt,
+    Value<DateTime?> restoredAt = const Value.absent(),
+    String? restoreStatus,
+    Value<String?> restoreBlockReason = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? syncStatus,
+  }) => LocalRecycleBinEntry(
+    id: id ?? this.id,
+    shopId: shopId ?? this.shopId,
+    sourceTableName: sourceTableName ?? this.sourceTableName,
+    recordId: recordId ?? this.recordId,
+    displayTitle: displayTitle ?? this.displayTitle,
+    displaySubtitle: displaySubtitle.present
+        ? displaySubtitle.value
+        : this.displaySubtitle,
+    deletedData: deletedData ?? this.deletedData,
+    relatedData: relatedData.present ? relatedData.value : this.relatedData,
+    deletedByUserId: deletedByUserId.present
+        ? deletedByUserId.value
+        : this.deletedByUserId,
+    deletedAt: deletedAt ?? this.deletedAt,
+    restoredAt: restoredAt.present ? restoredAt.value : this.restoredAt,
+    restoreStatus: restoreStatus ?? this.restoreStatus,
+    restoreBlockReason: restoreBlockReason.present
+        ? restoreBlockReason.value
+        : this.restoreBlockReason,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  LocalRecycleBinEntry copyWithCompanion(LocalRecycleBinEntriesCompanion data) {
+    return LocalRecycleBinEntry(
+      id: data.id.present ? data.id.value : this.id,
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      sourceTableName: data.sourceTableName.present
+          ? data.sourceTableName.value
+          : this.sourceTableName,
+      recordId: data.recordId.present ? data.recordId.value : this.recordId,
+      displayTitle: data.displayTitle.present
+          ? data.displayTitle.value
+          : this.displayTitle,
+      displaySubtitle: data.displaySubtitle.present
+          ? data.displaySubtitle.value
+          : this.displaySubtitle,
+      deletedData: data.deletedData.present
+          ? data.deletedData.value
+          : this.deletedData,
+      relatedData: data.relatedData.present
+          ? data.relatedData.value
+          : this.relatedData,
+      deletedByUserId: data.deletedByUserId.present
+          ? data.deletedByUserId.value
+          : this.deletedByUserId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      restoredAt: data.restoredAt.present
+          ? data.restoredAt.value
+          : this.restoredAt,
+      restoreStatus: data.restoreStatus.present
+          ? data.restoreStatus.value
+          : this.restoreStatus,
+      restoreBlockReason: data.restoreBlockReason.present
+          ? data.restoreBlockReason.value
+          : this.restoreBlockReason,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecycleBinEntry(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('sourceTableName: $sourceTableName, ')
+          ..write('recordId: $recordId, ')
+          ..write('displayTitle: $displayTitle, ')
+          ..write('displaySubtitle: $displaySubtitle, ')
+          ..write('deletedData: $deletedData, ')
+          ..write('relatedData: $relatedData, ')
+          ..write('deletedByUserId: $deletedByUserId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('restoredAt: $restoredAt, ')
+          ..write('restoreStatus: $restoreStatus, ')
+          ..write('restoreBlockReason: $restoreBlockReason, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    shopId,
+    sourceTableName,
+    recordId,
+    displayTitle,
+    displaySubtitle,
+    deletedData,
+    relatedData,
+    deletedByUserId,
+    deletedAt,
+    restoredAt,
+    restoreStatus,
+    restoreBlockReason,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRecycleBinEntry &&
+          other.id == this.id &&
+          other.shopId == this.shopId &&
+          other.sourceTableName == this.sourceTableName &&
+          other.recordId == this.recordId &&
+          other.displayTitle == this.displayTitle &&
+          other.displaySubtitle == this.displaySubtitle &&
+          other.deletedData == this.deletedData &&
+          other.relatedData == this.relatedData &&
+          other.deletedByUserId == this.deletedByUserId &&
+          other.deletedAt == this.deletedAt &&
+          other.restoredAt == this.restoredAt &&
+          other.restoreStatus == this.restoreStatus &&
+          other.restoreBlockReason == this.restoreBlockReason &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class LocalRecycleBinEntriesCompanion
+    extends UpdateCompanion<LocalRecycleBinEntry> {
+  final Value<String> id;
+  final Value<String> shopId;
+  final Value<String> sourceTableName;
+  final Value<String> recordId;
+  final Value<String> displayTitle;
+  final Value<String?> displaySubtitle;
+  final Value<String> deletedData;
+  final Value<String?> relatedData;
+  final Value<String?> deletedByUserId;
+  final Value<DateTime> deletedAt;
+  final Value<DateTime?> restoredAt;
+  final Value<String> restoreStatus;
+  final Value<String?> restoreBlockReason;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const LocalRecycleBinEntriesCompanion({
+    this.id = const Value.absent(),
+    this.shopId = const Value.absent(),
+    this.sourceTableName = const Value.absent(),
+    this.recordId = const Value.absent(),
+    this.displayTitle = const Value.absent(),
+    this.displaySubtitle = const Value.absent(),
+    this.deletedData = const Value.absent(),
+    this.relatedData = const Value.absent(),
+    this.deletedByUserId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.restoredAt = const Value.absent(),
+    this.restoreStatus = const Value.absent(),
+    this.restoreBlockReason = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRecycleBinEntriesCompanion.insert({
+    required String id,
+    required String shopId,
+    required String sourceTableName,
+    required String recordId,
+    required String displayTitle,
+    this.displaySubtitle = const Value.absent(),
+    required String deletedData,
+    this.relatedData = const Value.absent(),
+    this.deletedByUserId = const Value.absent(),
+    required DateTime deletedAt,
+    this.restoredAt = const Value.absent(),
+    this.restoreStatus = const Value.absent(),
+    this.restoreBlockReason = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       shopId = Value(shopId),
+       sourceTableName = Value(sourceTableName),
+       recordId = Value(recordId),
+       displayTitle = Value(displayTitle),
+       deletedData = Value(deletedData),
+       deletedAt = Value(deletedAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LocalRecycleBinEntry> custom({
+    Expression<String>? id,
+    Expression<String>? shopId,
+    Expression<String>? sourceTableName,
+    Expression<String>? recordId,
+    Expression<String>? displayTitle,
+    Expression<String>? displaySubtitle,
+    Expression<String>? deletedData,
+    Expression<String>? relatedData,
+    Expression<String>? deletedByUserId,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? restoredAt,
+    Expression<String>? restoreStatus,
+    Expression<String>? restoreBlockReason,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shopId != null) 'shop_id': shopId,
+      if (sourceTableName != null) 'table_name': sourceTableName,
+      if (recordId != null) 'record_id': recordId,
+      if (displayTitle != null) 'display_title': displayTitle,
+      if (displaySubtitle != null) 'display_subtitle': displaySubtitle,
+      if (deletedData != null) 'deleted_data': deletedData,
+      if (relatedData != null) 'related_data': relatedData,
+      if (deletedByUserId != null) 'deleted_by_user_id': deletedByUserId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (restoredAt != null) 'restored_at': restoredAt,
+      if (restoreStatus != null) 'restore_status': restoreStatus,
+      if (restoreBlockReason != null)
+        'restore_block_reason': restoreBlockReason,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRecycleBinEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? shopId,
+    Value<String>? sourceTableName,
+    Value<String>? recordId,
+    Value<String>? displayTitle,
+    Value<String?>? displaySubtitle,
+    Value<String>? deletedData,
+    Value<String?>? relatedData,
+    Value<String?>? deletedByUserId,
+    Value<DateTime>? deletedAt,
+    Value<DateTime?>? restoredAt,
+    Value<String>? restoreStatus,
+    Value<String?>? restoreBlockReason,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return LocalRecycleBinEntriesCompanion(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      sourceTableName: sourceTableName ?? this.sourceTableName,
+      recordId: recordId ?? this.recordId,
+      displayTitle: displayTitle ?? this.displayTitle,
+      displaySubtitle: displaySubtitle ?? this.displaySubtitle,
+      deletedData: deletedData ?? this.deletedData,
+      relatedData: relatedData ?? this.relatedData,
+      deletedByUserId: deletedByUserId ?? this.deletedByUserId,
+      deletedAt: deletedAt ?? this.deletedAt,
+      restoredAt: restoredAt ?? this.restoredAt,
+      restoreStatus: restoreStatus ?? this.restoreStatus,
+      restoreBlockReason: restoreBlockReason ?? this.restoreBlockReason,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (sourceTableName.present) {
+      map['table_name'] = Variable<String>(sourceTableName.value);
+    }
+    if (recordId.present) {
+      map['record_id'] = Variable<String>(recordId.value);
+    }
+    if (displayTitle.present) {
+      map['display_title'] = Variable<String>(displayTitle.value);
+    }
+    if (displaySubtitle.present) {
+      map['display_subtitle'] = Variable<String>(displaySubtitle.value);
+    }
+    if (deletedData.present) {
+      map['deleted_data'] = Variable<String>(deletedData.value);
+    }
+    if (relatedData.present) {
+      map['related_data'] = Variable<String>(relatedData.value);
+    }
+    if (deletedByUserId.present) {
+      map['deleted_by_user_id'] = Variable<String>(deletedByUserId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (restoredAt.present) {
+      map['restored_at'] = Variable<DateTime>(restoredAt.value);
+    }
+    if (restoreStatus.present) {
+      map['restore_status'] = Variable<String>(restoreStatus.value);
+    }
+    if (restoreBlockReason.present) {
+      map['restore_block_reason'] = Variable<String>(restoreBlockReason.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecycleBinEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('sourceTableName: $sourceTableName, ')
+          ..write('recordId: $recordId, ')
+          ..write('displayTitle: $displayTitle, ')
+          ..write('displaySubtitle: $displaySubtitle, ')
+          ..write('deletedData: $deletedData, ')
+          ..write('relatedData: $relatedData, ')
+          ..write('deletedByUserId: $deletedByUserId, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('restoredAt: $restoredAt, ')
+          ..write('restoreStatus: $restoreStatus, ')
+          ..write('restoreBlockReason: $restoreBlockReason, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalNotesTable extends LocalNotes
+    with TableInfo<$LocalNotesTable, LocalNote> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalNotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    shopId,
+    title,
+    body,
+    isArchived,
+    archivedAt,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_notes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalNote> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalNote map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalNote(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalNotesTable createAlias(String alias) {
+    return $LocalNotesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalNote extends DataClass implements Insertable<LocalNote> {
+  final String id;
+  final String shopId;
+  final String title;
+  final String body;
+  final bool isArchived;
+  final DateTime? archivedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final String syncStatus;
+  const LocalNote({
+    required this.id,
+    required this.shopId,
+    required this.title,
+    required this.body,
+    required this.isArchived,
+    this.archivedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['shop_id'] = Variable<String>(shopId);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    map['is_archived'] = Variable<bool>(isArchived);
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  LocalNotesCompanion toCompanion(bool nullToAbsent) {
+    return LocalNotesCompanion(
+      id: Value(id),
+      shopId: Value(shopId),
+      title: Value(title),
+      body: Value(body),
+      isArchived: Value(isArchived),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory LocalNote.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalNote(
+      id: serializer.fromJson<String>(json['id']),
+      shopId: serializer.fromJson<String>(json['shopId']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'shopId': serializer.toJson<String>(shopId),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'isArchived': serializer.toJson<bool>(isArchived),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  LocalNote copyWith({
+    String? id,
+    String? shopId,
+    String? title,
+    String? body,
+    bool? isArchived,
+    Value<DateTime?> archivedAt = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? syncStatus,
+  }) => LocalNote(
+    id: id ?? this.id,
+    shopId: shopId ?? this.shopId,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    isArchived: isArchived ?? this.isArchived,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  LocalNote copyWithCompanion(LocalNotesCompanion data) {
+    return LocalNote(
+      id: data.id.present ? data.id.value : this.id,
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalNote(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    shopId,
+    title,
+    body,
+    isArchived,
+    archivedAt,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalNote &&
+          other.id == this.id &&
+          other.shopId == this.shopId &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.isArchived == this.isArchived &&
+          other.archivedAt == this.archivedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
+  final Value<String> id;
+  final Value<String> shopId;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<bool> isArchived;
+  final Value<DateTime?> archivedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const LocalNotesCompanion({
+    this.id = const Value.absent(),
+    this.shopId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.archivedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalNotesCompanion.insert({
+    required String id,
+    required String shopId,
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.archivedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       shopId = Value(shopId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LocalNote> custom({
+    Expression<String>? id,
+    Expression<String>? shopId,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<bool>? isArchived,
+    Expression<DateTime>? archivedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shopId != null) 'shop_id': shopId,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (isArchived != null) 'is_archived': isArchived,
+      if (archivedAt != null) 'archived_at': archivedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalNotesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? shopId,
+    Value<String>? title,
+    Value<String>? body,
+    Value<bool>? isArchived,
+    Value<DateTime?>? archivedAt,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<String>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return LocalNotesCompanion(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      isArchived: isArchived ?? this.isArchived,
+      archivedAt: archivedAt ?? this.archivedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalNotesCompanion(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -10482,6 +12585,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalCashTransactionsTable(this);
   late final $LocalExpensesTable localExpenses = $LocalExpensesTable(this);
   late final $LocalIncomesTable localIncomes = $LocalIncomesTable(this);
+  late final $LocalRecycleBinEntriesTable localRecycleBinEntries =
+      $LocalRecycleBinEntriesTable(this);
+  late final $LocalNotesTable localNotes = $LocalNotesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10503,6 +12609,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localCashTransactions,
     localExpenses,
     localIncomes,
+    localRecycleBinEntries,
+    localNotes,
   ];
 }
 
@@ -10860,6 +12968,52 @@ final class $$LocalShopsTableReferences
     ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_localIncomesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $LocalRecycleBinEntriesTable,
+    List<LocalRecycleBinEntry>
+  >
+  _localRecycleBinEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.localRecycleBinEntries,
+        aliasName: $_aliasNameGenerator(
+          db.localShops.id,
+          db.localRecycleBinEntries.shopId,
+        ),
+      );
+
+  $$LocalRecycleBinEntriesTableProcessedTableManager
+  get localRecycleBinEntriesRefs {
+    final manager = $$LocalRecycleBinEntriesTableTableManager(
+      $_db,
+      $_db.localRecycleBinEntries,
+    ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _localRecycleBinEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LocalNotesTable, List<LocalNote>>
+  _localNotesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localNotes,
+    aliasName: $_aliasNameGenerator(db.localShops.id, db.localNotes.shopId),
+  );
+
+  $$LocalNotesTableProcessedTableManager get localNotesRefs {
+    final manager = $$LocalNotesTableTableManager(
+      $_db,
+      $_db.localNotes,
+    ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_localNotesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -11294,6 +13448,57 @@ class $$LocalShopsTableFilterComposer
           }) => $$LocalIncomesTableFilterComposer(
             $db: $db,
             $table: $db.localIncomes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> localRecycleBinEntriesRefs(
+    Expression<bool> Function($$LocalRecycleBinEntriesTableFilterComposer f) f,
+  ) {
+    final $$LocalRecycleBinEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.localRecycleBinEntries,
+          getReferencedColumn: (t) => t.shopId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LocalRecycleBinEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.localRecycleBinEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> localNotesRefs(
+    Expression<bool> Function($$LocalNotesTableFilterComposer f) f,
+  ) {
+    final $$LocalNotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localNotes,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalNotesTableFilterComposer(
+            $db: $db,
+            $table: $db.localNotes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -11790,6 +13995,57 @@ class $$LocalShopsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> localRecycleBinEntriesRefs<T extends Object>(
+    Expression<T> Function($$LocalRecycleBinEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalRecycleBinEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.localRecycleBinEntries,
+          getReferencedColumn: (t) => t.shopId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LocalRecycleBinEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.localRecycleBinEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> localNotesRefs<T extends Object>(
+    Expression<T> Function($$LocalNotesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalNotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localNotes,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalNotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalShopsTableTableManager
@@ -11821,6 +14077,8 @@ class $$LocalShopsTableTableManager
             bool localCashTransactionsRefs,
             bool localExpensesRefs,
             bool localIncomesRefs,
+            bool localRecycleBinEntriesRefs,
+            bool localNotesRefs,
           })
         > {
   $$LocalShopsTableTableManager(_$AppDatabase db, $LocalShopsTable table)
@@ -11911,6 +14169,8 @@ class $$LocalShopsTableTableManager
                 localCashTransactionsRefs = false,
                 localExpensesRefs = false,
                 localIncomesRefs = false,
+                localRecycleBinEntriesRefs = false,
+                localNotesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11930,6 +14190,8 @@ class $$LocalShopsTableTableManager
                     if (localCashTransactionsRefs) db.localCashTransactions,
                     if (localExpensesRefs) db.localExpenses,
                     if (localIncomesRefs) db.localIncomes,
+                    if (localRecycleBinEntriesRefs) db.localRecycleBinEntries,
+                    if (localNotesRefs) db.localNotes,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -12249,6 +14511,48 @@ class $$LocalShopsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (localRecycleBinEntriesRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalRecycleBinEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localRecycleBinEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localRecycleBinEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (localNotesRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalNote
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localNotesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localNotesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12285,6 +14589,8 @@ typedef $$LocalShopsTableProcessedTableManager =
         bool localCashTransactionsRefs,
         bool localExpensesRefs,
         bool localIncomesRefs,
+        bool localRecycleBinEntriesRefs,
+        bool localNotesRefs,
       })
     >;
 typedef $$LocalUsersTableCreateCompanionBuilder =
@@ -12340,6 +14646,37 @@ final class $$LocalUsersTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $LocalRecycleBinEntriesTable,
+    List<LocalRecycleBinEntry>
+  >
+  _localRecycleBinEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.localRecycleBinEntries,
+        aliasName: $_aliasNameGenerator(
+          db.localUsers.id,
+          db.localRecycleBinEntries.deletedByUserId,
+        ),
+      );
+
+  $$LocalRecycleBinEntriesTableProcessedTableManager
+  get localRecycleBinEntriesRefs {
+    final manager =
+        $$LocalRecycleBinEntriesTableTableManager(
+          $_db,
+          $_db.localRecycleBinEntries,
+        ).filter(
+          (f) => f.deletedByUserId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _localRecycleBinEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -12429,6 +14766,32 @@ class $$LocalUsersTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> localRecycleBinEntriesRefs(
+    Expression<bool> Function($$LocalRecycleBinEntriesTableFilterComposer f) f,
+  ) {
+    final $$LocalRecycleBinEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.localRecycleBinEntries,
+          getReferencedColumn: (t) => t.deletedByUserId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LocalRecycleBinEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.localRecycleBinEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
   }
 }
 
@@ -12590,6 +14953,32 @@ class $$LocalUsersTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> localRecycleBinEntriesRefs<T extends Object>(
+    Expression<T> Function($$LocalRecycleBinEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$LocalRecycleBinEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.localRecycleBinEntries,
+          getReferencedColumn: (t) => t.deletedByUserId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LocalRecycleBinEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.localRecycleBinEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$LocalUsersTableTableManager
@@ -12605,7 +14994,7 @@ class $$LocalUsersTableTableManager
           $$LocalUsersTableUpdateCompanionBuilder,
           (LocalUser, $$LocalUsersTableReferences),
           LocalUser,
-          PrefetchHooks Function({bool shopId})
+          PrefetchHooks Function({bool shopId, bool localRecycleBinEntriesRefs})
         > {
   $$LocalUsersTableTableManager(_$AppDatabase db, $LocalUsersTable table)
     : super(
@@ -12686,47 +15075,73 @@ class $$LocalUsersTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({shopId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (shopId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.shopId,
-                                referencedTable: $$LocalUsersTableReferences
-                                    ._shopIdTable(db),
-                                referencedColumn: $$LocalUsersTableReferences
-                                    ._shopIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({shopId = false, localRecycleBinEntriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (localRecycleBinEntriesRefs) db.localRecycleBinEntries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (shopId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.shopId,
+                                    referencedTable: $$LocalUsersTableReferences
+                                        ._shopIdTable(db),
+                                    referencedColumn:
+                                        $$LocalUsersTableReferences
+                                            ._shopIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (localRecycleBinEntriesRefs)
+                        await $_getPrefetchedData<
+                          LocalUser,
+                          $LocalUsersTable,
+                          LocalRecycleBinEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._localRecycleBinEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localRecycleBinEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.deletedByUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -12743,7 +15158,7 @@ typedef $$LocalUsersTableProcessedTableManager =
       $$LocalUsersTableUpdateCompanionBuilder,
       (LocalUser, $$LocalUsersTableReferences),
       LocalUser,
-      PrefetchHooks Function({bool shopId})
+      PrefetchHooks Function({bool shopId, bool localRecycleBinEntriesRefs})
     >;
 typedef $$LocalCategoriesTableCreateCompanionBuilder =
     LocalCategoriesCompanion Function({
@@ -14003,6 +16418,7 @@ typedef $$LocalPurchasesTableCreateCompanionBuilder =
       Value<String> status,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -14018,6 +16434,7 @@ typedef $$LocalPurchasesTableUpdateCompanionBuilder =
       Value<String> status,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -14173,6 +16590,11 @@ class $$LocalPurchasesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -14325,6 +16747,11 @@ class $$LocalPurchasesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -14415,6 +16842,9 @@ class $$LocalPurchasesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -14565,6 +16995,7 @@ class $$LocalPurchasesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchasesCompanion(
@@ -14578,6 +17009,7 @@ class $$LocalPurchasesTableTableManager
                 status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -14593,6 +17025,7 @@ class $$LocalPurchasesTableTableManager
                 Value<String> status = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchasesCompanion.insert(
@@ -14606,6 +17039,7 @@ class $$LocalPurchasesTableTableManager
                 status: status,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -14766,6 +17200,7 @@ typedef $$LocalPurchaseItemsTableCreateCompanionBuilder =
       Value<String?> productImage,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -14785,6 +17220,7 @@ typedef $$LocalPurchaseItemsTableUpdateCompanionBuilder =
       Value<String?> productImage,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -14979,6 +17415,11 @@ class $$LocalPurchaseItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -15168,6 +17609,11 @@ class $$LocalPurchaseItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -15296,6 +17742,9 @@ class $$LocalPurchaseItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -15476,6 +17925,7 @@ class $$LocalPurchaseItemsTableTableManager
                 Value<String?> productImage = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchaseItemsCompanion(
@@ -15493,6 +17943,7 @@ class $$LocalPurchaseItemsTableTableManager
                 productImage: productImage,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -15512,6 +17963,7 @@ class $$LocalPurchaseItemsTableTableManager
                 Value<String?> productImage = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchaseItemsCompanion.insert(
@@ -15529,6 +17981,7 @@ class $$LocalPurchaseItemsTableTableManager
                 productImage: productImage,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -15699,6 +18152,7 @@ typedef $$LocalPurchasePaymentsTableCreateCompanionBuilder =
       Value<String?> description,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -15711,6 +18165,7 @@ typedef $$LocalPurchasePaymentsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -15804,6 +18259,11 @@ class $$LocalPurchasePaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -15890,6 +18350,11 @@ class $$LocalPurchasePaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -15967,6 +18432,9 @@ class $$LocalPurchasePaymentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -16066,6 +18534,7 @@ class $$LocalPurchasePaymentsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchasePaymentsCompanion(
@@ -16076,6 +18545,7 @@ class $$LocalPurchasePaymentsTableTableManager
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -16088,6 +18558,7 @@ class $$LocalPurchasePaymentsTableTableManager
                 Value<String?> description = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalPurchasePaymentsCompanion.insert(
@@ -16098,6 +18569,7 @@ class $$LocalPurchasePaymentsTableTableManager
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -16851,6 +19323,7 @@ typedef $$LocalSalesTableCreateCompanionBuilder =
       Value<String?> paymentMethod,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -16867,6 +19340,7 @@ typedef $$LocalSalesTableUpdateCompanionBuilder =
       Value<String?> paymentMethod,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -17037,6 +19511,11 @@ class $$LocalSalesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17222,6 +19701,11 @@ class $$LocalSalesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -17311,6 +19795,9 @@ class $$LocalSalesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -17485,6 +19972,7 @@ class $$LocalSalesTableTableManager
                 Value<String?> paymentMethod = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSalesCompanion(
@@ -17499,6 +19987,7 @@ class $$LocalSalesTableTableManager
                 paymentMethod: paymentMethod,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -17515,6 +20004,7 @@ class $$LocalSalesTableTableManager
                 Value<String?> paymentMethod = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSalesCompanion.insert(
@@ -17529,6 +20019,7 @@ class $$LocalSalesTableTableManager
                 paymentMethod: paymentMethod,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -17707,6 +20198,7 @@ typedef $$LocalSaleItemsTableCreateCompanionBuilder =
       required double price,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -17722,6 +20214,7 @@ typedef $$LocalSaleItemsTableUpdateCompanionBuilder =
       Value<double> price,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -17864,6 +20357,11 @@ class $$LocalSaleItemsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18011,6 +20509,11 @@ class $$LocalSaleItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -18115,6 +20618,9 @@ class $$LocalSaleItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -18263,6 +20769,7 @@ class $$LocalSaleItemsTableTableManager
                 Value<double> price = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleItemsCompanion(
@@ -18276,6 +20783,7 @@ class $$LocalSaleItemsTableTableManager
                 price: price,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -18291,6 +20799,7 @@ class $$LocalSaleItemsTableTableManager
                 required double price,
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleItemsCompanion.insert(
@@ -18304,6 +20813,7 @@ class $$LocalSaleItemsTableTableManager
                 price: price,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -18452,6 +20962,7 @@ typedef $$LocalSaleReturnsTableCreateCompanionBuilder =
       Value<String?> note,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -18466,6 +20977,7 @@ typedef $$LocalSaleReturnsTableUpdateCompanionBuilder =
       Value<String?> note,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -18590,6 +21102,11 @@ class $$LocalSaleReturnsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -18711,6 +21228,11 @@ class $$LocalSaleReturnsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -18796,6 +21318,9 @@ class $$LocalSaleReturnsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -18918,6 +21443,7 @@ class $$LocalSaleReturnsTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleReturnsCompanion(
@@ -18930,6 +21456,7 @@ class $$LocalSaleReturnsTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -18944,6 +21471,7 @@ class $$LocalSaleReturnsTableTableManager
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleReturnsCompanion.insert(
@@ -18956,6 +21484,7 @@ class $$LocalSaleReturnsTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -19089,6 +21618,7 @@ typedef $$LocalSaleReturnItemsTableCreateCompanionBuilder =
       Value<String?> reason,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -19105,6 +21635,7 @@ typedef $$LocalSaleReturnItemsTableUpdateCompanionBuilder =
       Value<String?> reason,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -19252,6 +21783,11 @@ class $$LocalSaleReturnItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -19394,6 +21930,11 @@ class $$LocalSaleReturnItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -19523,6 +22064,9 @@ class $$LocalSaleReturnItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -19675,6 +22219,7 @@ class $$LocalSaleReturnItemsTableTableManager
                 Value<String?> reason = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleReturnItemsCompanion(
@@ -19689,6 +22234,7 @@ class $$LocalSaleReturnItemsTableTableManager
                 reason: reason,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -19705,6 +22251,7 @@ class $$LocalSaleReturnItemsTableTableManager
                 Value<String?> reason = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSaleReturnItemsCompanion.insert(
@@ -19719,6 +22266,7 @@ class $$LocalSaleReturnItemsTableTableManager
                 reason: reason,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -19857,6 +22405,7 @@ typedef $$LocalCustomerPaymentsTableCreateCompanionBuilder =
       Value<String?> description,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -19870,6 +22419,7 @@ typedef $$LocalCustomerPaymentsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -19985,6 +22535,11 @@ class $$LocalCustomerPaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -20094,6 +22649,11 @@ class $$LocalCustomerPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -20194,6 +22754,9 @@ class $$LocalCustomerPaymentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -20317,6 +22880,7 @@ class $$LocalCustomerPaymentsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCustomerPaymentsCompanion(
@@ -20328,6 +22892,7 @@ class $$LocalCustomerPaymentsTableTableManager
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -20341,6 +22906,7 @@ class $$LocalCustomerPaymentsTableTableManager
                 Value<String?> description = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCustomerPaymentsCompanion.insert(
@@ -20352,6 +22918,7 @@ class $$LocalCustomerPaymentsTableTableManager
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -20468,6 +23035,7 @@ typedef $$LocalCashTransactionsTableCreateCompanionBuilder =
       Value<String?> note,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -20484,6 +23052,7 @@ typedef $$LocalCashTransactionsTableUpdateCompanionBuilder =
       Value<String?> note,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -20580,6 +23149,11 @@ class $$LocalCashTransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -20668,6 +23242,11 @@ class $$LocalCashTransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -20739,6 +23318,9 @@ class $$LocalCashTransactionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -20819,6 +23401,7 @@ class $$LocalCashTransactionsTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCashTransactionsCompanion(
@@ -20833,6 +23416,7 @@ class $$LocalCashTransactionsTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -20849,6 +23433,7 @@ class $$LocalCashTransactionsTableTableManager
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCashTransactionsCompanion.insert(
@@ -20863,6 +23448,7 @@ class $$LocalCashTransactionsTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -20945,6 +23531,7 @@ typedef $$LocalExpensesTableCreateCompanionBuilder =
       Value<String?> note,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -20958,6 +23545,7 @@ typedef $$LocalExpensesTableUpdateCompanionBuilder =
       Value<String?> note,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -21048,6 +23636,11 @@ class $$LocalExpensesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21142,6 +23735,11 @@ class $$LocalExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -21220,6 +23818,9 @@ class $$LocalExpensesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -21309,6 +23910,7 @@ class $$LocalExpensesTableTableManager
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalExpensesCompanion(
@@ -21320,6 +23922,7 @@ class $$LocalExpensesTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -21333,6 +23936,7 @@ class $$LocalExpensesTableTableManager
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalExpensesCompanion.insert(
@@ -21344,6 +23948,7 @@ class $$LocalExpensesTableTableManager
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -21438,6 +24043,7 @@ typedef $$LocalIncomesTableCreateCompanionBuilder =
       Value<String?> receiptUrl,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -21452,6 +24058,7 @@ typedef $$LocalIncomesTableUpdateCompanionBuilder =
       Value<String?> receiptUrl,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -21540,6 +24147,11 @@ class $$LocalIncomesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21639,6 +24251,11 @@ class $$LocalIncomesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -21722,6 +24339,9 @@ class $$LocalIncomesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
@@ -21812,6 +24432,7 @@ class $$LocalIncomesTableTableManager
                 Value<String?> receiptUrl = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalIncomesCompanion(
@@ -21824,6 +24445,7 @@ class $$LocalIncomesTableTableManager
                 receiptUrl: receiptUrl,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -21838,6 +24460,7 @@ class $$LocalIncomesTableTableManager
                 Value<String?> receiptUrl = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalIncomesCompanion.insert(
@@ -21850,6 +24473,7 @@ class $$LocalIncomesTableTableManager
                 receiptUrl: receiptUrl,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -21933,6 +24557,1090 @@ typedef $$LocalIncomesTableProcessedTableManager =
       LocalIncome,
       PrefetchHooks Function({bool shopId, bool categoryId})
     >;
+typedef $$LocalRecycleBinEntriesTableCreateCompanionBuilder =
+    LocalRecycleBinEntriesCompanion Function({
+      required String id,
+      required String shopId,
+      required String sourceTableName,
+      required String recordId,
+      required String displayTitle,
+      Value<String?> displaySubtitle,
+      required String deletedData,
+      Value<String?> relatedData,
+      Value<String?> deletedByUserId,
+      required DateTime deletedAt,
+      Value<DateTime?> restoredAt,
+      Value<String> restoreStatus,
+      Value<String?> restoreBlockReason,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$LocalRecycleBinEntriesTableUpdateCompanionBuilder =
+    LocalRecycleBinEntriesCompanion Function({
+      Value<String> id,
+      Value<String> shopId,
+      Value<String> sourceTableName,
+      Value<String> recordId,
+      Value<String> displayTitle,
+      Value<String?> displaySubtitle,
+      Value<String> deletedData,
+      Value<String?> relatedData,
+      Value<String?> deletedByUserId,
+      Value<DateTime> deletedAt,
+      Value<DateTime?> restoredAt,
+      Value<String> restoreStatus,
+      Value<String?> restoreBlockReason,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$LocalRecycleBinEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $LocalRecycleBinEntriesTable,
+          LocalRecycleBinEntry
+        > {
+  $$LocalRecycleBinEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $LocalShopsTable _shopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(
+          db.localRecycleBinEntries.shopId,
+          db.localShops.id,
+        ),
+      );
+
+  $$LocalShopsTableProcessedTableManager get shopId {
+    final $_column = $_itemColumn<String>('shop_id')!;
+
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _deletedByUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(
+          db.localRecycleBinEntries.deletedByUserId,
+          db.localUsers.id,
+        ),
+      );
+
+  $$LocalUsersTableProcessedTableManager? get deletedByUserId {
+    final $_column = $_itemColumn<String>('deleted_by_user_id');
+    if ($_column == null) return null;
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_deletedByUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LocalRecycleBinEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRecycleBinEntriesTable> {
+  $$LocalRecycleBinEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceTableName => $composableBuilder(
+    column: $table.sourceTableName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordId => $composableBuilder(
+    column: $table.recordId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayTitle => $composableBuilder(
+    column: $table.displayTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displaySubtitle => $composableBuilder(
+    column: $table.displaySubtitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedData => $composableBuilder(
+    column: $table.deletedData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relatedData => $composableBuilder(
+    column: $table.relatedData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get restoreStatus => $composableBuilder(
+    column: $table.restoreStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get restoreBlockReason => $composableBuilder(
+    column: $table.restoreBlockReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalShopsTableFilterComposer get shopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get deletedByUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.deletedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalRecycleBinEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRecycleBinEntriesTable> {
+  $$LocalRecycleBinEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceTableName => $composableBuilder(
+    column: $table.sourceTableName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordId => $composableBuilder(
+    column: $table.recordId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayTitle => $composableBuilder(
+    column: $table.displayTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displaySubtitle => $composableBuilder(
+    column: $table.displaySubtitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedData => $composableBuilder(
+    column: $table.deletedData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relatedData => $composableBuilder(
+    column: $table.relatedData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get restoreStatus => $composableBuilder(
+    column: $table.restoreStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get restoreBlockReason => $composableBuilder(
+    column: $table.restoreBlockReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalShopsTableOrderingComposer get shopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get deletedByUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.deletedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalRecycleBinEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRecycleBinEntriesTable> {
+  $$LocalRecycleBinEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceTableName => $composableBuilder(
+    column: $table.sourceTableName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recordId =>
+      $composableBuilder(column: $table.recordId, builder: (column) => column);
+
+  GeneratedColumn<String> get displayTitle => $composableBuilder(
+    column: $table.displayTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get displaySubtitle => $composableBuilder(
+    column: $table.displaySubtitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedData => $composableBuilder(
+    column: $table.deletedData,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get relatedData => $composableBuilder(
+    column: $table.relatedData,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get restoreStatus => $composableBuilder(
+    column: $table.restoreStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get restoreBlockReason => $composableBuilder(
+    column: $table.restoreBlockReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  $$LocalShopsTableAnnotationComposer get shopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get deletedByUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.deletedByUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalRecycleBinEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalRecycleBinEntriesTable,
+          LocalRecycleBinEntry,
+          $$LocalRecycleBinEntriesTableFilterComposer,
+          $$LocalRecycleBinEntriesTableOrderingComposer,
+          $$LocalRecycleBinEntriesTableAnnotationComposer,
+          $$LocalRecycleBinEntriesTableCreateCompanionBuilder,
+          $$LocalRecycleBinEntriesTableUpdateCompanionBuilder,
+          (LocalRecycleBinEntry, $$LocalRecycleBinEntriesTableReferences),
+          LocalRecycleBinEntry,
+          PrefetchHooks Function({bool shopId, bool deletedByUserId})
+        > {
+  $$LocalRecycleBinEntriesTableTableManager(
+    _$AppDatabase db,
+    $LocalRecycleBinEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRecycleBinEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$LocalRecycleBinEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LocalRecycleBinEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> shopId = const Value.absent(),
+                Value<String> sourceTableName = const Value.absent(),
+                Value<String> recordId = const Value.absent(),
+                Value<String> displayTitle = const Value.absent(),
+                Value<String?> displaySubtitle = const Value.absent(),
+                Value<String> deletedData = const Value.absent(),
+                Value<String?> relatedData = const Value.absent(),
+                Value<String?> deletedByUserId = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<DateTime?> restoredAt = const Value.absent(),
+                Value<String> restoreStatus = const Value.absent(),
+                Value<String?> restoreBlockReason = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRecycleBinEntriesCompanion(
+                id: id,
+                shopId: shopId,
+                sourceTableName: sourceTableName,
+                recordId: recordId,
+                displayTitle: displayTitle,
+                displaySubtitle: displaySubtitle,
+                deletedData: deletedData,
+                relatedData: relatedData,
+                deletedByUserId: deletedByUserId,
+                deletedAt: deletedAt,
+                restoredAt: restoredAt,
+                restoreStatus: restoreStatus,
+                restoreBlockReason: restoreBlockReason,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String shopId,
+                required String sourceTableName,
+                required String recordId,
+                required String displayTitle,
+                Value<String?> displaySubtitle = const Value.absent(),
+                required String deletedData,
+                Value<String?> relatedData = const Value.absent(),
+                Value<String?> deletedByUserId = const Value.absent(),
+                required DateTime deletedAt,
+                Value<DateTime?> restoredAt = const Value.absent(),
+                Value<String> restoreStatus = const Value.absent(),
+                Value<String?> restoreBlockReason = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRecycleBinEntriesCompanion.insert(
+                id: id,
+                shopId: shopId,
+                sourceTableName: sourceTableName,
+                recordId: recordId,
+                displayTitle: displayTitle,
+                displaySubtitle: displaySubtitle,
+                deletedData: deletedData,
+                relatedData: relatedData,
+                deletedByUserId: deletedByUserId,
+                deletedAt: deletedAt,
+                restoredAt: restoredAt,
+                restoreStatus: restoreStatus,
+                restoreBlockReason: restoreBlockReason,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalRecycleBinEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({shopId = false, deletedByUserId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (shopId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.shopId,
+                                referencedTable:
+                                    $$LocalRecycleBinEntriesTableReferences
+                                        ._shopIdTable(db),
+                                referencedColumn:
+                                    $$LocalRecycleBinEntriesTableReferences
+                                        ._shopIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (deletedByUserId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.deletedByUserId,
+                                referencedTable:
+                                    $$LocalRecycleBinEntriesTableReferences
+                                        ._deletedByUserIdTable(db),
+                                referencedColumn:
+                                    $$LocalRecycleBinEntriesTableReferences
+                                        ._deletedByUserIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LocalRecycleBinEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalRecycleBinEntriesTable,
+      LocalRecycleBinEntry,
+      $$LocalRecycleBinEntriesTableFilterComposer,
+      $$LocalRecycleBinEntriesTableOrderingComposer,
+      $$LocalRecycleBinEntriesTableAnnotationComposer,
+      $$LocalRecycleBinEntriesTableCreateCompanionBuilder,
+      $$LocalRecycleBinEntriesTableUpdateCompanionBuilder,
+      (LocalRecycleBinEntry, $$LocalRecycleBinEntriesTableReferences),
+      LocalRecycleBinEntry,
+      PrefetchHooks Function({bool shopId, bool deletedByUserId})
+    >;
+typedef $$LocalNotesTableCreateCompanionBuilder =
+    LocalNotesCompanion Function({
+      required String id,
+      required String shopId,
+      Value<String> title,
+      Value<String> body,
+      Value<bool> isArchived,
+      Value<DateTime?> archivedAt,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$LocalNotesTableUpdateCompanionBuilder =
+    LocalNotesCompanion Function({
+      Value<String> id,
+      Value<String> shopId,
+      Value<String> title,
+      Value<String> body,
+      Value<bool> isArchived,
+      Value<DateTime?> archivedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$LocalNotesTableReferences
+    extends BaseReferences<_$AppDatabase, $LocalNotesTable, LocalNote> {
+  $$LocalNotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LocalShopsTable _shopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(db.localNotes.shopId, db.localShops.id),
+      );
+
+  $$LocalShopsTableProcessedTableManager get shopId {
+    final $_column = $_itemColumn<String>('shop_id')!;
+
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LocalNotesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalNotesTable> {
+  $$LocalNotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalShopsTableFilterComposer get shopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalNotesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalNotesTable> {
+  $$LocalNotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalShopsTableOrderingComposer get shopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalNotesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalNotesTable> {
+  $$LocalNotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  $$LocalShopsTableAnnotationComposer get shopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalNotesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalNotesTable,
+          LocalNote,
+          $$LocalNotesTableFilterComposer,
+          $$LocalNotesTableOrderingComposer,
+          $$LocalNotesTableAnnotationComposer,
+          $$LocalNotesTableCreateCompanionBuilder,
+          $$LocalNotesTableUpdateCompanionBuilder,
+          (LocalNote, $$LocalNotesTableReferences),
+          LocalNote,
+          PrefetchHooks Function({bool shopId})
+        > {
+  $$LocalNotesTableTableManager(_$AppDatabase db, $LocalNotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> shopId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalNotesCompanion(
+                id: id,
+                shopId: shopId,
+                title: title,
+                body: body,
+                isArchived: isArchived,
+                archivedAt: archivedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String shopId,
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalNotesCompanion.insert(
+                id: id,
+                shopId: shopId,
+                title: title,
+                body: body,
+                isArchived: isArchived,
+                archivedAt: archivedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalNotesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({shopId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (shopId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.shopId,
+                                referencedTable: $$LocalNotesTableReferences
+                                    ._shopIdTable(db),
+                                referencedColumn: $$LocalNotesTableReferences
+                                    ._shopIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LocalNotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalNotesTable,
+      LocalNote,
+      $$LocalNotesTableFilterComposer,
+      $$LocalNotesTableOrderingComposer,
+      $$LocalNotesTableAnnotationComposer,
+      $$LocalNotesTableCreateCompanionBuilder,
+      $$LocalNotesTableUpdateCompanionBuilder,
+      (LocalNote, $$LocalNotesTableReferences),
+      LocalNote,
+      PrefetchHooks Function({bool shopId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -21969,4 +25677,11 @@ class $AppDatabaseManager {
       $$LocalExpensesTableTableManager(_db, _db.localExpenses);
   $$LocalIncomesTableTableManager get localIncomes =>
       $$LocalIncomesTableTableManager(_db, _db.localIncomes);
+  $$LocalRecycleBinEntriesTableTableManager get localRecycleBinEntries =>
+      $$LocalRecycleBinEntriesTableTableManager(
+        _db,
+        _db.localRecycleBinEntries,
+      );
+  $$LocalNotesTableTableManager get localNotes =>
+      $$LocalNotesTableTableManager(_db, _db.localNotes);
 }

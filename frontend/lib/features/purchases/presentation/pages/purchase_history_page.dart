@@ -815,6 +815,7 @@ bool _isInRange(
   DateTime anchorDate,
   DateTimeRange? customRange,
 ) {
+  value = value.toLocal();
   if (range == _PurchaseHistoryRange.custom) {
     if (customRange == null) {
       return false;
@@ -950,12 +951,14 @@ String _money(double value) {
 }
 
 String _dateTime(DateTime value) {
+  value = value.toLocal();
   final date = '${value.year}-${_two(value.month)}-${_two(value.day)}';
   final time = '${_two(value.hour)}:${_two(value.minute)}';
   return _bnNumber('$date $time');
 }
 
 String _dateOnly(DateTime value) {
+  value = value.toLocal();
   return '${_bnNumber(value.day)} ${_bnMonth(value.month)} ${_bnNumber(value.year)}';
 }
 

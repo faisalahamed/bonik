@@ -64,6 +64,37 @@ class DashboardAndroidPage extends StatelessWidget {
                       icon: Icons.apps_rounded,
                       iconBackground: AppColors.surfaceContainerHigh,
                       iconColor: AppColors.textSecondary,
+                      route: AppRoutes.recycleBin,
+                    ),
+                  ],
+                ),
+                SizedBox(height: AppSpacing.xl),
+                _DashboardSection(
+                  title: 'পার্টি এবং পণ্য ব্যবস্থাপনা',
+                  items: [
+                    _DashboardMenuItemData(
+                      label: 'কাস্টমার যোগ',
+                      icon: Icons.person_add_alt_1_rounded,
+                      iconBackground: Color(0xFFEAF1FF),
+                      iconColor: Color(0xFF4169C8),
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'সাপ্লায়ার যোগ',
+                      icon: Icons.group_add_rounded,
+                      iconBackground: Color(0xFFE8F6EF),
+                      iconColor: AppColors.primary,
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'পণ্য যোগ',
+                      icon: Icons.add_box_rounded,
+                      iconBackground: Color(0xFFFFF0E6),
+                      iconColor: Color(0xFFCE6D1D),
+                    ),
+                    _DashboardMenuItemData(
+                      label: 'অন্যান্য',
+                      icon: Icons.more_horiz_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
                     ),
                   ],
                 ),
@@ -98,6 +129,7 @@ class DashboardAndroidPage extends StatelessWidget {
                       icon: Icons.apps_rounded,
                       iconBackground: AppColors.surfaceContainerHigh,
                       iconColor: AppColors.textSecondary,
+                      route: AppRoutes.notePad,
                     ),
                   ],
                 ),
@@ -284,14 +316,14 @@ class _DashboardTopBarState extends ConsumerState<_DashboardTopBar> {
   }
 }
 
-class _SummaryCard extends StatefulWidget {
+class _SummaryCard extends ConsumerStatefulWidget {
   const _SummaryCard();
 
   @override
-  State<_SummaryCard> createState() => _SummaryCardState();
+  ConsumerState<_SummaryCard> createState() => _SummaryCardState();
 }
 
-class _SummaryCardState extends State<_SummaryCard> {
+class _SummaryCardState extends ConsumerState<_SummaryCard> {
   bool _isMoneyHidden = false;
 
   // ignore: unused_element
@@ -305,6 +337,7 @@ class _SummaryCardState extends State<_SummaryCard> {
 
   @override
   Widget build(BuildContext context) {
+    final database = ref.watch(appDatabaseProvider);
     final titleStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
       color: AppColors.textSecondary,
       fontWeight: FontWeight.w700,
@@ -342,23 +375,33 @@ class _SummaryCardState extends State<_SummaryCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _SummaryHeadline(
-                  label: 'ক্যাশ বক্সে আছে',
-                  value: '৳ ৭,০০,০০০',
-                  valueColor: const Color(0xFFC63D3D),
-                  alignment: CrossAxisAlignment.start,
-                  hideValue: _isMoneyHidden,
+                child: StreamBuilder<double>(
+                  stream: database.watchTodayCashBoxTotalForCurrentShop(),
+                  builder: (context, snapshot) {
+                    return _SummaryHeadline(
+                      label: 'ক্যাশ বক্সে আছে',
+                      value: _money(snapshot.data ?? 0),
+                      valueColor: const Color(0xFFC63D3D),
+                      alignment: CrossAxisAlignment.start,
+                      hideValue: _isMoneyHidden,
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: _SummaryHeadline(
-                  label: 'অনলাইন ওয়ালেটে আছে',
-                  value: '৳ ১,০০,০০০',
-                  valueColor: AppColors.primaryContainer,
-                  alignment: CrossAxisAlignment.end,
-                  hideValue: _isMoneyHidden,
-                  textAlign: TextAlign.right,
+                child: StreamBuilder<double>(
+                  stream: database.watchTodayOnlineWalletTotalForCurrentShop(),
+                  builder: (context, snapshot) {
+                    return _SummaryHeadline(
+                      label: 'অনলাইন ওয়ালেটে আছে',
+                      value: _money(snapshot.data ?? 0),
+                      valueColor: AppColors.primaryContainer,
+                      alignment: CrossAxisAlignment.end,
+                      hideValue: _isMoneyHidden,
+                      textAlign: TextAlign.right,
+                    );
+                  },
                 ),
               ),
             ],
@@ -372,33 +415,62 @@ class _SummaryCardState extends State<_SummaryCard> {
             physics: const NeverScrollableScrollPhysics(),
             childAspectRatio: 1.36,
             children: [
-              _MetricTile(
-                label: 'মোট বিক্রিত পণ্য মূল্য',
-                value: '৳ ১১,০০,০০০',
-                accentColor: AppColors.secondary,
-                titleStyle: titleStyle,
-                hideValue: _isMoneyHidden,
+              StreamBuilder<double>(
+                stream: database.watchTodaySalesTotalForCurrentShop(),
+                builder: (context, salesSnapshot) {
+                  return StreamBuilder<double>(
+                    stream: database.watchTodayIncomeTotalForCurrentShop(),
+                    builder: (context, incomeSnapshot) {
+                      final income = incomeSnapshot.data ?? 0;
+                      return _MetricTile(
+                        label: 'মোট বিক্রিত পণ্য মূল্য',
+                        value: _money(salesSnapshot.data ?? 0),
+                        accentColor: AppColors.secondary,
+                        titleStyle: titleStyle,
+                        hideValue: _isMoneyHidden,
+                        secondaryLabel: income > 0 ? 'অন্যান্য আয়' : null,
+                        secondaryValue: income > 0 ? _money(income) : null,
+                      );
+                    },
+                  );
+                },
               ),
-              _MetricTile(
-                label: 'মালিক নিলো/দিলো',
-                value: '৳ ১,০০,০০০',
-                accentColor: AppColors.primaryContainer,
-                titleStyle: titleStyle,
-                hideValue: _isMoneyHidden,
+              StreamBuilder<double>(
+                stream: database
+                    .watchTodayOwnerTransactionTotalForCurrentShop(),
+                builder: (context, snapshot) {
+                  return _MetricTile(
+                    label: 'মালিক নিলো/দিলো',
+                    value: _money(snapshot.data ?? 0),
+                    accentColor: AppColors.primaryContainer,
+                    titleStyle: titleStyle,
+                    hideValue: _isMoneyHidden,
+                  );
+                },
               ),
-              _MetricTile(
-                label: 'বাকি দিয়েছি',
-                value: '৳ ১,০০,০০০',
-                accentColor: AppColors.tertiary,
-                titleStyle: titleStyle,
-                hideValue: _isMoneyHidden,
+              StreamBuilder<double>(
+                stream: database.watchTodayReceivableDueTotalForCurrentShop(),
+                builder: (context, snapshot) {
+                  return _MetricTile(
+                    label: 'বাকি দিয়েছি',
+                    value: _money(snapshot.data ?? 0),
+                    accentColor: AppColors.tertiary,
+                    titleStyle: titleStyle,
+                    hideValue: _isMoneyHidden,
+                  );
+                },
               ),
-              _MetricTile(
-                label: 'আজকের খরচ',
-                value: '৳ ১,০০,০০০',
-                accentColor: const Color(0xFF20B889),
-                titleStyle: titleStyle,
-                hideValue: _isMoneyHidden,
+              StreamBuilder<double>(
+                stream: database.watchTodayExpenseTotalForCurrentShop(),
+                builder: (context, snapshot) {
+                  return _MetricTile(
+                    label: 'আজকের খরচ',
+                    value: _money(snapshot.data ?? 0),
+                    accentColor: const Color(0xFF20B889),
+                    titleStyle: titleStyle,
+                    hideValue: _isMoneyHidden,
+                  );
+                },
               ),
             ],
           ),
@@ -470,6 +542,8 @@ class _MetricTile extends StatelessWidget {
     required this.accentColor,
     required this.titleStyle,
     this.hideValue = false,
+    this.secondaryLabel,
+    this.secondaryValue,
   });
 
   final String label;
@@ -477,6 +551,8 @@ class _MetricTile extends StatelessWidget {
   final Color accentColor;
   final TextStyle? titleStyle;
   final bool hideValue;
+  final String? secondaryLabel;
+  final String? secondaryValue;
 
   @override
   Widget build(BuildContext context) {
@@ -529,6 +605,37 @@ class _MetricTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (secondaryLabel != null && secondaryValue != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            secondaryLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          hideValue
+                              ? secondaryValue!.replaceAll(
+                                  RegExp(r'[0-9০-৯,\.]+'),
+                                  '••••••',
+                                )
+                              : secondaryValue!,
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -722,4 +829,45 @@ class _DashboardMenuItemData {
   final Color iconBackground;
   final Color iconColor;
   final String? route;
+}
+
+String _money(double value) {
+  final sign = value < 0 ? '-' : '';
+  final absoluteValue = value.abs();
+  final fixed = absoluteValue.truncateToDouble() == absoluteValue
+      ? absoluteValue.toStringAsFixed(0)
+      : absoluteValue.toStringAsFixed(2);
+  return '$sign৳ ${_banglaNumber(_withCommas(fixed))}';
+}
+
+String _withCommas(String value) {
+  final parts = value.split('.');
+  final whole = parts.first;
+  final buffer = StringBuffer();
+  for (var i = 0; i < whole.length; i++) {
+    if (i > 0 && (whole.length - i) % 3 == 0) {
+      buffer.write(',');
+    }
+    buffer.write(whole[i]);
+  }
+  if (parts.length > 1) {
+    buffer.write('.${parts.last}');
+  }
+  return buffer.toString();
+}
+
+String _banglaNumber(String value) {
+  const digits = {
+    '0': '০',
+    '1': '১',
+    '2': '২',
+    '3': '৩',
+    '4': '৪',
+    '5': '৫',
+    '6': '৬',
+    '7': '৭',
+    '8': '৮',
+    '9': '৯',
+  };
+  return value.split('').map((char) => digits[char] ?? char).join();
 }

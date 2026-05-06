@@ -78,7 +78,7 @@ class SaleReturnController extends Controller
         $returnData = $data['sale_return'];
 
         DB::transaction(function () use ($data, $returnData): void {
-            SaleReturn::query()->updateOrCreate(
+            SaleReturn::withTrashed()->updateOrCreate(
                 ['id' => $returnData['id']],
                 [
                     'id' => $returnData['id'],
@@ -94,7 +94,7 @@ class SaleReturnController extends Controller
             );
 
             foreach ($data['items'] as $item) {
-                SaleReturnItem::query()->updateOrCreate(
+                SaleReturnItem::withTrashed()->updateOrCreate(
                     ['id' => $item['id']],
                     [
                         'id' => $item['id'],
@@ -113,7 +113,7 @@ class SaleReturnController extends Controller
             }
 
             foreach ($data['cash_transactions'] ?? [] as $cashTransaction) {
-                CashTransaction::query()->updateOrCreate(
+                CashTransaction::withTrashed()->updateOrCreate(
                     ['id' => $cashTransaction['id']],
                     [
                         'id' => $cashTransaction['id'],

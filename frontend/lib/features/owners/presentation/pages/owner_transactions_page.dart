@@ -480,9 +480,10 @@ class _OwnerHistoryEntry extends StatelessWidget {
     LocalOwnerTransactionEntry entry, {
     required double balance,
   }) {
+    final createdAt = entry.createdAt.toLocal();
     return _OwnerHistoryEntry(
-      dateMonth: _monthShort(entry.createdAt.month),
-      day: _banglaNumber(entry.createdAt.day.toString().padLeft(2, '0')),
+      dateMonth: _monthShort(createdAt.month),
+      day: _banglaNumber(createdAt.day.toString().padLeft(2, '0')),
       reference: _reference(entry),
       credit: entry.isGiven ? '+${_plainMoney(entry.amount)}' : '-',
       debit: entry.isTaken ? '-${_plainMoney(entry.amount)}' : '-',

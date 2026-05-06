@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 
 final categorySyncServiceProvider = Provider<CategorySyncService>((ref) {
   return CategorySyncService(
@@ -42,9 +43,9 @@ class CategorySyncService {
           'type': category.type,
           'details': category.details,
           'image_url': category.imageUrl,
-          'created_at': category.createdAt.toIso8601String(),
-          'updated_at': category.updatedAt.toIso8601String(),
-          'deleted_at': category.deletedAt?.toIso8601String(),
+          'created_at': AppTime.isoUtc(category.createdAt),
+          'updated_at': AppTime.isoUtc(category.updatedAt),
+          'deleted_at': AppTime.nullableIsoUtc(category.deletedAt),
         },
       );
       final syncedCategory = response['category'];
@@ -102,7 +103,7 @@ class CategorySyncService {
   }
 
   DateTime _dateTime(Object? value) {
-    return _nullableDateTime(value) ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 
   DateTime? _nullableDateTime(Object? value) {
@@ -110,6 +111,6 @@ class CategorySyncService {
       return null;
     }
 
-    return DateTime.tryParse(value.toString());
+    return AppTime.tryParseUtc(value);
   }
 }

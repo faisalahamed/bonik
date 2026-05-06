@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 
 final expenseSyncServiceProvider = Provider<ExpenseSyncService>((ref) {
   return ExpenseSyncService(
@@ -68,8 +69,8 @@ class ExpenseSyncService {
             'amount': expense.amount,
             'reason': expense.reason,
             'note': expense.note,
-            'created_at': expense.createdAt.toIso8601String(),
-            'updated_at': expense.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(expense.createdAt),
+            'updated_at': AppTime.isoUtc(expense.updatedAt),
           },
       ],
       'cash_transactions': [
@@ -84,8 +85,8 @@ class ExpenseSyncService {
             'reference_type': transaction.referenceType,
             'method': transaction.method,
             'note': transaction.note,
-            'created_at': transaction.createdAt.toIso8601String(),
-            'updated_at': transaction.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(transaction.createdAt),
+            'updated_at': AppTime.isoUtc(transaction.updatedAt),
           },
       ],
     };
@@ -142,6 +143,6 @@ class ExpenseSyncService {
   }
 
   DateTime _dateTime(Object? value) {
-    return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 }

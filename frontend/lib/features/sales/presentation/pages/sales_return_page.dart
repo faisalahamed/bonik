@@ -165,11 +165,6 @@ class _SalesReturnPageState extends ConsumerState<SalesReturnPage> {
       return;
     }
 
-    final subtotal = draftItems.fold<double>(
-      0,
-      (sum, item) => sum + item.salePrice * item.quantity,
-    );
-
     setState(() {
       _saving = true;
     });
@@ -180,7 +175,6 @@ class _SalesReturnPageState extends ConsumerState<SalesReturnPage> {
           .saveSalesReturnLocally(
             saleId: saleId,
             items: draftItems,
-            restockingFee: subtotal * 0.05,
             note: 'Sales return for #${saleId.substring(0, 8).toUpperCase()}',
           );
 
@@ -245,8 +239,7 @@ class _SalesReturnContent extends StatelessWidget {
     final subtotal = items.fold<double>(0, (sum, item) {
       return sum + (returnQuantities[item.id] ?? 0) * item.salePrice;
     });
-    final restockingFee = subtotal * 0.05;
-    final refundTotal = subtotal - restockingFee;
+    final refundTotal = subtotal;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -287,11 +280,7 @@ class _SalesReturnContent extends StatelessWidget {
               if (i != items.length - 1) const SizedBox(height: AppSpacing.md),
             ],
           const SizedBox(height: AppSpacing.md),
-          _ReturnSummaryCard(
-            subtotal: subtotal,
-            restockingFee: restockingFee,
-            refundTotal: refundTotal,
-          ),
+          _ReturnSummaryCard(subtotal: subtotal, refundTotal: refundTotal),
         ],
       ),
     );
@@ -733,14 +722,9 @@ class _SelectorCard extends StatelessWidget {
 }
 
 class _ReturnSummaryCard extends StatelessWidget {
-  const _ReturnSummaryCard({
-    required this.subtotal,
-    required this.restockingFee,
-    required this.refundTotal,
-  });
+  const _ReturnSummaryCard({required this.subtotal, required this.refundTotal});
 
   final double subtotal;
-  final double restockingFee;
   final double refundTotal;
 
   @override
@@ -759,13 +743,6 @@ class _ReturnSummaryCard extends StatelessWidget {
             label: 'সাবটোটাল (মোট)',
             value: _money(subtotal),
             textTheme: textTheme,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SummaryRow(
-            label: 'রি-স্টকিং ফি (৫%)',
-            value: '- ${_money(restockingFee)}',
-            textTheme: textTheme,
-            valueColor: const Color(0xFFD9534F),
           ),
           const Divider(
             height: AppSpacing.xl,
@@ -788,14 +765,12 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.textTheme,
-    this.valueColor,
     this.emphasize = false,
   });
 
   final String label;
   final String value;
   final TextTheme textTheme;
-  final Color? valueColor;
   final bool emphasize;
 
   @override
@@ -818,9 +793,7 @@ class _SummaryRow extends StatelessWidget {
           value,
           style: (emphasize ? textTheme.headlineSmall : textTheme.titleMedium)
               ?.copyWith(
-                color:
-                    valueColor ??
-                    (emphasize ? AppColors.primary : AppColors.textSecondary),
+                color: emphasize ? AppColors.primary : AppColors.textSecondary,
                 fontWeight: FontWeight.w800,
               ),
         ),

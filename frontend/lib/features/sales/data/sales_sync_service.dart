@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 
 final salesSyncServiceProvider = Provider<SalesSyncService>((ref) {
   return SalesSyncService(
@@ -115,9 +116,9 @@ class SalesSyncService {
       'phone': customer.phone,
       'address': customer.address,
       'notes': customer.notes,
-      'created_at': customer.createdAt.toIso8601String(),
-      'updated_at': customer.updatedAt.toIso8601String(),
-      'deleted_at': customer.deletedAt?.toIso8601String(),
+      'created_at': AppTime.isoUtc(customer.createdAt),
+      'updated_at': AppTime.isoUtc(customer.updatedAt),
+      'deleted_at': AppTime.nullableIsoUtc(customer.deletedAt),
     };
   }
 
@@ -133,8 +134,8 @@ class SalesSyncService {
         'total': bundle.sale.total,
         'status': bundle.sale.status,
         'payment_method': bundle.sale.paymentMethod,
-        'created_at': bundle.sale.createdAt.toIso8601String(),
-        'updated_at': bundle.sale.updatedAt.toIso8601String(),
+        'created_at': AppTime.isoUtc(bundle.sale.createdAt),
+        'updated_at': AppTime.isoUtc(bundle.sale.updatedAt),
       },
       'items': [
         for (final item in bundle.items)
@@ -147,8 +148,8 @@ class SalesSyncService {
             'sale_price': item.salePrice,
             'quantity': item.quantity,
             'price': item.price,
-            'created_at': item.createdAt.toIso8601String(),
-            'updated_at': item.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(item.createdAt),
+            'updated_at': AppTime.isoUtc(item.updatedAt),
           },
       ],
       'payments': [
@@ -160,8 +161,8 @@ class SalesSyncService {
             'order_id': payment.orderId,
             'payments': payment.payments,
             'description': payment.description,
-            'created_at': payment.createdAt.toIso8601String(),
-            'updated_at': payment.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(payment.createdAt),
+            'updated_at': AppTime.isoUtc(payment.updatedAt),
           },
       ],
       'cash_transactions': [
@@ -176,8 +177,8 @@ class SalesSyncService {
             'reference_type': transaction.referenceType,
             'method': transaction.method,
             'note': transaction.note,
-            'created_at': transaction.createdAt.toIso8601String(),
-            'updated_at': transaction.updatedAt.toIso8601String(),
+            'created_at': AppTime.isoUtc(transaction.createdAt),
+            'updated_at': AppTime.isoUtc(transaction.updatedAt),
           },
       ],
     };
@@ -305,7 +306,7 @@ class SalesSyncService {
   }
 
   DateTime _dateTime(Object? value) {
-    return _nullableDateTime(value) ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 
   DateTime? _nullableDateTime(Object? value) {
@@ -313,6 +314,6 @@ class SalesSyncService {
       return null;
     }
 
-    return DateTime.tryParse(value.toString());
+    return AppTime.tryParseUtc(value);
   }
 }

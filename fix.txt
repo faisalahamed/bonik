@@ -4,7 +4,8 @@
 4. buy khata date problem: buying in advance date not today
 5. on edit stock reload page/ update state
 6. edit barcode on inventory details page
-
+7. category permanent delet not working
+8. no space to show the others income
 
 
 

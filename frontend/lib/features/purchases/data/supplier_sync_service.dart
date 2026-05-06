@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/app_time.dart';
 
 final supplierSyncServiceProvider = Provider<SupplierSyncService>((ref) {
   return SupplierSyncService(
@@ -40,9 +41,9 @@ class SupplierSyncService {
           'image': supplier.image,
           'mobile': supplier.mobile,
           'address': supplier.address,
-          'created_at': supplier.createdAt.toIso8601String(),
-          'updated_at': supplier.updatedAt.toIso8601String(),
-          'deleted_at': supplier.deletedAt?.toIso8601String(),
+          'created_at': AppTime.isoUtc(supplier.createdAt),
+          'updated_at': AppTime.isoUtc(supplier.updatedAt),
+          'deleted_at': AppTime.nullableIsoUtc(supplier.deletedAt),
         },
       );
       final syncedSupplier = response['supplier'];
@@ -100,7 +101,7 @@ class SupplierSyncService {
   }
 
   DateTime _dateTime(Object? value) {
-    return _nullableDateTime(value) ?? DateTime.now();
+    return AppTime.parseUtc(value);
   }
 
   DateTime? _nullableDateTime(Object? value) {
@@ -108,6 +109,6 @@ class SupplierSyncService {
       return null;
     }
 
-    return DateTime.tryParse(value.toString());
+    return AppTime.tryParseUtc(value);
   }
 }

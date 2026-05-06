@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
+import '../utils/app_time.dart';
 
 part 'app_database.g.dart';
 
@@ -82,6 +86,7 @@ class LocalPurchases extends Table {
   TextColumn get status => text().withDefault(const Constant('pending'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -105,6 +110,7 @@ class LocalPurchaseItems extends Table {
   TextColumn get productImage => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -119,6 +125,7 @@ class LocalPurchasePayments extends Table {
   TextColumn get description => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -154,6 +161,7 @@ class LocalSales extends Table {
   TextColumn get paymentMethod => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -171,6 +179,7 @@ class LocalSaleItems extends Table {
   RealColumn get price => real()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -187,6 +196,7 @@ class LocalSaleReturns extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -205,6 +215,7 @@ class LocalSaleReturnItems extends Table {
   TextColumn get reason => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -220,6 +231,7 @@ class LocalCustomerPayments extends Table {
   TextColumn get description => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -238,6 +250,7 @@ class LocalCashTransactions extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -253,6 +266,7 @@ class LocalExpenses extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -269,6 +283,47 @@ class LocalIncomes extends Table {
   TextColumn get receiptUrl => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalRecycleBinEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get sourceTableName => text().named('table_name')();
+  TextColumn get recordId => text()();
+  TextColumn get displayTitle => text()();
+  TextColumn get displaySubtitle => text().nullable()();
+  TextColumn get deletedData => text()();
+  TextColumn get relatedData => text().nullable()();
+  TextColumn get deletedByUserId =>
+      text().nullable().references(LocalUsers, #id)();
+  DateTimeColumn get deletedAt => dateTime()();
+  DateTimeColumn get restoredAt => dateTime().nullable()();
+  TextColumn get restoreStatus =>
+      text().withDefault(const Constant('deleted'))();
+  TextColumn get restoreBlockReason => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LocalNotes extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get title => text().withDefault(const Constant(''))();
+  TextColumn get body => text().withDefault(const Constant(''))();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get archivedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -293,6 +348,8 @@ class LocalIncomes extends Table {
     LocalCashTransactions,
     LocalExpenses,
     LocalIncomes,
+    LocalRecycleBinEntries,
+    LocalNotes,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -300,7 +357,7 @@ final class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'bonik'));
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -445,6 +502,39 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 12) {
         await migrator.createTable(localIncomes);
       }
+      if (from < 13) {
+        Future<void> addDeletedAtIfMissing(String tableName) async {
+          final columns = await customSelect(
+            'PRAGMA table_info($tableName)',
+          ).get();
+          final hasDeletedAt = columns.any(
+            (row) => row.data['name'] == 'deleted_at',
+          );
+          if (!hasDeletedAt) {
+            await customStatement(
+              'ALTER TABLE $tableName ADD COLUMN deleted_at INTEGER NULL',
+            );
+          }
+        }
+
+        await addDeletedAtIfMissing('local_purchases');
+        await addDeletedAtIfMissing('local_purchase_items');
+        await addDeletedAtIfMissing('local_purchase_payments');
+        await addDeletedAtIfMissing('local_sales');
+        await addDeletedAtIfMissing('local_sale_items');
+        await addDeletedAtIfMissing('local_customer_payments');
+        await addDeletedAtIfMissing('local_expenses');
+        await addDeletedAtIfMissing('local_incomes');
+        await addDeletedAtIfMissing('local_cash_transactions');
+        await addDeletedAtIfMissing('local_sale_returns');
+        await addDeletedAtIfMissing('local_sale_return_items');
+      }
+      if (from < 14) {
+        await migrator.createTable(localRecycleBinEntries);
+      }
+      if (from < 15) {
+        await migrator.createTable(localNotes);
+      }
     },
   );
 
@@ -581,6 +671,16 @@ final class AppDatabase extends _$AppDatabase {
         FROM local_incomes
         WHERE sync_status != 'synced'
           AND shop_id IN (SELECT shop_id FROM current_shop)
+        UNION ALL
+        SELECT 1
+        FROM local_recycle_bin_entries
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
+        UNION ALL
+        SELECT 1
+        FROM local_notes
+        WHERE sync_status != 'synced'
+          AND shop_id IN (SELECT shop_id FROM current_shop)
       ) AS has_unsynced
       ''',
       readsFrom: {
@@ -600,6 +700,8 @@ final class AppDatabase extends _$AppDatabase {
         localCashTransactions,
         localExpenses,
         localIncomes,
+        localRecycleBinEntries,
+        localNotes,
       },
     ).watchSingle().map((row) => row.read<bool>('has_unsynced'));
   }
@@ -608,6 +710,474 @@ final class AppDatabase extends _$AppDatabase {
     return (select(
       localUsers,
     )..where((user) => user.isCurrent.equals(true))).getSingleOrNull();
+  }
+
+  Stream<List<LocalNote>> watchNotesForCurrentShop({required bool archived}) {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localNotes)
+          ..where(
+            (note) =>
+                note.shopId.isInQuery(currentShopIds) &
+                note.deletedAt.isNull() &
+                note.isArchived.equals(archived),
+          )
+          ..orderBy([(note) => OrderingTerm.desc(note.updatedAt)]))
+        .watch();
+  }
+
+  Future<void> saveNoteLocally({
+    String? id,
+    required String title,
+    required String body,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    final trimmedTitle = title.trim();
+    final trimmedBody = body.trim();
+    if (trimmedTitle.isEmpty && trimmedBody.isEmpty) {
+      throw StateError('Please write something.');
+    }
+
+    final now = AppTime.nowUtc();
+    final noteId = id ?? const Uuid().v4();
+    final existing = await (select(
+      localNotes,
+    )..where((note) => note.id.equals(noteId))).getSingleOrNull();
+
+    await into(localNotes).insertOnConflictUpdate(
+      LocalNotesCompanion(
+        id: Value(noteId),
+        shopId: Value(existing?.shopId ?? currentUser.shopId),
+        title: Value(trimmedTitle),
+        body: Value(trimmedBody),
+        isArchived: Value(existing?.isArchived ?? false),
+        archivedAt: Value(existing?.archivedAt),
+        createdAt: Value(existing?.createdAt ?? now),
+        updatedAt: Value(now),
+        deletedAt: const Value(null),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> archiveNoteLocally(String id) async {
+    final now = AppTime.nowUtc();
+    await (update(localNotes)..where((note) => note.id.equals(id))).write(
+      LocalNotesCompanion(
+        isArchived: const Value(true),
+        archivedAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> restoreNoteLocally(String id) async {
+    final now = AppTime.nowUtc();
+    await (update(localNotes)..where((note) => note.id.equals(id))).write(
+      LocalNotesCompanion(
+        isArchived: const Value(false),
+        archivedAt: const Value(null),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> deleteNoteLocally(String id) async {
+    final note = await (select(
+      localNotes,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    if (note == null) {
+      throw StateError('Note not found.');
+    }
+
+    final currentUser = await getCurrentUser();
+    final now = AppTime.nowUtc();
+    final deletedData = jsonEncode({
+      'id': note.id,
+      'shop_id': note.shopId,
+      'title': note.title,
+      'body': note.body,
+      'is_archived': note.isArchived,
+      'archived_at': AppTime.nullableIsoUtc(note.archivedAt),
+      'created_at': AppTime.isoUtc(note.createdAt),
+      'updated_at': AppTime.isoUtc(note.updatedAt),
+      'deleted_at': AppTime.isoUtc(now),
+    });
+
+    await transaction(() async {
+      await (update(localNotes)..where((row) => row.id.equals(id))).write(
+        LocalNotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localRecycleBinEntries).insertOnConflictUpdate(
+        LocalRecycleBinEntriesCompanion(
+          id: Value(const Uuid().v4()),
+          shopId: Value(note.shopId),
+          sourceTableName: const Value('local_notes'),
+          recordId: Value(note.id),
+          displayTitle: Value(
+            note.title.trim().isEmpty ? 'Untitled note' : note.title.trim(),
+          ),
+          displaySubtitle: Value(
+            note.body.trim().isEmpty ? 'Note' : note.body.trim(),
+          ),
+          deletedData: Value(deletedData),
+          relatedData: const Value(null),
+          deletedByUserId: Value(currentUser?.id),
+          deletedAt: Value(now),
+          restoredAt: const Value(null),
+          restoreStatus: const Value('deleted'),
+          restoreBlockReason: const Value(null),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+  }
+
+  Future<List<LocalNote>> getPendingNotes({String? shopId}) {
+    return (select(localNotes)..where(
+          (note) =>
+              note.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : note.shopId.equals(shopId)),
+        ))
+        .get();
+  }
+
+  Future<void> markNoteSynced(String id) async {
+    await (update(localNotes)..where((note) => note.id.equals(id))).write(
+      const LocalNotesCompanion(syncStatus: Value('synced')),
+    );
+  }
+
+  Future<void> upsertSyncedNotes(List<LocalNotesCompanion> rows) async {
+    await transaction(() async {
+      for (final row in rows) {
+        await into(localNotes).insertOnConflictUpdate(row);
+      }
+    });
+  }
+
+  Stream<List<LocalRecycleBinEntry>> watchRecycleBinEntriesForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localRecycleBinEntries)
+          ..where(
+            (entry) =>
+                entry.restoreStatus.equals('deleted') &
+                entry.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(entry) => OrderingTerm.desc(entry.deletedAt)]))
+        .watch();
+  }
+
+  Future<List<LocalRecycleBinEntry>> getPendingRecycleBinEntries({
+    String? shopId,
+  }) {
+    return (select(localRecycleBinEntries)..where(
+          (entry) =>
+              entry.syncStatus.equals('pending') &
+              (shopId == null
+                  ? const Constant(true)
+                  : entry.shopId.equals(shopId)),
+        ))
+        .get();
+  }
+
+  Future<void> markRecycleBinEntrySynced(String id) async {
+    await (update(
+      localRecycleBinEntries,
+    )..where((entry) => entry.id.equals(id))).write(
+      const LocalRecycleBinEntriesCompanion(syncStatus: Value('synced')),
+    );
+  }
+
+  Future<void> upsertSyncedRecycleBinEntries(
+    List<LocalRecycleBinEntriesCompanion> rows,
+  ) async {
+    await transaction(() async {
+      for (final row in rows) {
+        await into(localRecycleBinEntries).insertOnConflictUpdate(row);
+      }
+    });
+  }
+
+  Future<void> restoreRecycleBinEntry(String id) async {
+    final entry = await (select(
+      localRecycleBinEntries,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    if (entry == null) {
+      throw StateError('Recycle bin entry not found.');
+    }
+
+    final tableName = _localTableNameForRecycleBin(entry.sourceTableName);
+    final now = AppTime.nowUtc();
+
+    await transaction(() async {
+      final restoredRows = tableName == 'local_categories'
+          ? await (update(
+              localCategories,
+            )..where((category) => category.id.equals(entry.recordId))).write(
+              LocalCategoriesCompanion(
+                deletedAt: const Value(null),
+                updatedAt: Value(now),
+                syncStatus: const Value('pending'),
+              ),
+            )
+          : tableName == 'local_notes'
+          ? await (update(
+              localNotes,
+            )..where((note) => note.id.equals(entry.recordId))).write(
+              LocalNotesCompanion(
+                deletedAt: const Value(null),
+                updatedAt: Value(now),
+                syncStatus: const Value('pending'),
+              ),
+            )
+          : tableName == 'local_purchase_items'
+          ? await (update(
+              localPurchaseItems,
+            )..where((item) => item.id.equals(entry.recordId))).write(
+              LocalPurchaseItemsCompanion(
+                deletedAt: const Value(null),
+                updatedAt: Value(now),
+                syncStatus: const Value('pending'),
+              ),
+            )
+          : await customUpdate(
+              'UPDATE $tableName SET deleted_at = NULL, updated_at = ?, sync_status = ? WHERE id = ?',
+              variables: [
+                Variable<DateTime>(now),
+                const Variable<String>('pending'),
+                Variable<String>(entry.recordId),
+              ],
+            );
+      if (restoredRows == 0 && tableName == 'local_purchase_items') {
+        await _restorePurchaseItemFromRecycleEntry(entry, now);
+      } else if (restoredRows == 0 && tableName == 'local_notes') {
+        await _restoreNoteFromRecycleEntry(entry, now);
+      } else if (restoredRows == 0) {
+        throw StateError('Deleted record was not found in local database.');
+      }
+
+      await (update(
+        localRecycleBinEntries,
+      )..where((row) => row.id.equals(entry.id))).write(
+        LocalRecycleBinEntriesCompanion(
+          restoreStatus: const Value('restored'),
+          restoredAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+  }
+
+  Future<void> permanentlyDeleteRecycleBinEntry(String id) async {
+    final entry = await (select(
+      localRecycleBinEntries,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    if (entry == null) {
+      throw StateError('Recycle bin entry not found.');
+    }
+
+    final tableName = _localTableNameForRecycleBin(entry.sourceTableName);
+    final now = AppTime.nowUtc();
+
+    await transaction(() async {
+      if (tableName == 'local_purchase_items') {
+        await (delete(
+          localPurchaseItems,
+        )..where((item) => item.id.equals(entry.recordId))).go();
+      } else if (tableName == 'local_categories') {
+        await (delete(
+          localCategories,
+        )..where((category) => category.id.equals(entry.recordId))).go();
+      } else if (tableName == 'local_notes') {
+        await (delete(
+          localNotes,
+        )..where((note) => note.id.equals(entry.recordId))).go();
+      } else {
+        await customUpdate(
+          'DELETE FROM $tableName WHERE id = ?',
+          variables: [Variable<String>(entry.recordId)],
+        );
+      }
+      await (update(
+        localRecycleBinEntries,
+      )..where((row) => row.id.equals(entry.id))).write(
+        LocalRecycleBinEntriesCompanion(
+          restoreStatus: const Value('permanently_deleted'),
+          restoredAt: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
+  }
+
+  Future<void> _restoreNoteFromRecycleEntry(
+    LocalRecycleBinEntry entry,
+    DateTime now,
+  ) async {
+    final decoded = jsonDecode(entry.deletedData);
+    if (decoded is! Map<String, dynamic>) {
+      throw StateError('Recycle bin snapshot is invalid.');
+    }
+
+    await into(localNotes).insertOnConflictUpdate(
+      LocalNotesCompanion(
+        id: Value(_jsonString(decoded['id']) ?? entry.recordId),
+        shopId: Value(_jsonString(decoded['shop_id']) ?? entry.shopId),
+        title: Value(_jsonString(decoded['title']) ?? ''),
+        body: Value(_jsonString(decoded['body']) ?? ''),
+        isArchived: Value(_jsonBool(decoded['is_archived'])),
+        archivedAt: Value(_jsonDateTime(decoded['archived_at'])),
+        createdAt: Value(
+          _jsonDateTime(decoded['created_at']) ?? entry.deletedAt,
+        ),
+        updatedAt: Value(now),
+        deletedAt: const Value(null),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> _restorePurchaseItemFromRecycleEntry(
+    LocalRecycleBinEntry entry,
+    DateTime now,
+  ) async {
+    final decoded = jsonDecode(entry.deletedData);
+    if (decoded is! Map<String, dynamic>) {
+      throw StateError('Recycle bin snapshot is invalid.');
+    }
+
+    await into(localPurchaseItems).insertOnConflictUpdate(
+      LocalPurchaseItemsCompanion(
+        id: Value(_jsonString(decoded['id']) ?? entry.recordId),
+        shopId: Value(_jsonString(decoded['shop_id']) ?? entry.shopId),
+        purchaseId: Value(_jsonString(decoded['purchase_id'])),
+        categoryId: Value(_jsonString(decoded['category_id'])),
+        productName: Value(
+          _jsonString(decoded['product_name']) ?? entry.displayTitle,
+        ),
+        buyingPrice: Value(_jsonDouble(decoded['buying_price'])),
+        estSellingPrice: Value(
+          _jsonNullableDouble(decoded['est_selling_price']),
+        ),
+        quantity: Value(_jsonInt(decoded['quantity'])),
+        barcode: Value(_jsonString(decoded['barcode'])),
+        otherCharge: Value(_jsonDouble(decoded['other_charge'])),
+        description: Value(_jsonString(decoded['description'])),
+        productImage: Value(_jsonString(decoded['product_image'])),
+        createdAt: Value(
+          _jsonDateTime(decoded['created_at']) ?? entry.deletedAt,
+        ),
+        updatedAt: Value(now),
+        deletedAt: const Value(null),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  String? _jsonString(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    final text = value.toString();
+    return text.isEmpty ? null : text;
+  }
+
+  double _jsonDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  double? _jsonNullableDouble(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    return _jsonDouble(value);
+  }
+
+  int _jsonInt(Object? value) {
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _jsonBool(Object? value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    final text = value?.toString().toLowerCase();
+    return text == '1' || text == 'true';
+  }
+
+  DateTime? _jsonDateTime(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    return AppTime.tryParseUtc(value);
+  }
+
+  String _localTableNameForRecycleBin(String sourceTableName) {
+    final tableName = sourceTableName.startsWith('local_')
+        ? sourceTableName
+        : 'local_$sourceTableName';
+    const allowedTables = {
+      'local_shops',
+      'local_users',
+      'local_categories',
+      'local_suppliers',
+      'local_purchases',
+      'local_purchase_items',
+      'local_purchase_payments',
+      'local_customers',
+      'local_sales',
+      'local_sale_items',
+      'local_sale_returns',
+      'local_sale_return_items',
+      'local_customer_payments',
+      'local_cash_transactions',
+      'local_expenses',
+      'local_incomes',
+      'local_notes',
+    };
+
+    if (!allowedTables.contains(tableName)) {
+      throw StateError('Unsupported recycle bin table: $sourceTableName');
+    }
+    return tableName;
+  }
+
+  String recycleBinJsonEncode(Object? value) {
+    if (value == null) {
+      return '{}';
+    }
+    return jsonEncode(value);
   }
 
   Future<bool> isBarcodeUnique(String shopId, String barcode) async {
@@ -684,9 +1254,8 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<double> watchTodayExpenseTotalForCurrentShop() {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
 
     return customSelect(
       '''
@@ -761,9 +1330,8 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<double> watchTodayIncomeTotalForCurrentShop() {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
 
     return customSelect(
       '''
@@ -779,6 +1347,38 @@ final class AppDatabase extends _$AppDatabase {
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
       readsFrom: {localIncomes, localUsers},
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
+  Stream<double> watchTodaySalesTotalForCurrentShop() {
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
+
+    return customSelect(
+      '''
+      SELECT COALESCE(SUM(
+        MAX(
+          s.total - COALESCE((
+            SELECT SUM(sr.refund_total)
+            FROM local_sale_returns sr
+            WHERE sr.sale_id = s.id
+          ), 0.0),
+          0.0
+        )
+      ), 0.0) AS total
+      FROM local_sales
+      s
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND deleted_at IS NULL
+        AND created_at >= ?
+        AND created_at < ?
+      ''',
+      variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
+      readsFrom: {localSales, localUsers},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
@@ -842,6 +1442,268 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Stream<double> watchTodayOwnerTransactionTotalForCurrentShop() {
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
+
+    return customSelect(
+      '''
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN type = 'owner_given' THEN amount
+          WHEN type = 'owner_taken' THEN -amount
+          ELSE 0.0
+        END
+      ), 0.0) AS total
+      FROM local_cash_transactions
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND deleted_at IS NULL
+        AND type IN ('owner_given', 'owner_taken')
+        AND created_at >= ?
+        AND created_at < ?
+      ''',
+      variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
+      readsFrom: {localCashTransactions, localUsers},
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
+  Stream<double> watchTodayOnlineWalletTotalForCurrentShop() {
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
+
+    return customSelect(
+      '''
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN direction = 'in' THEN amount
+          WHEN direction = 'out' THEN -amount
+          ELSE 0.0
+        END
+      ), 0.0) AS total
+      FROM local_cash_transactions
+      WHERE shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND deleted_at IS NULL
+        AND method IN ('online', 'mobile_banking')
+        AND created_at >= ?
+        AND created_at < ?
+      ''',
+      variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
+      readsFrom: {localCashTransactions, localUsers},
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
+  Stream<double> watchTodayReceivableDueTotalForCurrentShop() {
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
+
+    return customSelect(
+      '''
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN (
+            s.total
+            - COALESCE((
+              SELECT SUM(sr.refund_total)
+              FROM local_sale_returns sr
+              WHERE sr.sale_id = s.id
+            ), 0.0)
+            - COALESCE((
+              SELECT SUM(cp.payments)
+              FROM local_customer_payments cp
+              WHERE cp.order_id = s.id
+            ), 0.0)
+          ) > 0
+          THEN (
+            s.total
+            - COALESCE((
+              SELECT SUM(sr.refund_total)
+              FROM local_sale_returns sr
+              WHERE sr.sale_id = s.id
+            ), 0.0)
+            - COALESCE((
+              SELECT SUM(cp.payments)
+              FROM local_customer_payments cp
+              WHERE cp.order_id = s.id
+            ), 0.0)
+          )
+          ELSE 0.0
+        END
+      ), 0.0) AS total
+      FROM local_sales s
+      WHERE s.shop_id IN (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      )
+        AND s.deleted_at IS NULL
+        AND s.created_at >= ?
+        AND s.created_at < ?
+      ''',
+      variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
+      readsFrom: {
+        localSales,
+        localSaleReturns,
+        localCustomerPayments,
+        localUsers,
+      },
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
+  Stream<double> watchTodayCashBoxTotalForCurrentShop() {
+    final start = AppTime.startOfLocalDayUtc();
+    final end = AppTime.endOfLocalDayUtc();
+
+    return customSelect(
+      '''
+      WITH current_shop AS (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      ),
+      sales AS (
+        SELECT COALESCE(SUM(
+          MAX(
+            s.total - COALESCE((
+              SELECT SUM(sr.refund_total)
+              FROM local_sale_returns sr
+              WHERE sr.sale_id = s.id
+            ), 0.0),
+            0.0
+          )
+        ), 0.0) AS total
+        FROM local_sales s
+        WHERE s.shop_id IN (SELECT shop_id FROM current_shop)
+          AND s.deleted_at IS NULL
+          AND s.created_at >= ?
+          AND s.created_at < ?
+      ),
+      due_sales AS (
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN (
+              s.total
+              - COALESCE((
+                SELECT SUM(sr.refund_total)
+                FROM local_sale_returns sr
+                WHERE sr.sale_id = s.id
+              ), 0.0)
+              - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+              ), 0.0)
+            ) > 0
+            THEN (
+              s.total
+              - COALESCE((
+                SELECT SUM(sr.refund_total)
+                FROM local_sale_returns sr
+                WHERE sr.sale_id = s.id
+              ), 0.0)
+              - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+              ), 0.0)
+            )
+            ELSE 0.0
+          END
+        ), 0.0) AS total
+        FROM local_sales s
+        WHERE s.shop_id IN (SELECT shop_id FROM current_shop)
+          AND s.deleted_at IS NULL
+          AND s.created_at >= ?
+          AND s.created_at < ?
+      ),
+      expenses AS (
+        SELECT COALESCE(SUM(amount), 0.0) AS total
+        FROM local_expenses
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          AND created_at >= ?
+          AND created_at < ?
+      ),
+      incomes AS (
+        SELECT COALESCE(SUM(amount), 0.0) AS total
+        FROM local_incomes
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          AND created_at >= ?
+          AND created_at < ?
+      ),
+      online_wallet AS (
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN direction = 'in' THEN amount
+            WHEN direction = 'out' THEN -amount
+            ELSE 0.0
+          END
+        ), 0.0) AS total
+        FROM local_cash_transactions
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          AND method IN ('online', 'mobile_banking')
+          AND created_at >= ?
+          AND created_at < ?
+      ),
+      owner_transactions AS (
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN type = 'owner_given' THEN amount
+            WHEN type = 'owner_taken' THEN -amount
+            ELSE 0.0
+          END
+        ), 0.0) AS total
+        FROM local_cash_transactions
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          AND type IN ('owner_given', 'owner_taken')
+          AND created_at >= ?
+          AND created_at < ?
+      )
+      SELECT
+        sales.total
+        - due_sales.total
+        - expenses.total
+        + incomes.total
+        - online_wallet.total
+        + owner_transactions.total AS total
+      FROM sales, due_sales, expenses, incomes, online_wallet, owner_transactions
+      ''',
+      variables: [
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+        Variable<DateTime>(start),
+        Variable<DateTime>(end),
+      ],
+      readsFrom: {
+        localSales,
+        localSaleReturns,
+        localCustomerPayments,
+        localExpenses,
+        localIncomes,
+        localCashTransactions,
+        localUsers,
+      },
+    ).watchSingle().map((row) => row.read<double>('total'));
+  }
+
   Future<String> saveOwnerGivenLocally({
     required double amount,
     required DateTime transactionDate,
@@ -855,7 +1717,7 @@ final class AppDatabase extends _$AppDatabase {
       throw StateError('Owner given amount is required.');
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final id = const Uuid().v4();
     await into(localCashTransactions).insert(
       LocalCashTransactionsCompanion(
@@ -867,7 +1729,7 @@ final class AppDatabase extends _$AppDatabase {
         referenceType: const Value('owner'),
         method: const Value('cash'),
         note: Value(_nullableTrimmed(note)),
-        createdAt: Value(transactionDate),
+        createdAt: Value(AppTime.toUtc(transactionDate)),
         updatedAt: Value(now),
         syncStatus: const Value('pending'),
       ),
@@ -889,7 +1751,7 @@ final class AppDatabase extends _$AppDatabase {
       throw StateError('Owner taken amount is required.');
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final id = const Uuid().v4();
     await into(localCashTransactions).insert(
       LocalCashTransactionsCompanion(
@@ -901,7 +1763,7 @@ final class AppDatabase extends _$AppDatabase {
         referenceType: const Value('owner'),
         method: const Value('cash'),
         note: Value(_nullableTrimmed(note)),
-        createdAt: Value(transactionDate),
+        createdAt: Value(AppTime.toUtc(transactionDate)),
         updatedAt: Value(now),
         syncStatus: const Value('pending'),
       ),
@@ -987,7 +1849,7 @@ final class AppDatabase extends _$AppDatabase {
 
     final expenseId = const Uuid().v4();
     final cashTransactionId = const Uuid().v4();
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final trimmedReason = _nullableTrimmed(reason);
     final trimmedNote = _nullableTrimmed(note);
 
@@ -1000,7 +1862,7 @@ final class AppDatabase extends _$AppDatabase {
           amount: Value(amount),
           reason: Value(trimmedReason),
           note: Value(trimmedNote),
-          createdAt: Value(expenseDate),
+          createdAt: Value(AppTime.toUtc(expenseDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1016,7 +1878,7 @@ final class AppDatabase extends _$AppDatabase {
           referenceType: const Value('expense'),
           method: const Value('cash'),
           note: Value(trimmedReason ?? trimmedNote ?? category.name),
-          createdAt: Value(expenseDate),
+          createdAt: Value(AppTime.toUtc(expenseDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1072,7 +1934,7 @@ final class AppDatabase extends _$AppDatabase {
 
     final incomeId = const Uuid().v4();
     final cashTransactionId = const Uuid().v4();
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final trimmedReason = _nullableTrimmed(reason);
     final trimmedNote = _nullableTrimmed(note);
 
@@ -1086,7 +1948,7 @@ final class AppDatabase extends _$AppDatabase {
           reason: Value(trimmedReason),
           note: Value(trimmedNote),
           receiptUrl: Value(receiptUrl),
-          createdAt: Value(incomeDate),
+          createdAt: Value(AppTime.toUtc(incomeDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1102,7 +1964,7 @@ final class AppDatabase extends _$AppDatabase {
           referenceType: const Value('income'),
           method: const Value('cash'),
           note: Value(trimmedReason ?? trimmedNote ?? category.name),
-          createdAt: Value(incomeDate),
+          createdAt: Value(AppTime.toUtc(incomeDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1142,7 +2004,7 @@ final class AppDatabase extends _$AppDatabase {
       return existingCategory;
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final id = const Uuid().v4();
     final category = LocalCategoriesCompanion(
       id: Value(id),
@@ -1202,7 +2064,7 @@ final class AppDatabase extends _$AppDatabase {
       LocalCategoriesCompanion(
         name: Value(trimmedName),
         details: Value(_nullableTrimmed(details)),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(AppTime.nowUtc()),
         syncStatus: const Value('pending'),
       ),
     );
@@ -1213,17 +2075,58 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> _softDeleteCategory(String id) async {
-    final now = DateTime.now();
-
-    await (update(
+    final category = await (select(
       localCategories,
-    )..where((table) => table.id.equals(id))).write(
-      LocalCategoriesCompanion(
-        updatedAt: Value(now),
-        deletedAt: Value(now),
-        syncStatus: const Value('pending'),
-      ),
-    );
+    )..where((table) => table.id.equals(id))).getSingleOrNull();
+    if (category == null) {
+      throw StateError('Category not found.');
+    }
+
+    final currentUser = await getCurrentUser();
+    final now = AppTime.nowUtc();
+    final deletedData = jsonEncode({
+      'id': category.id,
+      'shop_id': category.shopId,
+      'name': category.name,
+      'type': category.type,
+      'details': category.details,
+      'image_url': category.imageUrl,
+      'created_at': AppTime.isoUtc(category.createdAt),
+      'updated_at': AppTime.isoUtc(category.updatedAt),
+      'deleted_at': AppTime.isoUtc(now),
+    });
+
+    await transaction(() async {
+      await (update(
+        localCategories,
+      )..where((table) => table.id.equals(id))).write(
+        LocalCategoriesCompanion(
+          updatedAt: Value(now),
+          deletedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localRecycleBinEntries).insertOnConflictUpdate(
+        LocalRecycleBinEntriesCompanion(
+          id: Value(const Uuid().v4()),
+          shopId: Value(category.shopId),
+          sourceTableName: const Value('local_categories'),
+          recordId: Value(category.id),
+          displayTitle: Value(category.name),
+          displaySubtitle: Value('${category.type} category'),
+          deletedData: Value(deletedData),
+          relatedData: const Value(null),
+          deletedByUserId: Value(currentUser?.id),
+          deletedAt: Value(now),
+          restoredAt: const Value(null),
+          restoreStatus: const Value('deleted'),
+          restoreBlockReason: const Value(null),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
   }
 
   Future<void> restoreProductCategory(String id) async {
@@ -1231,7 +2134,7 @@ final class AppDatabase extends _$AppDatabase {
       localCategories,
     )..where((table) => table.id.equals(id))).write(
       LocalCategoriesCompanion(
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(AppTime.nowUtc()),
         deletedAt: const Value(null),
         syncStatus: const Value('pending'),
       ),
@@ -1272,7 +2175,7 @@ final class AppDatabase extends _$AppDatabase {
     required String shopId,
     required String name,
   }) async {
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     await into(localCategories).insertOnConflictUpdate(
       LocalCategoriesCompanion(
         id: Value(id),
@@ -1349,7 +2252,7 @@ final class AppDatabase extends _$AppDatabase {
     required String shopId,
     String name = 'সাপ্লায়ার',
   }) async {
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     await into(localSuppliers).insertOnConflictUpdate(
       LocalSuppliersCompanion(
         id: Value(id),
@@ -1387,7 +2290,7 @@ final class AppDatabase extends _$AppDatabase {
       return existingSupplier;
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final id = const Uuid().v4();
     await into(localSuppliers).insert(
       LocalSuppliersCompanion(
@@ -1880,7 +2783,7 @@ final class AppDatabase extends _$AppDatabase {
 
     final paymentId = const Uuid().v4();
     final cashTransactionId = const Uuid().v4();
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final trimmedNote = _nullableTrimmed(note);
 
     await transaction(() async {
@@ -1891,7 +2794,7 @@ final class AppDatabase extends _$AppDatabase {
           purchaseId: Value(purchase.id),
           payments: Value(amount),
           description: Value(trimmedNote ?? 'বাকি পরিশোধ'),
-          createdAt: Value(paymentDate),
+          createdAt: Value(AppTime.toUtc(paymentDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1907,7 +2810,7 @@ final class AppDatabase extends _$AppDatabase {
           referenceType: const Value('purchase'),
           method: const Value('cash'),
           note: Value(trimmedNote ?? 'বাকি পরিশোধ'),
-          createdAt: Value(paymentDate),
+          createdAt: Value(AppTime.toUtc(paymentDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1951,7 +2854,7 @@ final class AppDatabase extends _$AppDatabase {
 
     final paymentId = const Uuid().v4();
     final cashTransactionId = const Uuid().v4();
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final trimmedNote = _nullableTrimmed(note);
 
     await transaction(() async {
@@ -1963,7 +2866,7 @@ final class AppDatabase extends _$AppDatabase {
           orderId: Value(sale.id),
           payments: Value(amount),
           description: Value(trimmedNote ?? 'বাকি আদায়'),
-          createdAt: Value(paymentDate),
+          createdAt: Value(AppTime.toUtc(paymentDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -1979,7 +2882,7 @@ final class AppDatabase extends _$AppDatabase {
           referenceType: const Value('sale'),
           method: const Value('cash'),
           note: Value(trimmedNote ?? 'বাকি আদায়'),
-          createdAt: Value(paymentDate),
+          createdAt: Value(AppTime.toUtc(paymentDate)),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -2105,6 +3008,7 @@ final class AppDatabase extends _$AppDatabase {
           FROM local_users
           WHERE is_current = 1
         )
+          AND pi.deleted_at IS NULL
       ) AS available_batches
       GROUP BY COALESCE(category_id, product_name), product_name
       HAVING stock_quantity > 0
@@ -2174,7 +3078,7 @@ final class AppDatabase extends _$AppDatabase {
       return existing;
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final id = const Uuid().v4();
     await into(localCustomers).insert(
       LocalCustomersCompanion(
@@ -2220,6 +3124,7 @@ final class AppDatabase extends _$AppDatabase {
         pi.created_at
       FROM local_purchase_items pi
       WHERE pi.shop_id = ?
+        AND pi.deleted_at IS NULL
         AND pi.product_name = ?
         AND (
           (? = 1 AND pi.category_id IS NULL)
@@ -2295,6 +3200,7 @@ final class AppDatabase extends _$AppDatabase {
         FROM local_users
         WHERE is_current = 1
       )
+        AND pi.deleted_at IS NULL
         AND pi.product_name = ?
         AND (
           (? = 1 AND pi.category_id IS NULL)
@@ -2365,31 +3271,73 @@ final class AppDatabase extends _$AppDatabase {
         buyingPrice: Value(buyingPrice),
         estSellingPrice: Value(sellingPrice),
         quantity: Value(usedQuantity + availableQuantity),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(AppTime.nowUtc()),
         syncStatus: const Value('pending'),
       ),
     );
   }
 
   Future<void> deletePurchaseBatchStockLocally(String id) async {
-    final usedQuantity = await _usedQuantityForPurchaseItem(id);
-
-    if (usedQuantity <= 0) {
-      await (delete(
-        localPurchaseItems,
-      )..where((item) => item.id.equals(id))).go();
-      return;
+    final batch = await (select(
+      localPurchaseItems,
+    )..where((item) => item.id.equals(id))).getSingleOrNull();
+    if (batch == null) {
+      throw StateError('Stock batch not found.');
     }
 
-    await (update(
-      localPurchaseItems,
-    )..where((item) => item.id.equals(id))).write(
-      LocalPurchaseItemsCompanion(
-        quantity: Value(usedQuantity),
-        updatedAt: Value(DateTime.now()),
-        syncStatus: const Value('pending'),
-      ),
-    );
+    final currentUser = await getCurrentUser();
+    final now = AppTime.nowUtc();
+    final deletedData = jsonEncode({
+      'id': batch.id,
+      'shop_id': batch.shopId,
+      'purchase_id': batch.purchaseId,
+      'category_id': batch.categoryId,
+      'product_name': batch.productName,
+      'buying_price': batch.buyingPrice,
+      'est_selling_price': batch.estSellingPrice,
+      'quantity': batch.quantity,
+      'barcode': batch.barcode,
+      'other_charge': batch.otherCharge,
+      'description': batch.description,
+      'product_image': batch.productImage,
+      'created_at': AppTime.isoUtc(batch.createdAt),
+      'updated_at': AppTime.isoUtc(batch.updatedAt),
+      'deleted_at': AppTime.isoUtc(now),
+    });
+
+    await transaction(() async {
+      await (update(
+        localPurchaseItems,
+      )..where((item) => item.id.equals(id))).write(
+        LocalPurchaseItemsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await into(localRecycleBinEntries).insertOnConflictUpdate(
+        LocalRecycleBinEntriesCompanion(
+          id: Value(const Uuid().v4()),
+          shopId: Value(batch.shopId),
+          sourceTableName: const Value('local_purchase_items'),
+          recordId: Value(batch.id),
+          displayTitle: Value(batch.productName),
+          displaySubtitle: Value(
+            'Stock batch • Qty ${batch.quantity} • Buy ${batch.buyingPrice}',
+          ),
+          deletedData: Value(deletedData),
+          relatedData: const Value(null),
+          deletedByUserId: Value(currentUser?.id),
+          deletedAt: Value(now),
+          restoredAt: const Value(null),
+          restoreStatus: const Value('deleted'),
+          restoreBlockReason: const Value(null),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+    });
   }
 
   Future<int> _usedQuantityForPurchaseItem(String id) async {
@@ -2441,7 +3389,6 @@ final class AppDatabase extends _$AppDatabase {
   Future<String> saveSalesReturnLocally({
     required String saleId,
     required List<LocalSaleReturnDraftItem> items,
-    required double restockingFee,
     required String note,
   }) async {
     final currentUser = await getCurrentUser();
@@ -2494,12 +3441,13 @@ final class AppDatabase extends _$AppDatabase {
       0,
       (sum, item) => sum + item.salePrice * item.quantity,
     );
-    final refundTotal = subtotal - restockingFee;
+    const restockingFee = 0.0;
+    final refundTotal = subtotal;
     if (refundTotal <= 0) {
       throw StateError('Return amount must be greater than zero.');
     }
 
-    final now = DateTime.now();
+    final now = AppTime.nowUtc();
     final returnId = const Uuid().v4();
     await transaction(() async {
       await into(localSaleReturns).insert(
