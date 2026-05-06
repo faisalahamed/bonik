@@ -53,6 +53,7 @@ import '../../features/stores/presentation/pages/store_selector_page.dart';
 import '../../features/users/presentation/pages/user_management_page.dart';
 import '../../features/recycle_bin/presentation/pages/recycle_bin_page.dart';
 import '../../features/notes/presentation/pages/note_pad_page.dart';
+import '../../features/others/presentation/pages/others_page.dart';
 import 'app_routes.dart';
 
 final appNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -340,6 +341,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.notePad,
         name: 'note-pad',
         builder: (context, state) => const NotePadHome(),
+      ),
+      GoRoute(
+        path: AppRoutes.others,
+        name: 'others',
+        builder: (context, state) => const OthersPage(),
       ),
     ],
     redirect: routerNotifier.redirect,

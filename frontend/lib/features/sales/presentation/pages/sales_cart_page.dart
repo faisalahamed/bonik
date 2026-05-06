@@ -20,13 +20,15 @@ class SalesCartPage extends ConsumerStatefulWidget {
 }
 
 class _SalesCartPageState extends ConsumerState<SalesCartPage> {
-  final _discountPercentController = TextEditingController(text: '15');
-  final _discountAmountController = TextEditingController();
-  final _vatPercentController = TextEditingController(text: '15');
-  final _vatAmountController = TextEditingController();
+  final _discountPercentController = TextEditingController(text: '0');
+  final _discountAmountController = TextEditingController(text: '0');
+  final _vatPercentController = TextEditingController(text: '0');
+  final _vatAmountController = TextEditingController(text: '0');
   double _discount = 0;
   double _vat = 0;
   double _subtotal = 0;
+  bool _discountEnabled = false;
+  bool _vatEnabled = false;
   bool _updatingFields = false;
 
   @override
@@ -105,6 +107,8 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
                                 cartController.increase(line.product.id),
                             onDecrease: () =>
                                 cartController.decrease(line.product.id),
+                            onUnitPriceChanged: (unitPrice) => cartController
+                                .updateUnitPrice(line.product.id, unitPrice),
                             onRemove: () =>
                                 cartController.remove(line.product.id),
                           ),
@@ -120,6 +124,10 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
                           discountAmountController: _discountAmountController,
                           vatPercentController: _vatPercentController,
                           vatAmountController: _vatAmountController,
+                          discountEnabled: _discountEnabled,
+                          vatEnabled: _vatEnabled,
+                          onDiscountEnabledChanged: _setDiscountEnabled,
+                          onVatEnabledChanged: _setVatEnabled,
                         ),
                       ],
                     ),
@@ -143,8 +151,10 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
 
       setState(() {
         _subtotal = subtotal;
-        _discount = _amountFromPercent(_discountPercentController.text);
-        _vat = _amountFromPercent(_vatPercentController.text);
+        _discount = _discountEnabled
+            ? _amountFromPercent(_discountPercentController.text)
+            : 0;
+        _vat = _vatEnabled ? _amountFromPercent(_vatPercentController.text) : 0;
         _setText(_discountAmountController, _numberText(_discount));
         _setText(_vatAmountController, _numberText(_vat));
         _saveDiscount();
@@ -159,7 +169,9 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     }
 
     setState(() {
-      _discount = _amountFromPercent(_discountPercentController.text);
+      _discount = _discountEnabled
+          ? _amountFromPercent(_discountPercentController.text)
+          : 0;
       _setText(_discountAmountController, _numberText(_discount));
       _saveDiscount();
     });
@@ -171,11 +183,15 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     }
 
     setState(() {
-      _discount = _readNumber(_discountAmountController.text);
-      _setText(
-        _discountPercentController,
-        _numberText(_percentFromAmount(_discount)),
-      );
+      _discount = _discountEnabled
+          ? _readNumber(_discountAmountController.text)
+          : 0;
+      if (_discountEnabled) {
+        _setText(
+          _discountPercentController,
+          _numberText(_percentFromAmount(_discount)),
+        );
+      }
       _saveDiscount();
     });
   }
@@ -186,7 +202,7 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     }
 
     setState(() {
-      _vat = _amountFromPercent(_vatPercentController.text);
+      _vat = _vatEnabled ? _amountFromPercent(_vatPercentController.text) : 0;
       _setText(_vatAmountController, _numberText(_vat));
       _saveVat();
     });
@@ -198,8 +214,40 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     }
 
     setState(() {
-      _vat = _readNumber(_vatAmountController.text);
-      _setText(_vatPercentController, _numberText(_percentFromAmount(_vat)));
+      _vat = _vatEnabled ? _readNumber(_vatAmountController.text) : 0;
+      if (_vatEnabled) {
+        _setText(_vatPercentController, _numberText(_percentFromAmount(_vat)));
+      }
+      _saveVat();
+    });
+  }
+
+  void _setDiscountEnabled(bool enabled) {
+    setState(() {
+      _discountEnabled = enabled;
+      if (enabled) {
+        _setText(_discountPercentController, '5');
+        _discount = _amountFromPercent(_discountPercentController.text);
+      } else {
+        _discount = 0;
+        _setText(_discountPercentController, '0');
+      }
+      _setText(_discountAmountController, _numberText(_discount));
+      _saveDiscount();
+    });
+  }
+
+  void _setVatEnabled(bool enabled) {
+    setState(() {
+      _vatEnabled = enabled;
+      if (enabled) {
+        _setText(_vatPercentController, '15');
+        _vat = _amountFromPercent(_vatPercentController.text);
+      } else {
+        _vat = 0;
+        _setText(_vatPercentController, '0');
+      }
+      _setText(_vatAmountController, _numberText(_vat));
       _saveVat();
     });
   }
@@ -302,12 +350,14 @@ class _CartReviewItem extends StatelessWidget {
     required this.line,
     required this.onIncrease,
     required this.onDecrease,
+    required this.onUnitPriceChanged,
     required this.onRemove,
   });
 
   final SalesCartLine line;
   final VoidCallback onIncrease;
   final VoidCallback onDecrease;
+  final ValueChanged<double> onUnitPriceChanged;
   final VoidCallback onRemove;
 
   @override
@@ -410,7 +460,10 @@ class _CartReviewItem extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: _UnitPriceCard(unitPrice: product.sellingPrice),
+                      child: _UnitPriceCard(
+                        unitPrice: line.unitPrice,
+                        onChanged: onUnitPriceChanged,
+                      ),
                     ),
                   ],
                 ),
@@ -428,7 +481,7 @@ class _CartReviewItem extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadii.md),
                         ),
                         child: Text(
-                          'মোট: ${_bnNumber(line.quantity)} x ${_money(product.sellingPrice)} = ${_money(line.lineTotal)}',
+                          'মোট: ${_bnNumber(line.quantity)} x ${_money(line.unitPrice)} = ${_money(line.lineTotal)}',
                           textAlign: TextAlign.center,
                           style: textTheme.labelMedium?.copyWith(
                             color: AppColors.textSecondary,
@@ -535,10 +588,42 @@ class _QuantityCard extends StatelessWidget {
   }
 }
 
-class _UnitPriceCard extends StatelessWidget {
-  const _UnitPriceCard({required this.unitPrice});
+class _UnitPriceCard extends StatefulWidget {
+  const _UnitPriceCard({required this.unitPrice, required this.onChanged});
 
   final double unitPrice;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<_UnitPriceCard> createState() => _UnitPriceCardState();
+}
+
+class _UnitPriceCardState extends State<_UnitPriceCard> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _numberText(widget.unitPrice));
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _UnitPriceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_focusNode.hasFocus || oldWidget.unitPrice == widget.unitPrice) {
+      return;
+    }
+    _controller.text = _numberText(widget.unitPrice);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -564,26 +649,38 @@ class _UnitPriceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _money(unitPrice),
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+          SizedBox(
+            height: 28,
+            child: TextFormField(
+              controller: _controller,
+              focusNode: _focusNode,
+              onChanged: (value) => widget.onChanged(_readMoneyInput(value)),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const Icon(
-                Icons.edit_rounded,
-                color: AppColors.primary,
-                size: 18,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
+              textAlignVertical: TextAlignVertical.center,
+              style: textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
               ),
-            ],
+              decoration: const InputDecoration(
+                prefixText: '৳ ',
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+double _readMoneyInput(String value) {
+  return double.tryParse(value.replaceAll(',', '').trim()) ?? 0;
 }
 
 class _CartSummaryCard extends StatelessWidget {
@@ -596,6 +693,10 @@ class _CartSummaryCard extends StatelessWidget {
     required this.discountAmountController,
     required this.vatPercentController,
     required this.vatAmountController,
+    required this.discountEnabled,
+    required this.vatEnabled,
+    required this.onDiscountEnabledChanged,
+    required this.onVatEnabledChanged,
   });
 
   final double subtotal;
@@ -606,6 +707,10 @@ class _CartSummaryCard extends StatelessWidget {
   final TextEditingController discountAmountController;
   final TextEditingController vatPercentController;
   final TextEditingController vatAmountController;
+  final bool discountEnabled;
+  final bool vatEnabled;
+  final ValueChanged<bool> onDiscountEnabledChanged;
+  final ValueChanged<bool> onVatEnabledChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -633,6 +738,8 @@ class _CartSummaryCard extends StatelessWidget {
             amountController: discountAmountController,
             value: discount,
             textTheme: textTheme,
+            enabled: discountEnabled,
+            onEnabledChanged: onDiscountEnabledChanged,
           ),
           const SizedBox(height: AppSpacing.md),
           _PercentAmountInputRow(
@@ -641,6 +748,8 @@ class _CartSummaryCard extends StatelessWidget {
             amountController: vatAmountController,
             value: vat,
             textTheme: textTheme,
+            enabled: vatEnabled,
+            onEnabledChanged: onVatEnabledChanged,
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
@@ -719,6 +828,8 @@ class _PercentAmountInputRow extends StatelessWidget {
     required this.amountController,
     required this.value,
     required this.textTheme,
+    required this.enabled,
+    required this.onEnabledChanged,
   });
 
   final String label;
@@ -726,15 +837,23 @@ class _PercentAmountInputRow extends StatelessWidget {
   final TextEditingController amountController;
   final double value;
   final TextTheme textTheme;
+  final bool enabled;
+  final ValueChanged<bool> onEnabledChanged;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.radio_button_unchecked_rounded,
-          color: AppColors.textMuted,
-          size: 22,
+        InkWell(
+          onTap: () => onEnabledChanged(!enabled),
+          borderRadius: BorderRadius.circular(99),
+          child: Icon(
+            enabled
+                ? Icons.radio_button_checked_rounded
+                : Icons.radio_button_unchecked_rounded,
+            color: enabled ? AppColors.primary : AppColors.textMuted,
+            size: 22,
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
@@ -750,6 +869,7 @@ class _PercentAmountInputRow extends StatelessWidget {
           width: 78,
           child: TextField(
             controller: percentController,
+            enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
@@ -757,7 +877,7 @@ class _PercentAmountInputRow extends StatelessWidget {
             textAlign: TextAlign.end,
             decoration: _inputDecoration(suffixText: '%'),
             style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
+              color: enabled ? AppColors.textPrimary : AppColors.textMuted,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -767,6 +887,7 @@ class _PercentAmountInputRow extends StatelessWidget {
           width: 126,
           child: TextField(
             controller: amountController,
+            enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
@@ -777,7 +898,7 @@ class _PercentAmountInputRow extends StatelessWidget {
               prefixText: '৳ ',
             ),
             style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
+              color: enabled ? AppColors.textPrimary : AppColors.textMuted,
               fontWeight: FontWeight.w800,
             ),
           ),

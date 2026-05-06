@@ -46,6 +46,7 @@ class AppRoutes {
   static const String users = '/users';
   static const String recycleBin = '/recycle-bin';
   static const String notePad = '/notes';
+  static const String others = '/others';
 
   const AppRoutes._();
 }

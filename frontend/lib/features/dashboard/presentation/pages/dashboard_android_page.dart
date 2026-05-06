@@ -39,10 +39,10 @@ class DashboardAndroidPage extends StatelessWidget {
                   title: 'আপনার প্রতিষ্ঠান',
                   items: [
                     _DashboardMenuItemData(
-                      label: 'নগদ ক্রয়',
-                      icon: Icons.badge_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
+                      label: 'পণ্য যোগ',
+                      icon: Icons.add_box_rounded,
+                      iconBackground: Color(0xFFFFF0E6),
+                      iconColor: Color(0xFFCE6D1D),
                       route: AppRoutes.cashPurchase,
                     ),
                     _DashboardMenuItemData(
@@ -52,56 +52,6 @@ class DashboardAndroidPage extends StatelessWidget {
                       iconColor: AppColors.primaryContainer,
                       route: AppRoutes.inventory,
                     ),
-                    _DashboardMenuItemData(
-                      label: 'রিপোর্ট',
-                      icon: Icons.bar_chart_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.reports,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'Recycle Bin',
-                      icon: Icons.apps_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.recycleBin,
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'পার্টি এবং পণ্য ব্যবস্থাপনা',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'কাস্টমার যোগ',
-                      icon: Icons.person_add_alt_1_rounded,
-                      iconBackground: Color(0xFFEAF1FF),
-                      iconColor: Color(0xFF4169C8),
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'সাপ্লায়ার যোগ',
-                      icon: Icons.group_add_rounded,
-                      iconBackground: Color(0xFFE8F6EF),
-                      iconColor: AppColors.primary,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'পণ্য যোগ',
-                      icon: Icons.add_box_rounded,
-                      iconBackground: Color(0xFFFFF0E6),
-                      iconColor: Color(0xFFCE6D1D),
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'অন্যান্য',
-                      icon: Icons.more_horiz_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'অন্যান্য ট্রানজেকশন',
-                  items: [
                     _DashboardMenuItemData(
                       label: 'মালিক নিলো/দিলো',
                       icon: Icons.monetization_on_rounded,
@@ -116,20 +66,6 @@ class DashboardAndroidPage extends StatelessWidget {
                       iconBackground: AppColors.surfaceContainerHigh,
                       iconColor: AppColors.textSecondary,
                       route: AppRoutes.otherIncome,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'পণ্য ফেরত',
-                      icon: Icons.refresh_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.salesReturn,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'Note Pad',
-                      icon: Icons.apps_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.notePad,
                     ),
                   ],
                 ),
@@ -165,6 +101,20 @@ class DashboardAndroidPage extends StatelessWidget {
                       iconBackground: Color(0xFFFFEBEB),
                       iconColor: Color(0xFFD54D4D),
                       route: AppRoutes.expenseHistory,
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: AppSpacing.xl),
+                _DashboardSection(
+                  title: 'অন্যান্য সার্ভিস',
+                  items: [
+                    _DashboardMenuItemData(
+                      label: 'অন্যান্য',
+                      icon: Icons.more_horiz_rounded,
+                      iconBackground: AppColors.surfaceContainerHigh,
+                      iconColor: AppColors.textSecondary,
+                      route: AppRoutes.others,
                     ),
                   ],
                 ),
@@ -220,14 +170,22 @@ class _DashboardTopBarState extends ConsumerState<_DashboardTopBar> {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(
-                    'ফামাম স্টোর',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: StreamBuilder<LocalShop?>(
+                    stream: ref.read(appDatabaseProvider).watchCurrentShop(),
+                    builder: (context, snapshot) {
+                      final shopName = snapshot.data?.shopName.trim();
+                      return Text(
+                        shopName == null || shopName.isEmpty
+                            ? 'Bonik'
+                            : shopName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 StreamBuilder<bool>(
@@ -344,7 +302,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
     );
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppRadii.xl),
@@ -352,25 +310,6 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              const Spacer(),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _isMoneyHidden = !_isMoneyHidden;
-                  });
-                },
-                splashRadius: 20,
-                icon: Icon(
-                  _isMoneyHidden
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -404,16 +343,37 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                   },
                 ),
               ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _isMoneyHidden = !_isMoneyHidden;
+                  });
+                },
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 34,
+                  height: 34,
+                ),
+                splashRadius: 18,
+                icon: Icon(
+                  _isMoneyHidden
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
-            mainAxisSpacing: AppSpacing.md,
-            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.sm,
+            crossAxisSpacing: AppSpacing.sm,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.36,
+            childAspectRatio: 1.64,
             children: [
               StreamBuilder<double>(
                 stream: database.watchTodaySalesTotalForCurrentShop(),
@@ -565,7 +525,7 @@ class _MetricTile extends StatelessWidget {
         children: [
           Container(
             width: 4,
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             decoration: BoxDecoration(
               color: accentColor,
               borderRadius: BorderRadius.circular(99),
@@ -573,7 +533,10 @@ class _MetricTile extends StatelessWidget {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -584,7 +547,7 @@ class _MetricTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xs),
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,

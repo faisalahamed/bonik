@@ -6,6 +6,7 @@
 6. edit barcode on inventory details page
 7. category permanent delet not working
 8. no space to show the others income
+9. on tap multiple time added to cart but no way to decreaese the cart item count
 
 
 

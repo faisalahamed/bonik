@@ -111,8 +111,16 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                       ? const _EmptyPaymentState()
                       : ListView(
                           children: [
-                            _TotalAmountCard(total: grandTotal),
-                            const SizedBox(height: AppSpacing.lg),
+                            _CustomerInfoCard(
+                              nameController: _customerNameController,
+                              mobileController: _customerMobileController,
+                            ),
+
+                            const SizedBox(height: AppSpacing.xl),
+                            _CartItemsCard(lines: cartLines),
+                            const SizedBox(height: AppSpacing.xl),
+                            // _TotalAmountCard(total: grandTotal),
+                            // const SizedBox(height: AppSpacing.lg),
                             _SaleBreakdownCard(
                               subtotal: subtotal,
                               discount: checkout.discountAmount,
@@ -120,11 +128,47 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                               itemCount: cartController.itemCount,
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            _CashReceivedCard(
-                              controller: _cashReceivedController,
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final useStackedLayout =
+                                    constraints.maxWidth < 520;
+
+                                if (useStackedLayout) {
+                                  return Column(
+                                    children: [
+                                      _RemainingCard(
+                                        remaining: remaining.toDouble(),
+                                      ),
+                                      const SizedBox(height: AppSpacing.md),
+                                      _CashReceivedCard(
+                                        controller: _cashReceivedController,
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: _RemainingCard(
+                                          remaining: remaining.toDouble(),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSpacing.md),
+                                      Expanded(
+                                        child: _CashReceivedCard(
+                                          controller: _cashReceivedController,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                            const SizedBox(height: AppSpacing.md),
-                            _RemainingCard(remaining: remaining.toDouble()),
                             const SizedBox(height: AppSpacing.xl),
                             const _PaymentMethodHeader(),
                             const SizedBox(height: AppSpacing.md),
@@ -135,13 +179,6 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                                   _paymentMethod = method;
                                 });
                               },
-                            ),
-                            const SizedBox(height: AppSpacing.xl),
-                            _CartItemsCard(lines: cartLines),
-                            const SizedBox(height: AppSpacing.xl),
-                            _CustomerInfoCard(
-                              nameController: _customerNameController,
-                              mobileController: _customerMobileController,
                             ),
                           ],
                         ),
@@ -270,46 +307,6 @@ class _EmptyPaymentState extends StatelessWidget {
   }
 }
 
-class _TotalAmountCard extends StatelessWidget {
-  const _TotalAmountCard({required this.total});
-
-  final double total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl,
-      ),
-      decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.button,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'সর্বমোট',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            _money(total),
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SaleBreakdownCard extends StatelessWidget {
   const _SaleBreakdownCard({
     required this.subtotal,
@@ -342,11 +339,7 @@ class _SaleBreakdownCard extends StatelessWidget {
             textTheme: textTheme,
           ),
           const SizedBox(height: AppSpacing.sm),
-          _BreakdownRow(
-            label: 'মোট',
-            value: _money(subtotal),
-            textTheme: textTheme,
-          ),
+
           const SizedBox(height: AppSpacing.sm),
           _BreakdownRow(
             label: 'ডিসকাউন্ট',
@@ -357,6 +350,12 @@ class _SaleBreakdownCard extends StatelessWidget {
           _BreakdownRow(
             label: 'ভ্যাট',
             value: _money(vat),
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _BreakdownRow(
+            label: 'মোট',
+            value: _money(subtotal),
             textTheme: textTheme,
           ),
         ],
@@ -408,6 +407,7 @@ class _CashReceivedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
@@ -482,6 +482,7 @@ class _RemainingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
@@ -721,28 +722,24 @@ class _CustomerInfoCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              children: [
-                const Icon(Icons.person_rounded, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    'কাস্টমার তথ্য',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.keyboard_arrow_up_rounded,
-                  color: AppColors.textMuted,
-                ),
-              ],
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.all(AppSpacing.lg),
+          //   child: Row(
+          //     children: [
+          //       const Icon(Icons.person_rounded, color: AppColors.primary),
+          //       const SizedBox(width: AppSpacing.sm),
+          //       Expanded(
+          //         child: Text(
+          //           'কাস্টমার তথ্য',
+          //           style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          //             color: AppColors.textPrimary,
+          //             fontWeight: FontWeight.w800,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
           const Divider(height: 1, color: AppColors.surfaceContainerHigh),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),

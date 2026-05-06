@@ -18,10 +18,8 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
 
   int get itemCount => state.fold(0, (total, line) => total + line.quantity);
 
-  double get total => state.fold(
-    0,
-    (total, line) => total + (line.product.sellingPrice * line.quantity),
-  );
+  double get total =>
+      state.fold(0, (total, line) => total + (line.unitPrice * line.quantity));
 
   int quantityFor(String productId) {
     for (final line in state) {
@@ -87,6 +85,17 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
     ];
   }
 
+  void updateUnitPrice(String productId, double unitPrice) {
+    final normalizedPrice = unitPrice < 0 ? 0.0 : unitPrice;
+    state = [
+      for (final line in state)
+        if (line.product.id == productId)
+          line.copyWith(unitPrice: normalizedPrice)
+        else
+          line,
+    ];
+  }
+
   void clear() {
     state = const [];
   }
@@ -111,9 +120,9 @@ class SalesCheckoutController extends Notifier<SalesCheckoutState> {
 
 class SalesCheckoutState {
   const SalesCheckoutState({
-    this.discountPercent = 15,
+    this.discountPercent = 0,
     this.discountAmount = 0,
-    this.vatPercent = 15,
+    this.vatPercent = 0,
     this.vatAmount = 0,
   });
 
@@ -144,14 +153,23 @@ class SalesCheckoutState {
 }
 
 class SalesCartLine {
-  const SalesCartLine({required this.product, required this.quantity});
+  SalesCartLine({
+    required this.product,
+    required this.quantity,
+    double? unitPrice,
+  }) : unitPrice = unitPrice ?? product.sellingPrice;
 
   final LocalSalesProduct product;
   final int quantity;
+  final double unitPrice;
 
-  double get lineTotal => product.sellingPrice * quantity;
+  double get lineTotal => unitPrice * quantity;
 
-  SalesCartLine copyWith({int? quantity}) {
-    return SalesCartLine(product: product, quantity: quantity ?? this.quantity);
+  SalesCartLine copyWith({int? quantity, double? unitPrice}) {
+    return SalesCartLine(
+      product: product,
+      quantity: quantity ?? this.quantity,
+      unitPrice: unitPrice ?? this.unitPrice,
+    );
   }
 }

@@ -171,8 +171,10 @@ class _CashPurchaseReviewPageState
 
     do {
       // 8 random digits for suffix
-      final suffix =
-          ((random + counter) % 100000000).toString().padLeft(8, '0');
+      final suffix = ((random + counter) % 100000000).toString().padLeft(
+        8,
+        '0',
+      );
       barcode = '$prefix$suffix';
       isUnique = await database.isBarcodeUnique(shopId, barcode);
       counter++;
@@ -745,15 +747,13 @@ class _PurchaseReviewItem extends StatelessWidget {
                       backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                       onTap: onScan,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
                     _ActionChip(
                       icon: Icons.print_rounded,
-                      label: 'বারকোড প্রিন্ট করুন',
+                      label: 'বারকোড প্রিন্ট',
                       color: const Color(0xFF673AB7),
                       backgroundColor: const Color(0xFFF3E5F5),
                       onTap: onPrintBarcode,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
                     _ActionChip(
                       icon: Icons.delete_outline_rounded,
                       label: 'মুছুন',
@@ -977,14 +977,19 @@ class _ActionChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.lg),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 16, color: color),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1273,7 +1278,11 @@ class _BarcodeField extends StatelessWidget {
           onPressed: onScan,
         ),
         suffixIcon: IconButton(
-          icon: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+          icon: const Icon(
+            Icons.refresh_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
           onPressed: onRegenerate,
         ),
         labelStyle: textTheme.labelSmall?.copyWith(
@@ -1286,10 +1295,7 @@ class _BarcodeField extends StatelessWidget {
 }
 
 class _PrintBarcodeDialog extends StatefulWidget {
-  const _PrintBarcodeDialog({
-    required this.productName,
-    required this.barcode,
-  });
+  const _PrintBarcodeDialog({required this.productName, required this.barcode});
 
   final String productName;
   final String barcode;

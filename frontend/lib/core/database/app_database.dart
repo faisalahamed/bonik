@@ -582,6 +582,16 @@ final class AppDatabase extends _$AppDatabase {
     )..where((user) => user.isCurrent.equals(true))).watchSingleOrNull();
   }
 
+  Stream<LocalShop?> watchCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(
+      localShops,
+    )..where((shop) => shop.id.isInQuery(currentShopIds))).watchSingleOrNull();
+  }
+
   Stream<bool> watchHasUnsyncedData() {
     return customSelect(
       '''
