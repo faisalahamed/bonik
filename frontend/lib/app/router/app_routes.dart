@@ -47,6 +47,9 @@ class AppRoutes {
   static const String recycleBin = '/recycle-bin';
   static const String notePad = '/notes';
   static const String others = '/others';
+  static const String customers = '/customers';
+  static const String suppliers = '/suppliers';
+  static const String productCategories = '/product-categories';
 
   const AppRoutes._();
 }

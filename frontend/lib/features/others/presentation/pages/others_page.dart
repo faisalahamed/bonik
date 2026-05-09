@@ -39,6 +39,7 @@ class OthersPage extends StatelessWidget {
                       icon: Icons.person_add_alt_1_rounded,
                       iconBackground: Color(0xFFEAF1FF),
                       iconColor: Color(0xFF4169C8),
+                      route: AppRoutes.customers,
                     ),
                     _OthersActionData(
                       title: 'সাপ্লায়ার',
@@ -46,6 +47,7 @@ class OthersPage extends StatelessWidget {
                       icon: Icons.group_add_rounded,
                       iconBackground: Color(0xFFE8F6EF),
                       iconColor: AppColors.primary,
+                      route: AppRoutes.suppliers,
                     ),
                   ],
                 ),
@@ -60,6 +62,7 @@ class OthersPage extends StatelessWidget {
                       icon: Icons.add_box_rounded,
                       iconBackground: Color(0xFFFFF0E6),
                       iconColor: Color(0xFFCE6D1D),
+                      route: AppRoutes.productCategories,
                     ),
                     _OthersActionData(
                       title: 'পণ্য ফেরত',

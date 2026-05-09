@@ -2921,6 +2921,23 @@ final class AppDatabase extends _$AppDatabase {
     )..where((customer) => customer.id.equals(id))).watchSingleOrNull();
   }
 
+  Stream<List<LocalCustomer>> watchCustomersForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localCustomers)
+          ..where(
+            (customer) =>
+                customer.deletedAt.isNull() &
+                customer.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)
+          ]))
+        .watch();
+  }
+
   Stream<List<LocalSaleItemDetail>> watchSaleItemDetails(String saleId) {
     return customSelect(
       '''
