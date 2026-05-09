@@ -637,6 +637,7 @@ class _PrimaryActionsRow extends StatelessWidget {
           child: _PrimaryActionButton(
             label: 'পণ্য বিক্রয়',
             icon: Icons.sell_rounded,
+            highlighted: true,
             onPressed: () => context.push(AppRoutes.sales),
           ),
         ),
@@ -650,38 +651,93 @@ class _PrimaryActionButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onPressed,
+    this.highlighted = false,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onPressed;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(AppRadii.md);
+    final foregroundColor = highlighted
+        ? const Color(0xFFFFF4C2)
+        : AppColors.onPrimary;
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: AppShadows.button,
+        color: highlighted ? AppColors.primaryContainer : null,
+        gradient: highlighted ? null : AppGradients.primaryButton,
+        borderRadius: borderRadius,
+        border: highlighted
+            ? Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1)
+            : null,
+        boxShadow: highlighted
+            ? const [
+                BoxShadow(
+                  color: Color(0x33006D5B),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ]
+            : AppShadows.button,
       ),
-      child: SizedBox(
-        height: 76,
-        child: ElevatedButton.icon(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            foregroundColor: AppColors.onPrimary,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.md),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: SizedBox(
+          height: 76,
+          child: ElevatedButton(
+            onPressed: onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: foregroundColor,
+              shadowColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              shape: RoundedRectangleBorder(borderRadius: borderRadius),
             ),
-          ),
-          icon: Icon(icon, size: 22),
-          label: Text(
-            label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: highlighted
+                      ? BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(AppRadii.sm),
+                        )
+                      : null,
+                  child: Icon(icon, color: foregroundColor, size: 22),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: foregroundColor,
+                        fontWeight: highlighted
+                            ? FontWeight.w900
+                            : FontWeight.w800,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ),
+                if (highlighted) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: foregroundColor,
+                    size: 19,
+                  ),
+                ],
+              ],
             ),
           ),
         ),

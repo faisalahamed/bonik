@@ -12,6 +12,15 @@ class AppGradients {
     ],
   );
 
+  static const LinearGradient highlightedButton = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [
+      AppColors.primaryContainer,
+      Color(0xFF00A889),
+    ],
+  );
+
   static const LinearGradient backgroundGlowTop = LinearGradient(
     begin: Alignment.topRight,
     end: Alignment.bottomLeft,
