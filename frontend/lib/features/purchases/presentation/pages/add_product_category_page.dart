@@ -818,3 +818,13 @@ class _ExistingCategoryTile extends StatelessWidget {
     );
   }
 }
+
+class AddProductCategoryDraft {
+  const AddProductCategoryDraft({
+    required this.name,
+    this.details = '',
+  });
+
+  final String name;
+  final String details;
+}
