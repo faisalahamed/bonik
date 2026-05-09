@@ -8,7 +8,7 @@
 8. no space to show the others income
 9. on tap multiple time added to cart but no way to decreaese the cart item count
 
-10. same product categoy name problem
+10. same product categoy,income category,expense catgory name problem
 
 https://laravel-bonik-main-4vxdps.free.laravel.cloud/api
 

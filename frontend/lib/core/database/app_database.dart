@@ -2188,6 +2188,18 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> restoreIncomeCategory(String id) async {
+    await (update(
+      localCategories,
+    )..where((table) => table.id.equals(id))).write(
+      LocalCategoriesCompanion(
+        updatedAt: Value(AppTime.nowUtc()),
+        deletedAt: const Value(null),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
   Future<List<LocalCategory>> getPendingProductCategories({String? shopId}) {
     return (select(localCategories)..where(
           (category) =>

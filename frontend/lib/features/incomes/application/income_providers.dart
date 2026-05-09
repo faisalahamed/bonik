@@ -11,3 +11,8 @@ final todayIncomeTotalProvider = StreamProvider<double>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return database.watchTodayIncomeTotalForCurrentShop();
 });
+
+final deletedIncomeCategoriesProvider = StreamProvider<List<LocalCategory>>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.watchDeletedIncomeCategoriesForCurrentShop();
+});
