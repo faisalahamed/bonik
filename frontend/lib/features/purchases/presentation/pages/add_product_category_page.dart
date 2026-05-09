@@ -110,6 +110,7 @@ class _AddProductCategoryPageState
                                             ConnectionState.waiting &&
                                         !snapshot.hasData,
                                     onDelete: _deleteCategory,
+                                    onEdit: _editCategory,
                                   );
                                 },
                               ),
@@ -228,6 +229,34 @@ class _AddProductCategoryPageState
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('"${category.name}" ফিরিয়ে আনা হয়েছে')),
+      );
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _editCategory(LocalCategory category) async {
+    final draft = await showDialog<AddProductCategoryDraft>(
+      context: context,
+      builder: (context) => _AddCategoryDialog(
+        initialName: category.name,
+        initialDetails: category.details,
+      ),
+    );
+
+    if (draft == null || draft.name.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await ref.read(appDatabaseProvider).updateProductCategory(
+            id: category.id,
+            name: draft.name,
+            details: draft.details,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ক্যাটাগরি আপডেট করা হয়েছে')),
       );
     } catch (error) {
       _showError(error);
@@ -458,11 +487,13 @@ class _ExistingCategoryList extends StatelessWidget {
     required this.categories,
     required this.isLoading,
     required this.onDelete,
+    required this.onEdit,
   });
 
   final List<LocalCategory> categories;
   final bool isLoading;
   final ValueChanged<LocalCategory> onDelete;
+  final ValueChanged<LocalCategory> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -499,7 +530,11 @@ class _ExistingCategoryList extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < categories.length; i++) ...[
-            _ExistingCategoryTile(category: categories[i], onDelete: onDelete),
+            _ExistingCategoryTile(
+              category: categories[i],
+              onDelete: onDelete,
+              onEdit: onEdit,
+            ),
             if (i != categories.length - 1)
               Divider(
                 height: 1,
@@ -748,11 +783,142 @@ class _DeletedCategoryTile extends StatelessWidget {
   }
 }
 
+class _AddCategoryDialog extends StatefulWidget {
+  final String? initialName;
+  final String? initialDetails;
+
+  const _AddCategoryDialog({this.initialName, this.initialDetails});
+
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  late final _nameController = TextEditingController(text: widget.initialName);
+  late final _detailsController =
+      TextEditingController(text: widget.initialDetails);
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  widget.initialName != null
+                      ? Icons.edit_note_rounded
+                      : Icons.add_box_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  widget.initialName != null
+                      ? 'ক্যাটাগরি এডিট'
+                      : 'নতুন ক্যাটাগরি',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            TextField(
+              controller: _nameController,
+              autofocus: widget.initialName == null,
+              decoration: InputDecoration(
+                labelText: 'ক্যাটাগরির নাম',
+                hintText: 'উদা: ইলেকট্রনিক্স',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                prefixIcon: const Icon(Icons.label_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              controller: _detailsController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'বিস্তারিত (ঐচ্ছিক)',
+                hintText: 'ক্যাটাগরি সম্পর্কে কিছু লিখুন...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                prefixIcon: const Icon(Icons.description_outlined),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('বাতিল'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final name = _nameController.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.pop(
+                        context,
+                        AddProductCategoryDraft(
+                          name: name,
+                          details: _detailsController.text.trim(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
+                    ),
+                    child: const Text('সেভ করুন'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ExistingCategoryTile extends StatelessWidget {
-  const _ExistingCategoryTile({required this.category, required this.onDelete});
+  const _ExistingCategoryTile({
+    required this.category,
+    required this.onDelete,
+    required this.onEdit,
+  });
 
   final LocalCategory category;
   final ValueChanged<LocalCategory> onDelete;
+  final ValueChanged<LocalCategory> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -807,6 +973,11 @@ class _ExistingCategoryTile extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+          IconButton(
+            onPressed: () => onEdit(category),
+            color: AppColors.textMuted,
+            icon: const Icon(Icons.edit_note_rounded),
           ),
           IconButton(
             onPressed: () => onDelete(category),

@@ -10,7 +10,15 @@ import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../application/cash_purchase_draft_controller.dart';
-import 'add_product_category_page.dart';
+
+class AddProductCategoryDraft {
+  const AddProductCategoryDraft({required this.name, this.details});
+
+  final String name;
+  final String? details;
+}
+
+enum _CategorySortMode { nameAsc, nameDesc, newest, oldest }
 
 class CashPurchasePage extends ConsumerStatefulWidget {
   const CashPurchasePage({super.key});
@@ -22,6 +30,7 @@ class CashPurchasePage extends ConsumerStatefulWidget {
 class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   final _searchController = TextEditingController();
   String _query = '';
+  _CategorySortMode _sortMode = _CategorySortMode.nameAsc;
 
   @override
   void initState() {
@@ -94,7 +103,10 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                         _PurchaseActionRow(
                           onShowDialog: _showAddCategoryDialog,
                           onNavigate: _navigateToManageCategories,
+                          onSort: _cycleSortMode,
                         ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _SortStatusLabel(label: _sortModeLabel),
                         const SizedBox(height: AppSpacing.xl),
                         if (snapshot.connectionState ==
                                 ConnectionState.waiting &&
@@ -132,13 +144,50 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   }
 
   List<LocalCategory> _filterCategories(List<LocalCategory> categories) {
-    if (_query.isEmpty) {
-      return categories;
-    }
+    final filtered = _query.isEmpty
+        ? List<LocalCategory>.of(categories)
+        : categories
+              .where((category) => category.name.toLowerCase().contains(_query))
+              .toList();
 
-    return categories
-        .where((category) => category.name.toLowerCase().contains(_query))
-        .toList();
+    filtered.sort((a, b) {
+      switch (_sortMode) {
+        case _CategorySortMode.nameAsc:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case _CategorySortMode.nameDesc:
+          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+        case _CategorySortMode.newest:
+          return b.createdAt.compareTo(a.createdAt);
+        case _CategorySortMode.oldest:
+          return a.createdAt.compareTo(b.createdAt);
+      }
+    });
+
+    return filtered;
+  }
+
+  String get _sortModeLabel {
+    switch (_sortMode) {
+      case _CategorySortMode.nameAsc:
+        return 'Sort: A-Z';
+      case _CategorySortMode.nameDesc:
+        return 'Sort: Z-A';
+      case _CategorySortMode.newest:
+        return 'Sort: Newest first';
+      case _CategorySortMode.oldest:
+        return 'Sort: Oldest first';
+    }
+  }
+
+  void _cycleSortMode() {
+    setState(() {
+      _sortMode = switch (_sortMode) {
+        _CategorySortMode.nameAsc => _CategorySortMode.nameDesc,
+        _CategorySortMode.nameDesc => _CategorySortMode.newest,
+        _CategorySortMode.newest => _CategorySortMode.oldest,
+        _CategorySortMode.oldest => _CategorySortMode.nameAsc,
+      };
+    });
   }
 
   Future<void> _showAddCategoryDialog() async {
@@ -166,9 +215,9 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -337,16 +386,18 @@ class _PurchaseActionRow extends StatelessWidget {
   const _PurchaseActionRow({
     required this.onShowDialog,
     required this.onNavigate,
+    required this.onSort,
   });
 
   final VoidCallback onShowDialog;
   final VoidCallback onNavigate;
+  final VoidCallback onSort;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _SmallActionIconButton(icon: Icons.sort_rounded, onPressed: () {}),
+        _SmallActionIconButton(icon: Icons.sort_rounded, onPressed: onSort),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Container(
@@ -382,6 +433,26 @@ class _PurchaseActionRow extends StatelessWidget {
           onPressed: onNavigate,
         ),
       ],
+    );
+  }
+}
+
+class _SortStatusLabel extends StatelessWidget {
+  const _SortStatusLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -593,7 +664,6 @@ class _EmptyCategoryState extends StatelessWidget {
     );
   }
 }
-
 
 class _AddCategoryDialog extends StatefulWidget {
   const _AddCategoryDialog();
