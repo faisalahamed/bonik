@@ -30,7 +30,7 @@ class DashboardAndroidPage extends StatelessWidget {
                 AppSpacing.md,
                 AppSpacing.xxl,
               ),
-              children: const [
+              children: [
                 _SummaryCard(),
                 SizedBox(height: AppSpacing.lg),
                 _PrimaryActionsRow(),
@@ -63,8 +63,19 @@ class DashboardAndroidPage extends StatelessWidget {
                     ),
                   ],
                 ),
-
-                SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xl),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'বিজ্ঞাপন',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const _DummyBanner(),
+                const SizedBox(height: AppSpacing.xl),
                 _DashboardSection(
                   title: 'হিসাব খাতা',
                   items: [
@@ -898,4 +909,141 @@ String _banglaNumber(String value) {
     '9': '৯',
   };
   return value.split('').map((char) => digits[char] ?? char).join();
+}
+
+class _DummyBanner extends StatelessWidget {
+  const _DummyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 110,
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Ad Label
+          Positioned(
+            left: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFCC00),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(AppRadii.md),
+                  bottomRight: Radius.circular(4),
+                ),
+              ),
+              child: const Text(
+                'Ad',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+          // AdChoices Icon
+          const Positioned(
+            right: 4,
+            top: 4,
+            child: Icon(
+              Icons.info_outline_rounded,
+              size: 14,
+              color: Colors.grey,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Row(
+              children: [
+                // Ad Icon Placeholder
+                Container(
+                  width: 86,
+                  height: 86,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F0F0),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                  ),
+                  child: const Icon(
+                    Icons.shopping_bag_rounded,
+                    color: Color(0xFF4285F4),
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Ad Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Boost Your Business with Bonik',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF202124),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Manage stock, sales, and accounts like a pro. Start your journey today!',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF5F6368),
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // CTA Button
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4285F4),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Text(
+                    'INSTALL',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
