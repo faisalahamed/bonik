@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tallyshop/core/database/app_database.dart';
+import 'package:tallyshop/app/theme/app_colors.dart';
+import 'package:tallyshop/app/theme/app_spacing.dart';
+import 'package:tallyshop/app/theme/app_radii.dart';
+import 'package:tallyshop/app/theme/app_shadows.dart';
+import 'package:tallyshop/app/theme/app_gradients.dart';
 
-import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_gradients.dart';
-import '../../../../app/theme/app_radii.dart';
-import '../../../../app/theme/app_shadows.dart';
-import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/database/app_database.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
-
-final _expenseCategoriesProvider = StreamProvider<List<LocalCategory>>(
-  (ref) =>
-      ref.watch(appDatabaseProvider).watchExpenseCategoriesForCurrentShop(),
-);
+enum _CategoryListMode { active, deleted }
 
 class ExpenseCategoriesPage extends ConsumerStatefulWidget {
   const ExpenseCategoriesPage({super.key});
@@ -23,85 +18,137 @@ class ExpenseCategoriesPage extends ConsumerStatefulWidget {
 }
 
 class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
-  final _nameController = TextEditingController();
-  LocalCategory? _editingCategory;
-  var _saving = false;
+  late final Stream<List<LocalCategory>> _categoriesStream;
+  late final Stream<List<LocalCategory>> _deletedCategoriesStream;
+  LocalCategory? _categoryPendingDelete;
+  LocalCategory? _categoryPendingRestore;
+  _CategoryListMode _listMode = _CategoryListMode.active;
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _categoriesStream = ref
+        .read(appDatabaseProvider)
+        .watchExpenseCategoriesForCurrentShop();
+    _deletedCategoriesStream = ref
+        .read(appDatabaseProvider)
+        .watchDeletedExpenseCategoriesForCurrentShop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(_expenseCategoriesProvider);
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'নতুন খরচের খাত'),
-      body: Stack(
+      body: Column(
         children: [
-          Positioned(
-            top: -60,
-            right: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowTop,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            left: -80,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowBottom,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.xl,
-                AppSpacing.md,
-                AppSpacing.xxl,
-              ),
+          _AddCategoryHeader(onBack: () => Navigator.of(context).pop()),
+          Expanded(
+            child: Stack(
               children: [
-                _ExpenseCategoryFormCard(
-                  controller: _nameController,
-                  editingCategory: _editingCategory,
-                  onCancelEdit: _clearForm,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                _SaveExpenseCategoryButton(
-                  saving: _saving,
-                  editing: _editingCategory != null,
-                  onPressed: _saving ? null : _saveCategory,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                categories.when(
-                  data: (items) => _ExpenseCategoryListSection(
-                    categories: items,
-                    onEdit: _startEdit,
-                    onDelete: _deleteCategory,
-                  ),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, stackTrace) => const _ExpenseCategoryListError(
-                    message: 'খরচের খাত লোড করা যায়নি',
+                Positioned(
+                  bottom: -120,
+                  left: -70,
+                  child: Container(
+                    width: 250,
+                    height: 250,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowBottom,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                const _ExpenseCategoryFooterNote(),
+                SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.xxl,
+                    AppSpacing.lg,
+                    AppSpacing.xxl,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 620),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _CategoryListToggle(
+                            selectedMode: _listMode,
+                            onChanged: (mode) {
+                              setState(() {
+                                _listMode = mode;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          if (_listMode == _CategoryListMode.active)
+                            Text(
+                              'বিদ্যমান খরচের খাতসমূহ',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                            ),
+                          if (_listMode == _CategoryListMode.active)
+                            const SizedBox(height: AppSpacing.lg),
+                          if (_listMode == _CategoryListMode.active)
+                            StreamBuilder<List<LocalCategory>>(
+                              stream: _categoriesStream,
+                              builder: (context, snapshot) {
+                                return _ExistingCategoryList(
+                                  categories: snapshot.data ?? const [],
+                                  isLoading:
+                                      snapshot.connectionState ==
+                                          ConnectionState.waiting &&
+                                      !snapshot.hasData,
+                                  onDelete: _deleteCategory,
+                                  onEdit: _editCategory,
+                                );
+                              },
+                            ),
+                          const SizedBox(height: AppSpacing.xxl),
+                          if (_listMode == _CategoryListMode.deleted)
+                            Text(
+                              'ডিলিট করা খরচের খাতসমূহ',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                            ),
+                          if (_listMode == _CategoryListMode.deleted)
+                            const SizedBox(height: AppSpacing.lg),
+                          if (_listMode == _CategoryListMode.deleted)
+                            StreamBuilder<List<LocalCategory>>(
+                              stream: _deletedCategoriesStream,
+                              builder: (context, snapshot) {
+                                return _DeletedCategoryList(
+                                  categories: snapshot.data ?? const [],
+                                  isLoading:
+                                      snapshot.connectionState ==
+                                          ConnectionState.waiting &&
+                                      !snapshot.hasData,
+                                  onRestore: _restoreCategory,
+                                );
+                              },
+                            ),
+                          const SizedBox(height: AppSpacing.xxl),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_categoryPendingDelete != null)
+                  _DeleteCategoryConfirmation(
+                    category: _categoryPendingDelete!,
+                    onCancel: _cancelDelete,
+                    onConfirm: _confirmDelete,
+                  ),
+                if (_categoryPendingRestore != null)
+                  _RestoreCategoryConfirmation(
+                    category: _categoryPendingRestore!,
+                    onCancel: _cancelRestore,
+                    onConfirm: _confirmRestore,
+                  ),
               ],
             ),
           ),
@@ -110,123 +157,437 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
     );
   }
 
-  Future<void> _saveCategory() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('খরচের খাতের নাম দিন')));
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-    });
-
-    try {
-      final database = ref.read(appDatabaseProvider);
-      final editing = _editingCategory;
-      if (editing == null) {
-        await database.createExpenseCategory(name);
-      } else {
-        await database.updateExpenseCategory(id: editing.id, name: name);
-      }
-
-      if (!mounted) {
-        return;
-      }
-      _clearForm();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            editing == null ? 'খরচের খাত সেভ হয়েছে' : 'খরচের খাত আপডেট হয়েছে',
-          ),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
-    }
-  }
-
-  void _startEdit(LocalCategory category) {
-    setState(() {
-      _editingCategory = category;
-      _nameController.text = category.name;
-    });
-  }
-
   Future<void> _deleteCategory(LocalCategory category) async {
+    setState(() {
+      _categoryPendingDelete = category;
+    });
+  }
+
+  Future<void> _restoreCategory(LocalCategory category) async {
+    setState(() {
+      _categoryPendingRestore = category;
+    });
+  }
+
+  void _cancelDelete() {
+    setState(() {
+      _categoryPendingDelete = null;
+    });
+  }
+
+  void _cancelRestore() {
+    setState(() {
+      _categoryPendingRestore = null;
+    });
+  }
+
+  Future<void> _confirmDelete() async {
+    final category = _categoryPendingDelete;
+    if (category == null) return;
+
     try {
       await ref.read(appDatabaseProvider).deleteExpenseCategory(category.id);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      setState(() {
+        _categoryPendingDelete = null;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('খরচের খাত মুছে দেওয়া হয়েছে')),
+        SnackBar(content: Text('"${category.name}" ডিলিট হয়েছে')),
       );
-      if (_editingCategory?.id == category.id) {
-        _clearForm();
-      }
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      _showError(error);
     }
   }
 
-  void _clearForm() {
-    setState(() {
-      _editingCategory = null;
-      _nameController.clear();
-    });
+  Future<void> _confirmRestore() async {
+    final category = _categoryPendingRestore;
+    if (category == null) return;
+
+    try {
+      await ref.read(appDatabaseProvider).restoreExpenseCategory(category.id);
+      if (!mounted) return;
+      setState(() {
+        _categoryPendingRestore = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${category.name}" ফিরিয়ে আনা হয়েছে')),
+      );
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _editCategory(LocalCategory category) async {
+    final draft = await showDialog<_AddExpenseCategoryDraft>(
+      context: context,
+      builder: (context) => _AddCategoryDialog(
+        initialName: category.name,
+        initialDetails: category.details,
+      ),
+    );
+
+    if (draft == null || draft.name.trim().isEmpty) return;
+
+    try {
+      await ref.read(appDatabaseProvider).updateExpenseCategory(
+            id: category.id,
+            name: draft.name,
+            details: draft.details,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ক্যাটাগরি আপডেট করা হয়েছে')),
+      );
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error.toString())),
+    );
   }
 }
 
-class _ExpenseCategoryFormCard extends StatelessWidget {
-  const _ExpenseCategoryFormCard({
-    required this.controller,
-    required this.editingCategory,
-    required this.onCancelEdit,
+class _AddCategoryHeader extends StatelessWidget {
+  const _AddCategoryHeader({required this.onBack});
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 48, AppSpacing.lg, 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppRadii.xl),
+          bottomRight: Radius.circular(AppRadii.xl),
+        ),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            'খরচের খাতসমূহ',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryListToggle extends StatelessWidget {
+  const _CategoryListToggle({
+    required this.selectedMode,
+    required this.onChanged,
   });
 
-  final TextEditingController controller;
-  final LocalCategory? editingCategory;
-  final VoidCallback onCancelEdit;
+  final _CategoryListMode selectedMode;
+  final ValueChanged<_CategoryListMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      child: Row(
+        children: [
+          _CategoryListToggleButton(
+            title: 'বিদ্যমান',
+            isSelected: selectedMode == _CategoryListMode.active,
+            onPressed: () => onChanged(_CategoryListMode.active),
+          ),
+          _CategoryListToggleButton(
+            title: 'ডিলিট করা',
+            isSelected: selectedMode == _CategoryListMode.deleted,
+            onPressed: () => onChanged(_CategoryListMode.deleted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryListToggleButton extends StatelessWidget {
+  const _CategoryListToggleButton({
+    required this.title,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final String title;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            boxShadow: isSelected ? AppShadows.soft : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: isSelected ? AppColors.primary : AppColors.textMuted,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExistingCategoryList extends StatelessWidget {
+  const _ExistingCategoryList({
+    required this.categories,
+    required this.isLoading,
+    required this.onDelete,
+    required this.onEdit,
+  });
+
+  final List<LocalCategory> categories;
+  final bool isLoading;
+  final ValueChanged<LocalCategory> onDelete;
+  final ValueChanged<LocalCategory> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Text(
+          'এখনও কোনো খরচের খাত নেই',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (var i = 0; i < categories.length; i++) ...[
+          _ExistingCategoryTile(
+            category: categories[i],
+            onDelete: onDelete,
+            onEdit: onEdit,
+          ),
+          if (i != categories.length - 1) const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExistingCategoryTile extends StatelessWidget {
+  const _ExistingCategoryTile({
+    required this.category,
+    required this.onDelete,
+    required this.onEdit,
+  });
+
+  final LocalCategory category;
+  final ValueChanged<LocalCategory> onDelete;
+  final ValueChanged<LocalCategory> onEdit;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final details = category.details?.trim();
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFB2DFDB),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    (details != null && details.isNotEmpty)
+                        ? details.toUpperCase()
+                        : 'NO DETAILS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => onEdit(category),
+              color: AppColors.textMuted,
+              icon: const Icon(Icons.edit_note_rounded, size: 22),
+            ),
+            IconButton(
+              onPressed: () => onDelete(category),
+              color: AppColors.textMuted,
+              icon: const Icon(Icons.delete_rounded, size: 22),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeletedCategoryList extends StatelessWidget {
+  const _DeletedCategoryList({
+    required this.categories,
+    required this.isLoading,
+    required this.onRestore,
+  });
+
+  final List<LocalCategory> categories;
+  final bool isLoading;
+  final ValueChanged<LocalCategory> onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.soft,
+        ),
+        child: Text(
+          'কোনো ডিলিট করা খরচের খাত নেই',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      );
+    }
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
+      child: Column(
+        children: [
+          for (var i = 0; i < categories.length; i++) ...[
+            _DeletedCategoryTile(category: categories[i], onRestore: onRestore),
+            if (i != categories.length - 1)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: AppColors.textMuted.withValues(alpha: 0.16),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DeletedCategoryTile extends StatelessWidget {
+  const _DeletedCategoryTile({required this.category, required this.onRestore});
+
+  final LocalCategory category;
+  final ValueChanged<LocalCategory> onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = category.details?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.lg,
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 4,
-            height: 128,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(99),
+              color: AppColors.textMuted.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.delete_rounded,
+              color: AppColors.textMuted.withValues(alpha: 0.86),
+              size: 28,
             ),
           ),
           const SizedBox(width: AppSpacing.lg),
@@ -234,312 +595,360 @@ class _ExpenseCategoryFormCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        editingCategory == null
-                            ? 'খরচের ধরনের নাম'
-                            : 'খরচের খাত এডিট',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w800,
+                Text(
+                  category.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.textPrimary.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                if (details != null && details.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    ),
-                    if (editingCategory != null)
-                      TextButton(
-                        onPressed: onCancelEdit,
-                        child: const Text('বাতিল'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    hintText: 'খরচের ধরনের নাম',
                   ),
-                ),
+                ],
+                if (category.deletedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'ডিলিট: ${_formatDeletedAt(category.deletedAt!)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted.withValues(alpha: 0.72),
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
               ],
             ),
+          ),
+          IconButton(
+            onPressed: () => onRestore(category),
+            color: AppColors.primary,
+            icon: const Icon(Icons.restore_rounded),
           ),
         ],
       ),
     );
   }
-}
 
-class _SaveExpenseCategoryButton extends StatelessWidget {
-  const _SaveExpenseCategoryButton({
-    required this.saving,
-    required this.editing,
-    required this.onPressed,
-  });
+  String _formatDeletedAt(DateTime value) {
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
 
-  final bool saving;
-  final bool editing;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: AppShadows.button,
-      ),
-      child: SizedBox(
-        height: 60,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            foregroundColor: AppColors.onPrimary,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-          ),
-          child: Text(
-            saving ? 'সেভ হচ্ছে' : (editing ? 'আপডেট করুন' : 'সেভ করুন'),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ),
-    );
+    return '$day/$month/$year $hour:$minute';
   }
 }
 
-class _ExpenseCategoryListSection extends StatelessWidget {
-  const _ExpenseCategoryListSection({
-    required this.categories,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final List<LocalCategory> categories;
-  final ValueChanged<LocalCategory> onEdit;
-  final ValueChanged<LocalCategory> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Text(
-            'বিদ্যমান খরচের খাতসমূহ',
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            boxShadow: AppShadows.soft,
-          ),
-          child: categories.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(AppSpacing.lg),
-                  child: Center(child: Text('এখনও কোনো খরচের খাত নেই')),
-                )
-              : Column(
-                  children: [
-                    for (var i = 0; i < categories.length; i++) ...[
-                      _ExpenseCategoryListItem(
-                        category: categories[i],
-                        onEdit: () => onEdit(categories[i]),
-                        onDelete: () => onDelete(categories[i]),
-                      ),
-                      if (i != categories.length - 1)
-                        const Divider(
-                          height: 1,
-                          color: AppColors.surfaceContainerHigh,
-                        ),
-                    ],
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ExpenseCategoryListError extends StatelessWidget {
-  const _ExpenseCategoryListError({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpenseCategoryListItem extends StatelessWidget {
-  const _ExpenseCategoryListItem({
+class _DeleteCategoryConfirmation extends StatelessWidget {
+  const _DeleteCategoryConfirmation({
     required this.category,
-    required this.onEdit,
-    required this.onDelete,
+    required this.onCancel,
+    required this.onConfirm,
   });
 
   final LocalCategory category;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
 
   @override
   Widget build(BuildContext context) {
-    final icon = _iconForCategory(category.name);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: icon.background,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon.icon, color: icon.color, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.24)),
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 620),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  boxShadow: AppShadows.button,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  category.syncStatus == 'pending' ? 'সিঙ্ক বাকি' : 'সিঙ্কড',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'খরচের খাত ডিলিট করবেন?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '"${category.name}" লোকাল থেকে সরানো হবে এবং অনলাইনে সিঙ্ক হবে।',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onCancel,
+                            child: const Text('না'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: onConfirm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('ডিলিট'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-          IconButton(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_rounded, color: AppColors.textMuted),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExpenseCategoryFooterNote extends StatelessWidget {
-  const _ExpenseCategoryFooterNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      child: Text(
-        'একটি নতুন বিভাগ তৈরি করুন যা আপনার দৈনিক খরচ সঠিকভাবে ট্র্যাক করতে সাহায্য করবে।',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: AppColors.textMuted,
-          fontStyle: FontStyle.italic,
-          height: 1.5,
         ),
       ),
     );
   }
 }
 
-class _CategoryIconStyle {
-  const _CategoryIconStyle({
-    required this.icon,
-    required this.background,
-    required this.color,
+class _RestoreCategoryConfirmation extends StatelessWidget {
+  const _RestoreCategoryConfirmation({
+    required this.category,
+    required this.onCancel,
+    required this.onConfirm,
   });
 
-  final IconData icon;
-  final Color background;
-  final Color color;
+  final LocalCategory category;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.24)),
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 620),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  boxShadow: AppShadows.button,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'খরচের খাত ফিরিয়ে আনবেন?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '"${category.name}" আবার বিদ্যমান তালিকায় ফিরবে এবং অনলাইনে সিঙ্ক হবে।',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onCancel,
+                            child: const Text('না'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: onConfirm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('ফিরিয়ে আনুন'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-_CategoryIconStyle _iconForCategory(String name) {
-  final lower = name.toLowerCase();
-  if (lower.contains('salary') || lower.contains('বেতন')) {
-    return const _CategoryIconStyle(
-      icon: Icons.payments_rounded,
-      background: Color(0xFFE8F6EF),
-      color: AppColors.primary,
+class _AddCategoryDialog extends StatefulWidget {
+  final String? initialName;
+  final String? initialDetails;
+
+  const _AddCategoryDialog({this.initialName, this.initialDetails});
+
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  late final _nameController = TextEditingController(text: widget.initialName);
+  late final _detailsController =
+      TextEditingController(text: widget.initialDetails);
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  widget.initialName != null
+                      ? Icons.edit_note_rounded
+                      : Icons.add_box_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  widget.initialName != null
+                      ? 'খরচের খাত এডিট'
+                      : 'নতুন খরচের খাত',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            TextField(
+              controller: _nameController,
+              autofocus: widget.initialName == null,
+              decoration: InputDecoration(
+                labelText: 'খাতের নাম',
+                hintText: 'উদা: দোকান ভাড়া',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                prefixIcon: const Icon(Icons.label_outline_rounded),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              controller: _detailsController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'বিস্তারিত (ঐচ্ছিক)',
+                hintText: 'খাত সম্পর্কে কিছু লিখুন...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                prefixIcon: const Icon(Icons.description_outlined),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('বাতিল'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final name = _nameController.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.pop(
+                        context,
+                        _AddExpenseCategoryDraft(
+                          name: name,
+                          details: _detailsController.text.trim(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
+                    ),
+                    child: const Text('সেভ করুন'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
-  if (lower.contains('rent') || lower.contains('ভাড়া')) {
-    return const _CategoryIconStyle(
-      icon: Icons.home_rounded,
-      background: Color(0xFFEAF7F2),
-      color: AppColors.secondary,
-    );
-  }
-  if (lower.contains('bill') || lower.contains('বিল')) {
-    return const _CategoryIconStyle(
-      icon: Icons.receipt_long_rounded,
-      background: Color(0xFFF1F4F2),
-      color: AppColors.primaryContainer,
-    );
-  }
-  if (lower.contains('grocery') ||
-      lower.contains('market') ||
-      lower.contains('বাজার')) {
-    return const _CategoryIconStyle(
-      icon: Icons.shopping_cart_rounded,
-      background: Color(0xFFE8F6EF),
-      color: AppColors.primary,
-    );
-  }
-  return const _CategoryIconStyle(
-    icon: Icons.category_rounded,
-    background: Color(0xFFE8F6EF),
-    color: AppColors.primary,
-  );
+}
+
+class _AddExpenseCategoryDraft {
+  const _AddExpenseCategoryDraft({
+    required this.name,
+    this.details = '',
+  });
+
+  final String name;
+  final String details;
 }

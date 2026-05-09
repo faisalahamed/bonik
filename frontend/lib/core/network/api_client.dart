@@ -1,6 +1,8 @@
-import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 
@@ -14,12 +16,14 @@ class ApiClient {
   final Duration requestTimeout;
 
   String get baseUrl {
-    if (Platform.isAndroid &&
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
         AppConfig.apiBaseUrl.startsWith('http://127.0.0.1')) {
       return AppConfig.apiBaseUrl.replaceFirst('127.0.0.1', '10.0.2.2');
     }
 
-    if (Platform.isAndroid &&
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
         AppConfig.apiBaseUrl.startsWith('http://localhost')) {
       return AppConfig.apiBaseUrl.replaceFirst('localhost', '10.0.2.2');
     }
@@ -31,22 +35,13 @@ class ApiClient {
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final client = HttpClient();
-    client.connectionTimeout = connectionTimeout;
     final uri = Uri.parse('$baseUrl$path');
 
     try {
-      final request = await client.postUrl(uri).timeout(requestTimeout);
-      request.headers.contentType = ContentType.json;
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      request.write(jsonEncode(body));
-
-      final response = await request.close().timeout(requestTimeout);
-      final responseBody = await response
-          .transform(utf8.decoder)
-          .join()
+      final response = await http
+          .post(uri, headers: _jsonHeaders, body: jsonEncode(body))
           .timeout(requestTimeout);
-      final decoded = _decodeResponse(responseBody);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(
@@ -56,14 +51,12 @@ class ApiClient {
       }
 
       return decoded;
-    } on SocketException {
-      throw const ApiException('Could not connect to the server.');
     } on TimeoutException {
       throw const ApiException('Could not connect to the server.');
     } on FormatException {
       throw const ApiException('Server returned an invalid response.');
-    } finally {
-      client.close();
+    } on http.ClientException {
+      throw const ApiException('Could not connect to the server.');
     }
   }
 
@@ -71,23 +64,16 @@ class ApiClient {
     String path, {
     Map<String, String> queryParameters = const {},
   }) async {
-    final client = HttpClient();
-    client.connectionTimeout = connectionTimeout;
     final baseUri = Uri.parse('$baseUrl$path');
     final uri = baseUri.replace(
       queryParameters: {...baseUri.queryParameters, ...queryParameters},
     );
 
     try {
-      final request = await client.getUrl(uri).timeout(requestTimeout);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-
-      final response = await request.close().timeout(requestTimeout);
-      final responseBody = await response
-          .transform(utf8.decoder)
-          .join()
+      final response = await http
+          .get(uri, headers: _acceptJsonHeaders)
           .timeout(requestTimeout);
-      final decoded = _decodeResponse(responseBody);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(
@@ -97,16 +83,23 @@ class ApiClient {
       }
 
       return decoded;
-    } on SocketException {
-      throw const ApiException('Could not connect to the server.');
     } on TimeoutException {
       throw const ApiException('Could not connect to the server.');
     } on FormatException {
       throw const ApiException('Server returned an invalid response.');
-    } finally {
-      client.close();
+    } on http.ClientException {
+      throw const ApiException('Could not connect to the server.');
     }
   }
+
+  static const Map<String, String> _acceptJsonHeaders = {
+    'Accept': 'application/json',
+  };
+
+  static const Map<String, String> _jsonHeaders = {
+    ..._acceptJsonHeaders,
+    'Content-Type': 'application/json',
+  };
 
   Map<String, dynamic> _decodeResponse(String responseBody) {
     if (responseBody.isEmpty) {

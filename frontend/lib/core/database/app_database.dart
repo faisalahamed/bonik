@@ -354,7 +354,16 @@ class LocalNotes extends Table {
 )
 final class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
-    : super(executor ?? driftDatabase(name: 'bonik'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'bonik',
+              web: DriftWebOptions(
+                sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+                driftWorker: Uri.parse('drift_worker.js'),
+              ),
+            ),
+      );
 
   @override
   int get schemaVersion => 15;
@@ -1263,6 +1272,22 @@ final class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<List<LocalCategory>> watchDeletedExpenseCategoriesForCurrentShop() {
+    final currentShopIds = selectOnly(localUsers)
+      ..addColumns([localUsers.shopId])
+      ..where(localUsers.isCurrent.equals(true));
+
+    return (select(localCategories)
+          ..where(
+            (category) =>
+                category.type.equals('expense') &
+                category.deletedAt.isNotNull() &
+                category.shopId.isInQuery(currentShopIds),
+          )
+          ..orderBy([(category) => OrderingTerm.desc(category.deletedAt)]))
+        .watch();
+  }
+
   Stream<double> watchTodayExpenseTotalForCurrentShop() {
     final start = AppTime.startOfLocalDayUtc();
     final end = AppTime.endOfLocalDayUtc();
@@ -2151,6 +2176,18 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> restoreExpenseCategory(String id) async {
+    await (update(
+      localCategories,
+    )..where((table) => table.id.equals(id))).write(
+      LocalCategoriesCompanion(
+        updatedAt: Value(AppTime.nowUtc()),
+        deletedAt: const Value(null),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
   Future<List<LocalCategory>> getPendingProductCategories({String? shopId}) {
     return (select(localCategories)..where(
           (category) =>
@@ -2933,7 +2970,8 @@ final class AppDatabase extends _$AppDatabase {
                 customer.shopId.isInQuery(currentShopIds),
           )
           ..orderBy([
-            (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)
+            (t) =>
+                OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
           ]))
         .watch();
   }

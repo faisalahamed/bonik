@@ -211,7 +211,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ক্যাটাগরি সফলভাবে যোগ করা হয়েছে')),
+        const SnackBar(content: Text('পণ্য সফলভাবে যোগ করা হয়েছে')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -416,7 +416,7 @@ class _PurchaseActionRow extends StatelessWidget {
                   const Icon(Icons.add_rounded, color: Colors.white),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'প্রোডক্ট ক্যাটাগরি যোগ করুন',
+                    'পণ্যের নাম যোগ',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,

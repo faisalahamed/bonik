@@ -41,7 +41,7 @@ class DashboardAndroidPage extends StatelessWidget {
                   title: 'আপনার প্রতিষ্ঠান',
                   items: [
                     _DashboardMenuItemData(
-                      label: 'পণ্য যোগ',
+                      label: 'পণ্য ক্রয়',
                       icon: Icons.add_box_rounded,
                       iconBackground: Color(0xFFFFF0E6),
                       iconColor: Color(0xFFCE6D1D),
