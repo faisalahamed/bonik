@@ -50,6 +50,7 @@ class AppRoutes {
   static const String customers = '/customers';
   static const String suppliers = '/suppliers';
   static const String productCategories = '/product-categories';
+  static const String manageProductCategories = '/purchase/categories/manage';
 
   const AppRoutes._();
 }

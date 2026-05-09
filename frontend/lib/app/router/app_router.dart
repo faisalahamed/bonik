@@ -57,6 +57,7 @@ import '../../features/others/presentation/pages/others_page.dart';
 import '../../features/others/presentation/pages/customer_list_page.dart';
 import '../../features/others/presentation/pages/supplier_list_page.dart';
 import '../../features/others/presentation/pages/product_category_list_page.dart';
+import '../../features/purchases/presentation/pages/add_product_category_page.dart';
 import 'app_routes.dart';
 
 final appNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -364,6 +365,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.productCategories,
         name: 'product-categories',
         builder: (context, state) => const ProductCategoryListPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.manageProductCategories,
+        name: 'manage-product-categories',
+        builder: (context, state) => const AddProductCategoryPage(),
       ),
     ],
     redirect: routerNotifier.redirect,

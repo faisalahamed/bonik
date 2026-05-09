@@ -61,7 +61,7 @@ class OtherIncomePage extends StatelessWidget {
                     SizedBox(height: AppSpacing.md),
                     _IncomeSearchBox(),
                     SizedBox(height: AppSpacing.lg),
-                    _IncomeCategoryGrid(),
+                    _IncomeCategoryList(),
                   ],
                 ),
               ],
@@ -256,8 +256,8 @@ class _IncomeSearchBox extends StatelessWidget {
   }
 }
 
-class _IncomeCategoryGrid extends ConsumerWidget {
-  const _IncomeCategoryGrid();
+class _IncomeCategoryList extends ConsumerWidget {
+  const _IncomeCategoryList();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -273,60 +273,17 @@ class _IncomeCategoryGrid extends ConsumerWidget {
             ),
           );
         }
-        return GridView.builder(
+        return ListView.separated(
           itemCount: categories.length,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: AppSpacing.md,
-            crossAxisSpacing: AppSpacing.md,
-            childAspectRatio: 0.95,
-          ),
+          separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (context, index) {
             final category = categories[index];
-            final iconStyle = _iconForIncomeCategory(category.name);
-
-            return Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.push(
-                  '${AppRoutes.otherIncomeCreate}/${Uri.encodeComponent(category.name)}',
-                ),
-                borderRadius: BorderRadius.circular(AppRadii.xl),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(AppRadii.xl),
-                    boxShadow: AppShadows.soft,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: iconStyle.background,
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                        ),
-                        child: Icon(
-                          iconStyle.icon,
-                          color: iconStyle.color,
-                          size: 30,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        category.name,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
+            return _IncomeCategoryCard(
+              name: category.name,
+              onTap: () => context.push(
+                '${AppRoutes.otherIncomeCreate}/${Uri.encodeComponent(category.name)}',
               ),
             );
           },
@@ -335,6 +292,95 @@ class _IncomeCategoryGrid extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stackTrace) => Center(
         child: Text('আয়ের খাত লোড করা যায়নি: $error'),
+      ),
+    );
+  }
+}
+
+class _IncomeCategoryCard extends StatelessWidget {
+  const _IncomeCategoryCard({
+    required this.name,
+    required this.onTap,
+  });
+
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE082), // Default yellow from image
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'INCOME CATEGORY',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F7F6),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'আয় যোগ',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted,
+                size: 28,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

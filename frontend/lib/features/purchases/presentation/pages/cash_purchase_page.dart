@@ -9,7 +9,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../application/cash_purchase_draft_controller.dart';
 import 'add_product_category_page.dart';
 
@@ -47,85 +46,82 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'পণ্য ক্রয়'),
-      body: Stack(
+      body: Column(
         children: [
-          Positioned(
-            top: -80,
-            right: -70,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowTop,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            left: -70,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowBottom,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
+          _PurchaseTopBar(itemCount: purchaseDraft.lines.length),
+          Expanded(
             child: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    112,
-                  ),
-                  child: StreamBuilder<List<LocalCategory>>(
-                    stream: database.watchProductCategoriesForCurrentShop(),
-                    builder: (context, snapshot) {
-                      final categories = _filterCategories(snapshot.data ?? []);
-
-                      return ListView(
-                        children: [
-                          _PurchaseSearchBar(controller: _searchController),
-                          const SizedBox(height: AppSpacing.lg),
-                          _AddCategoryButton(onPressed: _showAddCategoryPage),
-                          const SizedBox(height: AppSpacing.xl),
-                          if (snapshot.connectionState ==
-                                  ConnectionState.waiting &&
-                              categories.isEmpty)
-                            const Center(child: CircularProgressIndicator())
-                          else if (categories.isEmpty)
-                            const _EmptyCategoryState()
-                          else
-                            for (var i = 0; i < categories.length; i++) ...[
-                              _CategoryCard(
-                                category: categories[i],
-                                isSelected: purchaseDraft.lines.containsKey(
-                                  categories[i].id,
-                                ),
-                                onTap: () =>
-                                    _toggleCategorySelection(categories[i]),
-                              ),
-                              if (i != categories.length - 1)
-                                const SizedBox(height: AppSpacing.md),
-                            ],
-                        ],
-                      );
-                    },
+                Positioned(
+                  top: -80,
+                  right: -70,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowTop,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-                _PurchaseBottomBar(
-                  itemCount: _cartItemCount,
-                  onContinue: _openPurchaseReview,
+                Positioned(
+                  bottom: -120,
+                  left: -70,
+                  child: Container(
+                    width: 240,
+                    height: 240,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowBottom,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                StreamBuilder<List<LocalCategory>>(
+                  stream: database.watchProductCategoriesForCurrentShop(),
+                  builder: (context, snapshot) {
+                    final categories = _filterCategories(snapshot.data ?? []);
+
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        100,
+                      ),
+                      children: [
+                        _PurchaseSearchBar(controller: _searchController),
+                        const SizedBox(height: AppSpacing.lg),
+                        _PurchaseActionRow(onAddCategory: _showAddCategoryPage),
+                        const SizedBox(height: AppSpacing.xl),
+                        if (snapshot.connectionState ==
+                                ConnectionState.waiting &&
+                            categories.isEmpty)
+                          const Center(child: CircularProgressIndicator())
+                        else if (categories.isEmpty)
+                          const _EmptyCategoryState()
+                        else
+                          for (var i = 0; i < categories.length; i++) ...[
+                            _CategoryCard(
+                              category: categories[i],
+                              isSelected: purchaseDraft.lines.containsKey(
+                                categories[i].id,
+                              ),
+                              onTap: () =>
+                                  _toggleCategorySelection(categories[i]),
+                            ),
+                            if (i != categories.length - 1)
+                              const SizedBox(height: AppSpacing.md),
+                          ],
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
+          ),
+          _PurchaseBottomAction(
+            onPressed: _openPurchaseReview,
+            enabled: purchaseDraft.lines.isNotEmpty,
           ),
         ],
       ),
@@ -145,8 +141,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   Future<void> _showAddCategoryPage() async {
     final draft = await showDialog<AddProductCategoryDraft>(
       context: context,
-      useSafeArea: false,
-      builder: (context) => const AddProductCategoryPage(),
+      builder: (context) => const _AddCategoryDialog(),
     );
 
     if (draft == null || draft.name.trim().isEmpty) {
@@ -161,19 +156,17 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
       await ref
           .read(appDatabaseProvider)
           .createProductCategory(draft.name, details: draft.details);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ক্যাটাগরি সফলভাবে যোগ করা হয়েছে')),
+      );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
     }
-  }
-
-  int get _cartItemCount {
-    return ref.read(cashPurchaseDraftProvider).lines.length;
   }
 
   void _toggleCategorySelection(LocalCategory category) {
@@ -203,6 +196,88 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   }
 }
 
+class _PurchaseTopBar extends StatelessWidget {
+  const _PurchaseTopBar({required this.itemCount});
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'পণ্য ক্রয়',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.shopping_cart_rounded,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  if (itemCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE53935),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          '$itemCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PurchaseSearchBar extends StatelessWidget {
   const _PurchaseSearchBar({required this.controller});
 
@@ -211,26 +286,25 @@ class _PurchaseSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.soft,
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
       ),
       child: Row(
         children: [
+          const Icon(
+            Icons.search_rounded,
+            color: AppColors.textMuted,
+            size: 28,
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: TextField(
               controller: controller,
               decoration: const InputDecoration(
                 hintText: 'Search product category...',
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textMuted,
-                ),
+                hintStyle: TextStyle(color: AppColors.textMuted),
                 fillColor: Colors.transparent,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -238,14 +312,13 @@ class _PurchaseSearchBar extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5FAF8),
-              borderRadius: BorderRadius.circular(AppRadii.md),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.tune_rounded,
+              color: AppColors.primary,
+              size: 28,
             ),
-            child: const Icon(Icons.tune_rounded, color: AppColors.primary),
           ),
         ],
       ),
@@ -253,40 +326,73 @@ class _PurchaseSearchBar extends StatelessWidget {
   }
 }
 
-class _AddCategoryButton extends StatelessWidget {
-  const _AddCategoryButton({required this.onPressed});
+class _PurchaseActionRow extends StatelessWidget {
+  const _PurchaseActionRow({required this.onAddCategory});
 
+  final VoidCallback onAddCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _SmallActionIconButton(icon: Icons.sort_rounded, onPressed: () {}),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              boxShadow: AppShadows.button,
+            ),
+            child: InkWell(
+              onTap: onAddCategory,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.add_rounded, color: Colors.white),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'প্রোডক্ট ক্যাটাগরি যোগ করুন',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _SmallActionIconButton(
+          icon: Icons.add_box_outlined,
+          onPressed: onAddCategory,
+        ),
+      ],
+    );
+  }
+}
+
+class _SmallActionIconButton extends StatelessWidget {
+  const _SmallActionIconButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Container(
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
+        color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.button,
       ),
-      child: SizedBox(
-        height: 64,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-          ),
-          child: Text(
-            'প্রোডাক্ট ক্যাটাগরি বা নাম যোগ করুন',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: AppColors.textPrimary),
       ),
     );
   }
@@ -305,48 +411,32 @@ class _CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = category.syncStatus == 'pending';
+    final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: Colors.transparent,
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFFF1F7F6) : Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+        border: isSelected
+            ? const Border(left: BorderSide(color: AppColors.primary, width: 4))
+            : null,
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.05)
-                : AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            border: isSelected
-                ? Border.all(color: AppColors.primary.withValues(alpha: 0.18))
-                : null,
-            boxShadow: AppShadows.soft,
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              if (isPending)
-                Container(
-                  width: 4,
-                  height: 72,
-                  margin: const EdgeInsets.only(right: AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
               Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFF1C7),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.blur_on_rounded,
-                  color: Color(0xFFD88400),
-                  size: 28,
+                width: 10,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFB2DFDB)
+                      : const Color(0xFFFFE082),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -356,45 +446,112 @@ class _CategoryCard extends StatelessWidget {
                   children: [
                     Text(
                       category.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      style: textTheme.titleMedium?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      isPending ? 'সিঙ্ক অপেক্ষায়' : category.details ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      category.details?.toUpperCase() ?? 'NO DETAILS',
+                      style: textTheme.labelSmall?.copyWith(
                         color: AppColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (isSelected)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.sm,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2F1),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '১২০ টি',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(99),
+                  const SizedBox(height: 2),
+                  Text(
+                    'স্টক আছে',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.add_shopping_cart_rounded,
-                  color: AppColors.primary,
-                ),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(
+                isSelected
+                    ? Icons.check_circle_rounded
+                    : Icons.chevron_right_rounded,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
+                size: 28,
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseBottomAction extends StatelessWidget {
+  const _PurchaseBottomAction({required this.onPressed, required this.enabled});
+
+  final VoidCallback onPressed;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.surfaceContainer)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          height: 64,
+          decoration: BoxDecoration(
+            color: enabled
+                ? AppColors.primary
+                : AppColors.primary.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            boxShadow: AppShadows.button,
+          ),
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'এগিয়ে যান',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+              ],
+            ),
           ),
         ),
       ),
@@ -426,124 +583,116 @@ class _EmptyCategoryState extends StatelessWidget {
   }
 }
 
-class _PurchaseBottomBar extends StatelessWidget {
-  const _PurchaseBottomBar({required this.itemCount, required this.onContinue});
+class _AddCategoryDialog extends StatefulWidget {
+  const _AddCategoryDialog();
 
-  final int itemCount;
-  final VoidCallback onContinue;
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  final _nameController = TextEditingController();
+  final _detailsController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _detailsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Container(
-                height: 86,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
+            Row(
+              children: [
+                const Icon(
+                  Icons.add_box_rounded,
+                  color: AppColors.primary,
+                  size: 28,
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  boxShadow: AppShadows.soft,
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'নতুন ক্যাটাগরি',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6FAF8),
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: const Icon(
-                        Icons.shopping_basket_rounded,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '$itemCount টি\n',
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(
-                                    color: itemCount > 0
-                                        ? AppColors.primary
-                                        : AppColors.textMuted,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            TextSpan(
-                              text: 'আইটেম',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: itemCount > 0
-                                        ? AppColors.primary
-                                        : AppColors.textMuted,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'ক্যাটাগরির নাম',
+                hintText: 'উদা: ইলেকট্রনিক্স',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
+                prefixIcon: const Icon(Icons.label_outline_rounded),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: AppGradients.primaryButton,
-                borderRadius: BorderRadius.circular(AppRadii.xl),
-                boxShadow: AppShadows.button,
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              controller: _detailsController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'বিস্তারিত (ঐচ্ছিক)',
+                hintText: 'ক্যাটাগরি সম্পর্কে কিছু লিখুন...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+                prefixIcon: const Icon(Icons.description_outlined),
               ),
-              child: SizedBox(
-                width: 162,
-                height: 86,
-                child: ElevatedButton(
-                  onPressed: itemCount == 0 ? null : onContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    disabledBackgroundColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white.withValues(
-                      alpha: 0.58,
-                    ),
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.xl),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'এগিয়ে যান',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Icon(Icons.arrow_forward_rounded),
-                    ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('বাতিল'),
                   ),
                 ),
-              ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final name = _nameController.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.pop(
+                        context,
+                        AddProductCategoryDraft(
+                          name: name,
+                          details: _detailsController.text.trim(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
+                    ),
+                    child: const Text('সেভ করুন'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
