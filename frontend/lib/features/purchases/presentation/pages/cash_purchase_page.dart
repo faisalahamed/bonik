@@ -581,7 +581,7 @@ class _CategoryCard extends StatelessWidget {
                 isSelected
                     ? Icons.check_circle_rounded
                     : Icons.chevron_right_rounded,
-                color: isSelected ? AppColors.primary : AppColors.textMuted,
+                color: isSelected ? AppColors.textMuted : AppColors.primary,
                 size: 28,
               ),
             ],

@@ -520,30 +520,18 @@ class _ExistingCategoryList extends StatelessWidget {
       );
     }
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < categories.length; i++) ...[
-            _ExistingCategoryTile(
-              category: categories[i],
-              onDelete: onDelete,
-              onEdit: onEdit,
-            ),
-            if (i != categories.length - 1)
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: AppColors.textMuted.withValues(alpha: 0.16),
-              ),
-          ],
+    return Column(
+      children: [
+        for (var i = 0; i < categories.length; i++) ...[
+          _ExistingCategoryTile(
+            category: categories[i],
+            onDelete: onDelete,
+            onEdit: onEdit,
+          ),
+          if (i != categories.length - 1)
+            const SizedBox(height: AppSpacing.md),
         ],
-      ),
+      ],
     );
   }
 }
@@ -922,69 +910,73 @@ class _ExistingCategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = category.syncStatus == 'pending';
+    final textTheme = Theme.of(context).textTheme;
     final details = category.details?.trim();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.lg,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.category_rounded,
-              color: AppColors.primary,
-              size: isPending ? 24 : 28,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        onTap: null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.xs, AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB2DFDB),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                if (details != null && details.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    details,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    const SizedBox(height: 2),
+                    Text(
+                      (details != null && details.isNotEmpty)
+                          ? details.toUpperCase()
+                          : 'NO DETAILS',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => onEdit(category),
+                color: AppColors.textMuted,
+                icon: const Icon(Icons.edit_note_rounded, size: 22),
+              ),
+              IconButton(
+                onPressed: () => onDelete(category),
+                color: AppColors.textMuted,
+                icon: const Icon(Icons.delete_rounded, size: 22),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () => onEdit(category),
-            color: AppColors.textMuted,
-            icon: const Icon(Icons.edit_note_rounded),
-          ),
-          IconButton(
-            onPressed: () => onDelete(category),
-            color: AppColors.textMuted,
-            icon: const Icon(Icons.delete_rounded),
-          ),
-        ],
+        ),
       ),
     );
   }
