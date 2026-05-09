@@ -34,8 +34,9 @@ class DashboardAndroidPage extends StatelessWidget {
                 _SummaryCard(),
                 SizedBox(height: AppSpacing.lg),
                 _PrimaryActionsRow(),
+                SizedBox(height: AppSpacing.lg),
+                _TertiaryActionsRow(),
                 SizedBox(height: AppSpacing.xl),
-               
                 _DashboardSection(
                   title: 'আপনার প্রতিষ্ঠান',
                   items: [
@@ -54,19 +55,11 @@ class DashboardAndroidPage extends StatelessWidget {
                       route: AppRoutes.inventory,
                     ),
                     _DashboardMenuItemData(
-                      label: 'মালিক নিলো/দিলো',
-                      icon: Icons.monetization_on_rounded,
+                      label: 'অন্যান্য',
+                      icon: Icons.more_horiz_rounded,
                       iconBackground: AppColors.surfaceContainerHigh,
                       iconColor: AppColors.textSecondary,
-                      route: AppRoutes.ownerTransactions,
-                    ),
-
-                    _DashboardMenuItemData(
-                      label: 'অন্যান্য আয়',
-                      icon: Icons.campaign_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.otherIncome,
+                      route: AppRoutes.others,
                     ),
                   ],
                 ),
@@ -107,18 +100,6 @@ class DashboardAndroidPage extends StatelessWidget {
                 ),
 
                 SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'অন্যান্য সার্ভিস',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'অন্যান্য',
-                      icon: Icons.more_horiz_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.others,
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -606,6 +587,33 @@ class _MetricTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TertiaryActionsRow extends StatelessWidget {
+  const _TertiaryActionsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _PrimaryActionButton(
+            label: 'মালিক নিলো/দিলো',
+            icon: Icons.assignment_return_rounded,
+            onPressed: () => context.push(AppRoutes.ownerTransactions),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _PrimaryActionButton(
+            label: 'অন্যান্য আয়',
+            icon: Icons.note_alt_rounded,
+            onPressed: () => context.push(AppRoutes.otherIncome),
+          ),
+        ),
+      ],
     );
   }
 }
