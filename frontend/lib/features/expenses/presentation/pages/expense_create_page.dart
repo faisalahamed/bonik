@@ -81,12 +81,6 @@ class _ExpenseCreatePageState extends ConsumerState<ExpenseCreatePage> {
                         ),
                         child: ListView(
                           children: [
-                            _AmountCard(
-                              categoryName: widget.categoryName,
-                              controller: _amountController,
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _ReasonCard(controller: _reasonController),
                             const SizedBox(height: AppSpacing.lg),
                             _DateTimeRow(
                               value: _expenseDate,
@@ -94,9 +88,17 @@ class _ExpenseCreatePageState extends ConsumerState<ExpenseCreatePage> {
                               onPickTime: _pickTime,
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            const _ReceiptUploadCard(),
+
+                            _AmountCard(
+                              categoryName: widget.categoryName,
+                              controller: _amountController,
+                            ),
                             const SizedBox(height: AppSpacing.lg),
-                            _NoteCard(controller: _noteController),
+                            _ReasonCard(controller: _reasonController),
+
+                            // const _ReceiptUploadCard(),
+                            const SizedBox(height: AppSpacing.lg),
+                            // _NoteCard(controller: _noteController),
                           ],
                         ),
                       ),
@@ -295,7 +297,7 @@ class _AmountCard extends StatelessWidget {
               color: AppColors.primary,
               fontWeight: FontWeight.w800,
             ),
-            decoration: const InputDecoration(prefixText: '৳ '),
+            decoration: const InputDecoration(hintText: '৳ '),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

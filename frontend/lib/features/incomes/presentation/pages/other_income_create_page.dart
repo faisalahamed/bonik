@@ -12,15 +12,13 @@ import '../../../../core/database/app_database.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
 class OtherIncomeCreatePage extends ConsumerStatefulWidget {
-  const OtherIncomeCreatePage({
-    super.key,
-    required this.categoryName,
-  });
+  const OtherIncomeCreatePage({super.key, required this.categoryName});
 
   final String categoryName;
 
   @override
-  ConsumerState<OtherIncomeCreatePage> createState() => _OtherIncomeCreatePageState();
+  ConsumerState<OtherIncomeCreatePage> createState() =>
+      _OtherIncomeCreatePageState();
 }
 
 class _OtherIncomeCreatePageState extends ConsumerState<OtherIncomeCreatePage> {
@@ -82,22 +80,22 @@ class _OtherIncomeCreatePageState extends ConsumerState<OtherIncomeCreatePage> {
                   ),
                   child: ListView(
                     children: [
-                      _IncomeAmountCard(
-                        categoryName: widget.categoryName,
-                        controller: _amountController,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _IncomeReasonCard(controller: _reasonController),
-                      const SizedBox(height: AppSpacing.lg),
                       _IncomeDateTimeRow(
                         value: _incomeDate,
                         onPickDate: _pickDate,
                         onPickTime: _pickTime,
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      const _IncomeReceiptUploadCard(),
+                      _IncomeAmountCard(
+                        categoryName: widget.categoryName,
+                        controller: _amountController,
+                      ),
                       const SizedBox(height: AppSpacing.lg),
-                      _IncomeNoteCard(controller: _noteController),
+                      _IncomeReasonCard(controller: _reasonController),
+
+                      // const _IncomeReceiptUploadCard(),
+                      // const SizedBox(height: AppSpacing.lg),
+                      // _IncomeNoteCard(controller: _noteController),
                     ],
                   ),
                 ),
@@ -135,7 +133,8 @@ class _OtherIncomeCreatePageState extends ConsumerState<OtherIncomeCreatePage> {
             reason: _reasonController.text,
             note: _noteController.text,
             incomeDate: _incomeDate,
-            receiptUrl: null, // Note: Not using receipt upload logic yet, keeping it null
+            receiptUrl:
+                null, // Note: Not using receipt upload logic yet, keeping it null
           );
 
       if (!mounted) {
@@ -211,7 +210,10 @@ class _OtherIncomeCreatePageState extends ConsumerState<OtherIncomeCreatePage> {
 }
 
 class _IncomeAmountCard extends StatelessWidget {
-  const _IncomeAmountCard({required this.categoryName, required this.controller});
+  const _IncomeAmountCard({
+    required this.categoryName,
+    required this.controller,
+  });
 
   final String categoryName;
   final TextEditingController controller;
@@ -241,6 +243,7 @@ class _IncomeAmountCard extends StatelessWidget {
           TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(hintText: '৳'),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
             ],
@@ -248,7 +251,6 @@ class _IncomeAmountCard extends StatelessWidget {
               color: AppColors.primary,
               fontWeight: FontWeight.w800,
             ),
-            decoration: const InputDecoration(prefixText: '৳ '),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -288,9 +290,7 @@ class _IncomeReasonCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'যেমন: কমিশন, বোনাস',
-            ),
+            decoration: const InputDecoration(hintText: 'যেমন: কমিশন, বোনাস'),
           ),
         ],
       ),
