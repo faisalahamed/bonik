@@ -55,6 +55,15 @@ class DashboardAndroidPage extends StatelessWidget {
                       route: AppRoutes.inventory,
                     ),
                     _DashboardMenuItemData(
+                      label: 'রিপোর্ট',
+
+                      icon: Icons.bar_chart_rounded,
+                      iconBackground: Color(0xFFEAF7F2),
+                      iconColor: AppColors.primaryContainer,
+                      route: AppRoutes.reports,
+                    ),
+
+                    _DashboardMenuItemData(
                       label: 'অন্যান্য',
                       icon: Icons.more_horiz_rounded,
                       iconBackground: AppColors.surfaceContainerHigh,
