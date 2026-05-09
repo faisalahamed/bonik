@@ -516,8 +516,8 @@ class _CategoryCard extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFFB2DFDB)
-                      : const Color(0xFFFFE082),
+                      ? const Color(0xFFFFE082)
+                      : const Color(0xFFB2DFDB),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -545,36 +545,37 @@ class _CategoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2F1),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      '১২০ টি',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'স্টক আছে',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+
+              // Column(
+              //   crossAxisAlignment: CrossAxisAlignment.end,
+              //   children: [
+              //     Container(
+              //       padding: const EdgeInsets.symmetric(
+              //         horizontal: AppSpacing.sm,
+              //         vertical: 4,
+              //       ),
+              //       decoration: BoxDecoration(
+              //         color: const Color(0xFFE0F2F1),
+              //         borderRadius: BorderRadius.circular(99),
+              //       ),
+              //       child: Text(
+              //         '১২০ টি',
+              //         style: textTheme.labelMedium?.copyWith(
+              //           color: AppColors.primary,
+              //           fontWeight: FontWeight.w800,
+              //         ),
+              //       ),
+              //     ),
+              //     const SizedBox(height: 2),
+              //     Text(
+              //       'স্টক আছে',
+              //       style: textTheme.labelSmall?.copyWith(
+              //         color: AppColors.textMuted,
+              //         fontWeight: FontWeight.w600,
+              //       ),
+              //     ),
+              //   ],
+              // ),
               const SizedBox(width: AppSpacing.sm),
               Icon(
                 isSelected
