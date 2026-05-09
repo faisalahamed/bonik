@@ -143,57 +143,106 @@ class _ExpensePageState extends ConsumerState<ExpensePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'খরচ যোগ করুন'),
-      body: SafeArea(
-        top: false,
-        child: categories.when(
-          data: (items) {
-            final filtered = _filterCategories(items);
+      body: Column(
+        children: [
+          const _ExpenseTopBar(),
+          Expanded(
+            child: categories.when(
+              data: (items) {
+                final filtered = _filterCategories(items);
 
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                _ExpenseSummaryCard(total: todayTotal),
-                const SizedBox(height: AppSpacing.xl),
-                _ExpenseSearchBar(controller: _searchController),
-                const SizedBox(height: AppSpacing.lg),
-                _ExpenseActionRow(
-                  onNavigate: _showAddCategoryDialog,
-                  onSort: _cycleSortMode,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _SortStatusLabel(label: _sortModeLabel),
-                const SizedBox(height: AppSpacing.xl),
-                if (filtered.isEmpty)
-                  const _EmptyExpenseCategoryCard(
-                    message: 'এখনও কোনো খরচের খাত নেই',
-                  )
-                else
-                  for (var i = 0; i < filtered.length; i++) ...[
-                    _ExpenseCategoryCard(category: filtered[i]),
-                    if (i != filtered.length - 1)
-                      const SizedBox(height: AppSpacing.md),
+                return ListView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  children: [
+                    _ExpenseSummaryCard(total: todayTotal),
+                    const SizedBox(height: AppSpacing.xl),
+                    _ExpenseSearchBar(controller: _searchController),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ExpenseActionRow(
+                      onNavigate: _showAddCategoryDialog,
+                      onSort: _cycleSortMode,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _SortStatusLabel(label: _sortModeLabel),
+                    const SizedBox(height: AppSpacing.xl),
+                    if (filtered.isEmpty)
+                      const _EmptyExpenseCategoryCard(
+                        message: 'এখনও কোনো খরচের খাত নেই',
+                      )
+                    else
+                      for (var i = 0; i < filtered.length; i++) ...[
+                        _ExpenseCategoryCard(category: filtered[i]),
+                        if (i != filtered.length - 1)
+                          const SizedBox(height: AppSpacing.md),
+                      ],
                   ],
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              _ExpenseSummaryCard(total: todayTotal),
-              const SizedBox(height: AppSpacing.xl),
-              _ExpenseSearchBar(controller: _searchController),
-              const SizedBox(height: AppSpacing.lg),
-              _ExpenseActionRow(
-                onNavigate: () => context.push(AppRoutes.expenseCategories),
-                onSort: _cycleSortMode,
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stackTrace) => ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  _ExpenseSummaryCard(total: todayTotal),
+                  const SizedBox(height: AppSpacing.xl),
+                  _ExpenseSearchBar(controller: _searchController),
+                  const SizedBox(height: AppSpacing.lg),
+                  _ExpenseActionRow(
+                    onNavigate: () => context.push(AppRoutes.expenseCategories),
+                    onSort: _cycleSortMode,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _SortStatusLabel(label: _sortModeLabel),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _EmptyExpenseCategoryCard(
+                    message: 'খরচের খাত লোড করা যায়নি',
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              _SortStatusLabel(label: _sortModeLabel),
-              const SizedBox(height: AppSpacing.xl),
-              const _EmptyExpenseCategoryCard(
-                message: 'খরচের খাত লোড করা যায়নি',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpenseTopBar extends StatelessWidget {
+  const _ExpenseTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'খরচ যোগ করুন',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Colors.white,
               ),
             ],
           ),

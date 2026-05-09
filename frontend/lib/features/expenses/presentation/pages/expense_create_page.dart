@@ -9,7 +9,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
 class ExpenseCreatePage extends ConsumerStatefulWidget {
   const ExpenseCreatePage({super.key, required this.categoryName});
@@ -39,68 +38,79 @@ class _ExpenseCreatePageState extends ConsumerState<ExpenseCreatePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'নতুন খরচ'),
-      body: Stack(
+      body: Column(
         children: [
-          Positioned(
-            top: -80,
-            right: -60,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowTop,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            left: -60,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowBottom,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
+          const _CreateTopBar(),
+          Expanded(
             child: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    104,
-                  ),
-                  child: ListView(
-                    children: [
-                      _AmountCard(
-                        categoryName: widget.categoryName,
-                        controller: _amountController,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _ReasonCard(controller: _reasonController),
-                      const SizedBox(height: AppSpacing.lg),
-                      _DateTimeRow(
-                        value: _expenseDate,
-                        onPickDate: _pickDate,
-                        onPickTime: _pickTime,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      const _ReceiptUploadCard(),
-                      const SizedBox(height: AppSpacing.lg),
-                      _NoteCard(controller: _noteController),
-                    ],
+                Positioned(
+                  top: -80,
+                  right: -60,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowTop,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-                _ExpenseCreateBottomButton(
-                  saving: _saving,
-                  onPressed: _saving ? null : _saveExpense,
+                Positioned(
+                  bottom: -120,
+                  left: -60,
+                  child: Container(
+                    width: 240,
+                    height: 240,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowBottom,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          104,
+                        ),
+                        child: ListView(
+                          children: [
+                            _AmountCard(
+                              categoryName: widget.categoryName,
+                              controller: _amountController,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _ReasonCard(controller: _reasonController),
+                            const SizedBox(height: AppSpacing.lg),
+                            _DateTimeRow(
+                              value: _expenseDate,
+                              onPickDate: _pickDate,
+                              onPickTime: _pickTime,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            const _ReceiptUploadCard(),
+                            const SizedBox(height: AppSpacing.lg),
+                            _NoteCard(controller: _noteController),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: _ExpenseCreateBottomButton(
+                          saving: _saving,
+                          onPressed: _saving ? null : _saveExpense,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -203,6 +213,47 @@ class _ExpenseCreatePageState extends ConsumerState<ExpenseCreatePage> {
         selected.minute,
       );
     });
+  }
+}
+
+class _CreateTopBar extends StatelessWidget {
+  const _CreateTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'নতুন খরচ',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

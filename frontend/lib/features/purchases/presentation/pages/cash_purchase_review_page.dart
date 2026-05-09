@@ -272,64 +272,111 @@ class _CashPurchaseReviewPageState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'ক্রয় রিভিউ'),
-      body: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            const _BackgroundGlow(),
-            Form(
-              key: _formKey,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  114,
-                ),
-                child: ListView(
-                  children: [
-                    _PurchaseDateCard(
-                      date: purchaseDraft.purchaseDate,
-                      onTap: () =>
-                          _changePurchaseDate(purchaseDraft.purchaseDate),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    if (!hasItems)
-                      const _EmptyPurchaseReviewState()
-                    else
-                      for (var i = 0; i < _drafts.length; i++) ...[
-                        _PurchaseReviewItem(
-                          draft: _drafts[i],
-                          itemNumber: i + 1,
-                          onRemove: () => _removeLine(_drafts[i]),
-                          onPrintBarcode: () =>
-                              _showPrintBarcodeDialog(_drafts[i]),
-                          onScan: () => _showBarcodeScanner(_drafts[i]),
-                          onRegenerateBarcode: () =>
-                              _generateBarcode(_drafts[i]),
-                        ),
-                        if (i != _drafts.length - 1)
+      body: Column(
+        children: [
+          const _ReviewTopBar(),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: Stack(
+                children: [
+                  const _BackgroundGlow(),
+                  Form(
+                    key: _formKey,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        114,
+                      ),
+                      child: ListView(
+                        children: [
+                          _PurchaseDateCard(
+                            date: purchaseDraft.purchaseDate,
+                            onTap: () =>
+                                _changePurchaseDate(purchaseDraft.purchaseDate),
+                          ),
                           const SizedBox(height: AppSpacing.md),
-                      ],
-                    const SizedBox(height: AppSpacing.lg),
-                    _PurchaseSummaryCard(
-                      itemCount: _drafts.length,
-                      purchaseTotalText: _purchaseTotalText,
-                      profitTotalText: _profitTotalText,
-                      profitTotal: _profitTotal,
+                          if (!hasItems)
+                            const _EmptyPurchaseReviewState()
+                          else
+                            for (var i = 0; i < _drafts.length; i++) ...[
+                              _PurchaseReviewItem(
+                                draft: _drafts[i],
+                                itemNumber: i + 1,
+                                onRemove: () => _removeLine(_drafts[i]),
+                                onPrintBarcode: () =>
+                                    _showPrintBarcodeDialog(_drafts[i]),
+                                onScan: () => _showBarcodeScanner(_drafts[i]),
+                                onRegenerateBarcode: () =>
+                                    _generateBarcode(_drafts[i]),
+                              ),
+                              if (i != _drafts.length - 1)
+                                const SizedBox(height: AppSpacing.md),
+                            ],
+                          const SizedBox(height: AppSpacing.lg),
+                          _PurchaseSummaryCard(
+                            itemCount: _drafts.length,
+                            purchaseTotalText: _purchaseTotalText,
+                            profitTotalText: _profitTotalText,
+                            profitTotal: _profitTotal,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _PurchaseCommentCard(controller: _commentController),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    _PurchaseCommentCard(controller: _commentController),
-                  ],
-                ),
+                  ),
+                  _PurchaseReviewBottomAction(
+                    isEnabled: hasItems,
+                    onContinue: _continueToPayment,
+                  ),
+                ],
               ),
             ),
-            _PurchaseReviewBottomAction(
-              isEnabled: hasItems,
-              onContinue: _continueToPayment,
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewTopBar extends StatelessWidget {
+  const _ReviewTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'ক্রয় রিভিউ',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

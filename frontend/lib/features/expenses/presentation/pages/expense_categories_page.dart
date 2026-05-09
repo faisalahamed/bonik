@@ -258,31 +258,36 @@ class _AddCategoryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 48, AppSpacing.lg, 20),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(AppRadii.xl),
-          bottomRight: Radius.circular(AppRadii.xl),
-        ),
+        gradient: AppGradients.primaryButton,
         boxShadow: AppShadows.soft,
       ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            'খরচের খাতসমূহ',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w900,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 28,
                 ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'খরচের খাতসমূহ',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

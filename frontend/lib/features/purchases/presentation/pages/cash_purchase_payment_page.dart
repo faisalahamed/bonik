@@ -10,7 +10,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../application/cash_purchase_draft_controller.dart';
 import '../../data/purchase_sync_service.dart';
 
@@ -55,82 +54,93 @@ class _CashPurchasePaymentPageState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'পেমেন্ট'),
-      body: Stack(
+      body: Column(
         children: [
-          Positioned(
-            top: -80,
-            right: -70,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowTop,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            left: -80,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: const BoxDecoration(
-                gradient: AppGradients.backgroundGlowBottom,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
+          const _PaymentTopBar(),
+          Expanded(
             child: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    108,
+                Positioned(
+                  top: -80,
+                  right: -70,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowTop,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  child: ListView(
+                ),
+                Positioned(
+                  bottom: -120,
+                  left: -80,
+                  child: Container(
+                    width: 240,
+                    height: 240,
+                    decoration: const BoxDecoration(
+                      gradient: AppGradients.backgroundGlowBottom,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Stack(
                     children: [
-                      _PayableAmountCard(amount: purchaseDraft.purchaseTotal),
-                      const SizedBox(height: AppSpacing.lg),
-                      _PurchaseItemsSummaryCard(
-                        lines: purchaseDraft.selectedLines,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          108,
+                        ),
+                        child: ListView(
+                          children: [
+                            _PayableAmountCard(
+                              amount: purchaseDraft.purchaseTotal,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _PurchaseItemsSummaryCard(
+                              lines: purchaseDraft.selectedLines,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _SupplierDropdownCard(
+                              suppliersStream: database
+                                  .watchSuppliersForCurrentShop(),
+                              selectedSupplierId: purchaseDraft.supplierId,
+                              onChanged: (supplierId) {
+                                ref
+                                    .read(cashPurchaseDraftProvider.notifier)
+                                    .setSupplier(supplierId);
+                              },
+                              onAddSupplier: () =>
+                                  _showAddSupplierDialog(database),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _AttachmentAndDateRow(
+                              date: purchaseDraft.purchaseDate,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _PaymentMethodSection(
+                              totalAmount: purchaseDraft.purchaseTotal,
+                              selectedMethod: purchaseDraft.paymentMethod,
+                              paidAmountController: _paidAmountController,
+                              onMethodChanged: (method) {
+                                ref
+                                    .read(cashPurchaseDraftProvider.notifier)
+                                    .setPaymentMethod(method);
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _PurchaseNoteCard(note: purchaseDraft.comment),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _SupplierDropdownCard(
-                        suppliersStream: database
-                            .watchSuppliersForCurrentShop(),
-                        selectedSupplierId: purchaseDraft.supplierId,
-                        onChanged: (supplierId) {
-                          ref
-                              .read(cashPurchaseDraftProvider.notifier)
-                              .setSupplier(supplierId);
-                        },
-                        onAddSupplier: () => _showAddSupplierDialog(database),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _AttachmentAndDateRow(date: purchaseDraft.purchaseDate),
-                      const SizedBox(height: AppSpacing.lg),
-                      _PaymentMethodSection(
-                        totalAmount: purchaseDraft.purchaseTotal,
-                        selectedMethod: purchaseDraft.paymentMethod,
-                        paidAmountController: _paidAmountController,
-                        onMethodChanged: (method) {
-                          ref
-                              .read(cashPurchaseDraftProvider.notifier)
-                              .setPaymentMethod(method);
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _PurchaseNoteCard(note: purchaseDraft.comment),
+                      const _ConfirmPurchasePaymentButton(),
                     ],
                   ),
                 ),
-                const _ConfirmPurchasePaymentButton(),
               ],
             ),
           ),
@@ -169,6 +179,47 @@ class _CashPurchasePaymentPageState
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+}
+
+class _PaymentTopBar extends StatelessWidget {
+  const _PaymentTopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'পেমেন্ট',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

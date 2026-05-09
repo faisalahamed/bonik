@@ -90,7 +90,7 @@ class _AddProductCategoryPageState
                             const SizedBox(height: AppSpacing.xl),
                             if (_listMode == _CategoryListMode.active)
                               Text(
-                                'বিদ্যমান প্রোডাক্ট ক্যাটাগরিসমূহ',
+                                'বিদ্যমান পণ্যের নাম সমূহ',
                                 style: Theme.of(context).textTheme.titleLarge
                                     ?.copyWith(
                                       color: AppColors.primary,
@@ -249,7 +249,9 @@ class _AddProductCategoryPageState
     }
 
     try {
-      await ref.read(appDatabaseProvider).updateProductCategory(
+      await ref
+          .read(appDatabaseProvider)
+          .updateProductCategory(
             id: category.id,
             name: draft.name,
             details: draft.details,
@@ -282,36 +284,36 @@ class _AddCategoryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 116,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.xl,
-        AppSpacing.lg,
-        AppSpacing.md,
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
       ),
-      color: const Color(0xFF043F32),
       child: SafeArea(
         bottom: false,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              color: Colors.white,
-              icon: const Icon(Icons.arrow_back_rounded, size: 32),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                'নতুন ক্যাটাগরি',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                color: Colors.white,
+                icon: const Icon(Icons.arrow_back_rounded, size: 28),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'পণ্যের নাম সমূহ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -528,8 +530,7 @@ class _ExistingCategoryList extends StatelessWidget {
             onDelete: onDelete,
             onEdit: onEdit,
           ),
-          if (i != categories.length - 1)
-            const SizedBox(height: AppSpacing.md),
+          if (i != categories.length - 1) const SizedBox(height: AppSpacing.md),
         ],
       ],
     );
@@ -783,8 +784,9 @@ class _AddCategoryDialog extends StatefulWidget {
 
 class _AddCategoryDialogState extends State<_AddCategoryDialog> {
   late final _nameController = TextEditingController(text: widget.initialName);
-  late final _detailsController =
-      TextEditingController(text: widget.initialDetails);
+  late final _detailsController = TextEditingController(
+    text: widget.initialDetails,
+  );
 
   @override
   void dispose() {
@@ -923,7 +925,12 @@ class _ExistingCategoryTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.xl),
         onTap: null,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.xs, AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+          ),
           child: Row(
             children: [
               Container(
@@ -983,10 +990,7 @@ class _ExistingCategoryTile extends StatelessWidget {
 }
 
 class AddProductCategoryDraft {
-  const AddProductCategoryDraft({
-    required this.name,
-    this.details = '',
-  });
+  const AddProductCategoryDraft({required this.name, this.details = ''});
 
   final String name;
   final String details;

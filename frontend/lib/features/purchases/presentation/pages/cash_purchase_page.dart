@@ -211,7 +211,7 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('পণ্য সফলভাবে যোগ করা হয়েছে')),
+        const SnackBar(content: Text('পণ্যের নাম সফলভাবে যোগ করা হয়েছে')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -260,19 +260,22 @@ class _PurchaseTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 64,
+          height: 68,
           child: Row(
             children: [
               IconButton(
                 onPressed: () => context.pop(),
                 icon: const Icon(
                   Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+                  color: Colors.white,
                   size: 28,
                 ),
               ),
@@ -280,7 +283,7 @@ class _PurchaseTopBar extends StatelessWidget {
               Text(
                 'পণ্য ক্রয়',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.primary,
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -291,12 +294,15 @@ class _PurchaseTopBar extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
+                      color: Colors.white.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
                     ),
                     child: const Icon(
                       Icons.shopping_cart_rounded,
-                      color: AppColors.primary,
+                      color: Colors.white,
                     ),
                   ),
                   if (itemCount > 0)
@@ -655,7 +661,7 @@ class _EmptyCategoryState extends StatelessWidget {
         boxShadow: AppShadows.soft,
       ),
       child: Text(
-        'কোনো প্রোডাক্ট ক্যাটাগরি নেই',
+        'কোনো পণ্যের নাম নেই',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           color: AppColors.textMuted,
@@ -705,7 +711,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
-                  'নতুন ক্যাটাগরি',
+                  'নতুন পণ্যের নাম যোগ করুন',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w900,
@@ -718,8 +724,8 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               controller: _nameController,
               autofocus: true,
               decoration: InputDecoration(
-                labelText: 'ক্যাটাগরির নাম',
-                hintText: 'উদা: ইলেকট্রনিক্স',
+                labelText: 'পণ্যের নাম',
+                hintText: 'উদা: শার্ট, প্যান্ট, জুতা ইত্যাদি',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
@@ -732,7 +738,7 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               maxLines: 2,
               decoration: InputDecoration(
                 labelText: 'বিস্তারিত (ঐচ্ছিক)',
-                hintText: 'ক্যাটাগরি সম্পর্কে কিছু লিখুন...',
+                hintText: 'পণ্যের সংক্ষিপ্ত বিবরণ, যেমন: রঙ, মডেল,কোড ইত্যাদি',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
