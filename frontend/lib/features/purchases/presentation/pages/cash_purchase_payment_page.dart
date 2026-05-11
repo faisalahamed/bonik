@@ -237,6 +237,19 @@ class _CashPurchasePaymentPageState
           return;
         }
       }
+
+      final paidVal = double.tryParse(draft.paidAmount) ?? 0;
+      if (paidVal > draft.purchaseTotal) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('মোট বিলের চেয়ে বেশি টাকা পরিশোধ করা সম্ভব নয়'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
       await ref.read(purchaseSyncServiceProvider).saveDraftLocally(draft);
       ref.read(cashPurchaseDraftProvider.notifier).clear();
       if (context.mounted) {
@@ -661,11 +674,20 @@ class _TransactionAccountCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _CustomInputField(
-                  label: 'পরিশোধিত (PAID)',
-                  controller: paidAmountController,
-                  hint: '0.00',
-                  showTakaPrefix: true,
+                child: Builder(
+                  builder: (context) {
+                    final paidStr = paidAmountController.text;
+                    final paidVal = double.tryParse(paidStr) ?? 0;
+                    final isOverpaid = paidVal > totalAmount;
+                    return _CustomInputField(
+                      label: 'পরিশোধিত (PAID)',
+                      controller: paidAmountController,
+                      hint: '0.00',
+                      showTakaPrefix: true,
+                      hasError: isOverpaid,
+                      errorMessage: isOverpaid ? 'মোট বিলের চেয়ে বেশি টাকা পরিশোধ করছেন' : null,
+                    );
+                  },
                 ),
               ),
             ],
@@ -759,6 +781,8 @@ class _CustomInputField extends StatelessWidget {
     this.hint,
     this.isReadOnly = false,
     this.showTakaPrefix = false,
+    this.hasError = false,
+    this.errorMessage,
   });
 
   final String label;
@@ -767,6 +791,8 @@ class _CustomInputField extends StatelessWidget {
   final String? hint;
   final bool isReadOnly;
   final bool showTakaPrefix;
+  final bool hasError;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -787,7 +813,10 @@ class _CustomInputField extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFB2DFDB)),
+            border: Border.all(
+              color: hasError ? Colors.red : const Color(0xFFB2DFDB),
+              width: hasError ? 2 : 1,
+            ),
           ),
           child: TextField(
             controller:
@@ -809,6 +838,18 @@ class _CustomInputField extends StatelessWidget {
             ),
           ),
         ),
+        if (hasError && errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              errorMessage!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
       ],
     );
   }

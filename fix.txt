@@ -10,6 +10,8 @@
 
 10. same product categoy,income category,expense catgory name problem
 11. malik cant take more money than the cashbox have
+12. what happes if stock count mannuy changes what happes to the price
+
 
 https://laravel-bonik-main-4vxdps.free.laravel.cloud/api
 
