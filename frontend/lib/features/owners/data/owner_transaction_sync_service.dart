@@ -28,11 +28,11 @@ class OwnerTransactionSyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final pendingTransactions = await database.getPendingOwnerTransactions(
       shopId: shopId,
     );
@@ -43,6 +43,7 @@ class OwnerTransactionSyncService {
     final response = await apiClient.postJson(
       '/owner-transactions',
       body: {
+        'user_id': userId,
         'cash_transactions': [
           for (final transaction in pendingTransactions)
             _transactionToJson(transaction),
@@ -66,10 +67,19 @@ class OwnerTransactionSyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'owner_transactions';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/owner-transactions',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawTransactions = response['cash_transactions'];
@@ -82,6 +92,11 @@ class OwnerTransactionSyncService {
           .whereType<Map<String, dynamic>>()
           .map(_transactionFromJson)
           .toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

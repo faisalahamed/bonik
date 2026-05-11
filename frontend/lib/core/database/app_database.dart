@@ -330,6 +330,17 @@ class LocalNotes extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class SyncStates extends Table {
+  TextColumn get shopId => text()();
+  TextColumn get entityType => text()();
+  DateTimeColumn get lastPulledAt => dateTime().nullable()();
+  DateTimeColumn get lastSuccessfulSyncAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {shopId, entityType};
+}
+
 @DriftDatabase(
   tables: [
     LocalShops,
@@ -350,6 +361,7 @@ class LocalNotes extends Table {
     LocalIncomes,
     LocalRecycleBinEntries,
     LocalNotes,
+    SyncStates,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -366,7 +378,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -544,8 +556,42 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 15) {
         await migrator.createTable(localNotes);
       }
+      if (from < 16) {
+        await migrator.createTable(syncStates);
+      }
     },
   );
+
+  Future<DateTime?> getLastPulledAt({
+    required String shopId,
+    required String entityType,
+  }) async {
+    final row =
+        await (select(syncStates)..where(
+              (state) =>
+                  state.shopId.equals(shopId) &
+                  state.entityType.equals(entityType),
+            ))
+            .getSingleOrNull();
+    return row?.lastPulledAt;
+  }
+
+  Future<void> markPullSucceeded({
+    required String shopId,
+    required String entityType,
+    required DateTime serverTime,
+  }) async {
+    final now = AppTime.nowUtc();
+    await into(syncStates).insertOnConflictUpdate(
+      SyncStatesCompanion(
+        shopId: Value(shopId),
+        entityType: Value(entityType),
+        lastPulledAt: Value(serverTime),
+        lastSuccessfulSyncAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
 
   Future<void> saveLoggedInSession({
     required LocalShopsCompanion shop,
@@ -886,6 +932,9 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> upsertSyncedNotes(List<LocalNotesCompanion> rows) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow('local_notes', row.id.value)) {
+          continue;
+        }
         await into(localNotes).insertOnConflictUpdate(row);
       }
     });
@@ -932,6 +981,12 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow(
+          'local_recycle_bin_entries',
+          row.id.value,
+        )) {
+          continue;
+        }
         await into(localRecycleBinEntries).insertOnConflictUpdate(row);
       }
     });
@@ -1834,6 +1889,12 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow(
+          'local_cash_transactions',
+          row.id.value,
+        )) {
+          continue;
+        }
         await into(localCashTransactions).insertOnConflictUpdate(row);
       }
     });
@@ -2263,6 +2324,9 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow('local_categories', row.id.value)) {
+          continue;
+        }
         await into(localCategories).insertOnConflictUpdate(row);
       }
     });
@@ -2382,6 +2446,9 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> upsertSyncedSuppliers(List<LocalSuppliersCompanion> rows) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow('local_suppliers', row.id.value)) {
+          continue;
+        }
         await into(localSuppliers).insertOnConflictUpdate(row);
       }
     });
@@ -2414,14 +2481,38 @@ final class AppDatabase extends _$AppDatabase {
   ) async {
     await transaction(() async {
       for (final bundle in bundles) {
+        if (!await _canApplySyncedRow(
+          'local_purchases',
+          bundle.purchase.id.value,
+        )) {
+          continue;
+        }
         await into(localPurchases).insertOnConflictUpdate(bundle.purchase);
         for (final item in bundle.items) {
+          if (!await _canApplySyncedRow(
+            'local_purchase_items',
+            item.id.value,
+          )) {
+            continue;
+          }
           await into(localPurchaseItems).insertOnConflictUpdate(item);
         }
         for (final payment in bundle.payments) {
+          if (!await _canApplySyncedRow(
+            'local_purchase_payments',
+            payment.id.value,
+          )) {
+            continue;
+          }
           await into(localPurchasePayments).insertOnConflictUpdate(payment);
         }
         for (final cashTransaction in bundle.cashTransactions) {
+          if (!await _canApplySyncedRow(
+            'local_cash_transactions',
+            cashTransaction.id.value,
+          )) {
+            continue;
+          }
           await into(
             localCashTransactions,
           ).insertOnConflictUpdate(cashTransaction);
@@ -3620,6 +3711,9 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> upsertSyncedCustomers(List<LocalCustomersCompanion> rows) async {
     await transaction(() async {
       for (final row in rows) {
+        if (!await _canApplySyncedRow('local_customers', row.id.value)) {
+          continue;
+        }
         await into(localCustomers).insertOnConflictUpdate(row);
       }
     });
@@ -3724,20 +3818,48 @@ final class AppDatabase extends _$AppDatabase {
   Future<void> upsertSyncedSaleBundles(List<LocalSaleBundleCompanion> bundles) {
     return transaction(() async {
       for (final bundle in bundles) {
+        if (!await _canApplySyncedRow('local_sales', bundle.sale.id.value)) {
+          continue;
+        }
         await into(localSales).insertOnConflictUpdate(bundle.sale);
         for (final item in bundle.items) {
+          if (!await _canApplySyncedRow('local_sale_items', item.id.value)) {
+            continue;
+          }
           await into(localSaleItems).insertOnConflictUpdate(item);
         }
         for (final payment in bundle.payments) {
+          if (!await _canApplySyncedRow(
+            'local_customer_payments',
+            payment.id.value,
+          )) {
+            continue;
+          }
           await into(localCustomerPayments).insertOnConflictUpdate(payment);
         }
         for (final cashTransaction in bundle.cashTransactions) {
+          if (!await _canApplySyncedRow(
+            'local_cash_transactions',
+            cashTransaction.id.value,
+          )) {
+            continue;
+          }
           await into(
             localCashTransactions,
           ).insertOnConflictUpdate(cashTransaction);
         }
       }
     });
+  }
+
+  Future<bool> _canApplySyncedRow(String tableName, String id) async {
+    final row = await customSelect(
+      'SELECT sync_status FROM $tableName WHERE id = ? LIMIT 1',
+      variables: [Variable<String>(id)],
+    ).getSingleOrNull();
+
+    final syncStatus = row?.read<String>('sync_status');
+    return syncStatus == null || syncStatus == 'synced';
   }
 
   Future<List<LocalSaleReturnBundle>> getPendingSaleReturnBundles({
@@ -3826,6 +3948,42 @@ final class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> upsertSyncedSaleReturnBundles(
+    List<LocalSaleReturnBundleCompanion> bundles,
+  ) {
+    return transaction(() async {
+      for (final bundle in bundles) {
+        if (!await _canApplySyncedRow(
+          'local_sale_returns',
+          bundle.saleReturn.id.value,
+        )) {
+          continue;
+        }
+        await into(localSaleReturns).insertOnConflictUpdate(bundle.saleReturn);
+        for (final item in bundle.items) {
+          if (!await _canApplySyncedRow(
+            'local_sale_return_items',
+            item.id.value,
+          )) {
+            continue;
+          }
+          await into(localSaleReturnItems).insertOnConflictUpdate(item);
+        }
+        for (final cashTransaction in bundle.cashTransactions) {
+          if (!await _canApplySyncedRow(
+            'local_cash_transactions',
+            cashTransaction.id.value,
+          )) {
+            continue;
+          }
+          await into(
+            localCashTransactions,
+          ).insertOnConflictUpdate(cashTransaction);
+        }
+      }
+    });
+  }
+
   Future<LocalExpenseSyncBundle> getPendingExpenseSyncBundle({
     String? shopId,
   }) async {
@@ -3880,9 +4038,18 @@ final class AppDatabase extends _$AppDatabase {
   }) {
     return transaction(() async {
       for (final expense in expenses) {
+        if (!await _canApplySyncedRow('local_expenses', expense.id.value)) {
+          continue;
+        }
         await into(localExpenses).insertOnConflictUpdate(expense);
       }
       for (final cashTransaction in cashTransactions) {
+        if (!await _canApplySyncedRow(
+          'local_cash_transactions',
+          cashTransaction.id.value,
+        )) {
+          continue;
+        }
         await into(
           localCashTransactions,
         ).insertOnConflictUpdate(cashTransaction);
@@ -3942,9 +4109,18 @@ final class AppDatabase extends _$AppDatabase {
   }) {
     return transaction(() async {
       for (final income in incomes) {
+        if (!await _canApplySyncedRow('local_incomes', income.id.value)) {
+          continue;
+        }
         await into(localIncomes).insertOnConflictUpdate(income);
       }
       for (final cashTransaction in cashTransactions) {
+        if (!await _canApplySyncedRow(
+          'local_cash_transactions',
+          cashTransaction.id.value,
+        )) {
+          continue;
+        }
         await into(
           localCashTransactions,
         ).insertOnConflictUpdate(cashTransaction);
@@ -4420,6 +4596,18 @@ class LocalSaleReturnBundle {
   final LocalSaleReturn saleReturn;
   final List<LocalSaleReturnItem> items;
   final List<LocalCashTransaction> cashTransactions;
+}
+
+class LocalSaleReturnBundleCompanion {
+  const LocalSaleReturnBundleCompanion({
+    required this.saleReturn,
+    required this.items,
+    required this.cashTransactions,
+  });
+
+  final LocalSaleReturnsCompanion saleReturn;
+  final List<LocalSaleReturnItemsCompanion> items;
+  final List<LocalCashTransactionsCompanion> cashTransactions;
 }
 
 class LocalExpenseSyncBundle {

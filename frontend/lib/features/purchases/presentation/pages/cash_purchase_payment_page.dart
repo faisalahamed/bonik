@@ -24,6 +24,7 @@ class CashPurchasePaymentPage extends ConsumerStatefulWidget {
 class _CashPurchasePaymentPageState
     extends ConsumerState<CashPurchasePaymentPage> {
   late final TextEditingController _paidAmountController;
+  late final TextEditingController _commentController;
 
   @override
   void initState() {
@@ -31,12 +32,18 @@ class _CashPurchasePaymentPageState
     _paidAmountController = TextEditingController(
       text: ref.read(cashPurchaseDraftProvider).paidAmount,
     )..addListener(_syncPaidAmount);
+    _commentController = TextEditingController(
+      text: ref.read(cashPurchaseDraftProvider).comment,
+    )..addListener(_syncComment);
   }
 
   @override
   void dispose() {
     _paidAmountController
       ..removeListener(_syncPaidAmount)
+      ..dispose();
+    _commentController
+      ..removeListener(_syncComment)
       ..dispose();
     super.dispose();
   }
@@ -45,6 +52,27 @@ class _CashPurchasePaymentPageState
     ref
         .read(cashPurchaseDraftProvider.notifier)
         .setPaidAmount(_paidAmountController.text);
+  }
+
+  void _syncComment() {
+    ref
+        .read(cashPurchaseDraftProvider.notifier)
+        .setComment(_commentController.text);
+  }
+
+  Future<void> _changePurchaseDate(DateTime currentDate) async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: currentDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate == null) {
+      return;
+    }
+
+    ref.read(cashPurchaseDraftProvider.notifier).setPurchaseDate(pickedDate);
   }
 
   @override
@@ -120,6 +148,8 @@ class _CashPurchasePaymentPageState
                             const SizedBox(height: AppSpacing.md),
                             _AttachmentAndDateRow(
                               date: purchaseDraft.purchaseDate,
+                              onDateTap: () =>
+                                  _changePurchaseDate(purchaseDraft.purchaseDate),
                             ),
                             const SizedBox(height: AppSpacing.lg),
                             _PaymentMethodSection(
@@ -133,7 +163,7 @@ class _CashPurchasePaymentPageState
                               },
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            _PurchaseNoteCard(note: purchaseDraft.comment),
+                            _PurchaseNoteCard(controller: _commentController),
                           ],
                         ),
                       ),
@@ -567,9 +597,10 @@ class _PurchaseItemSummaryLine extends StatelessWidget {
 }
 
 class _AttachmentAndDateRow extends StatelessWidget {
-  const _AttachmentAndDateRow({required this.date});
+  const _AttachmentAndDateRow({required this.date, required this.onDateTap});
 
   final DateTime date;
+  final VoidCallback onDateTap;
 
   @override
   Widget build(BuildContext context) {
@@ -609,34 +640,42 @@ class _AttachmentAndDateRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Container(
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: AppGradients.primaryButton,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDateTap,
               borderRadius: BorderRadius.circular(AppRadii.lg),
-              boxShadow: AppShadows.button,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'তারিখ',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withOpacity(0.82),
-                      fontWeight: FontWeight.w700,
-                    ),
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.primaryButton,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  boxShadow: AppShadows.button,
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'তারিখ',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: Colors.white.withOpacity(0.82),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        dateText,
+                        style: textTheme.titleSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    dateText,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -989,9 +1028,9 @@ class _AmountStatBox extends StatelessWidget {
 }
 
 class _PurchaseNoteCard extends StatelessWidget {
-  const _PurchaseNoteCard({required this.note});
+  const _PurchaseNoteCard({required this.controller});
 
-  final String note;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -1015,20 +1054,19 @@ class _PurchaseNoteCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Text(
-              note.trim().isEmpty ? 'কোনো নোট নেই' : note.trim(),
-              style: textTheme.bodyMedium?.copyWith(
-                color: note.trim().isEmpty
-                    ? AppColors.textMuted
-                    : AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
+          TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'অর্ডার বা বাজার সম্পর্কে নোট লিখুন...',
+              hintStyle: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+              ),
+              filled: true,
+              fillColor: AppColors.surfaceContainerLow,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                borderSide: BorderSide.none,
               ),
             ),
           ),

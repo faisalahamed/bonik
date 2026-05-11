@@ -24,24 +24,36 @@ class IncomeSyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final bundle = await database.getPendingIncomeSyncBundle(shopId: shopId);
     if (bundle.isEmpty) {
       return;
     }
 
-    await apiClient.postJson('/incomes', body: _bundleToJson(bundle));
+    await apiClient.postJson(
+      '/incomes',
+      body: {..._bundleToJson(bundle), 'user_id': userId},
+    );
     await database.markIncomeSyncBundleSynced(bundle);
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'incomes';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/incomes',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     await database.upsertSyncedIncomeData(
@@ -55,6 +67,11 @@ class IncomeSyncService {
           for (final row in rows.whereType<Map<String, dynamic>>())
             _cashTransactionFromJson(row),
       ],
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

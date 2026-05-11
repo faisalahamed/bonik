@@ -24,11 +24,11 @@ class SupplierSyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final pendingSuppliers = await database.getPendingSuppliers(shopId: shopId);
 
     for (final supplier in pendingSuppliers) {
@@ -44,6 +44,7 @@ class SupplierSyncService {
           'created_at': AppTime.isoUtc(supplier.createdAt),
           'updated_at': AppTime.isoUtc(supplier.updatedAt),
           'deleted_at': AppTime.nullableIsoUtc(supplier.deletedAt),
+          'user_id': userId,
         },
       );
       final syncedSupplier = response['supplier'];
@@ -57,10 +58,19 @@ class SupplierSyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'suppliers';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/suppliers',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawSuppliers = response['suppliers'];
@@ -73,6 +83,11 @@ class SupplierSyncService {
           .whereType<Map<String, dynamic>>()
           .map(_supplierFromJson)
           .toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

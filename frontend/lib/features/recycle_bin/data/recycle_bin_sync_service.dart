@@ -29,11 +29,11 @@ class RecycleBinSyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final pendingEntries = await database.getPendingRecycleBinEntries(
       shopId: shopId,
     );
@@ -41,7 +41,7 @@ class RecycleBinSyncService {
     for (final entry in pendingEntries) {
       final response = await apiClient.postJson(
         '/recycle-bin',
-        body: _entryToJson(entry),
+        body: {..._entryToJson(entry), 'user_id': userId},
       );
       final syncedEntry = response['recycle_bin_entry'];
       final syncedId = syncedEntry is Map<String, dynamic>
@@ -54,10 +54,19 @@ class RecycleBinSyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'recycle_bin';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/recycle-bin',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawEntries = response['recycle_bin_entries'];
@@ -67,6 +76,11 @@ class RecycleBinSyncService {
 
     await database.upsertSyncedRecycleBinEntries(
       rawEntries.whereType<Map<String, dynamic>>().map(_entryFromJson).toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

@@ -27,15 +27,11 @@ class _CashPurchaseReviewPageState
     extends ConsumerState<CashPurchaseReviewPage> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, _PurchaseLineDraft> _draftsByCategoryId = {};
-  late final TextEditingController _commentController;
 
   @override
   void initState() {
     super.initState();
     _syncDraftControllers(ref.read(cashPurchaseDraftProvider).selectedLines);
-    _commentController = TextEditingController(
-      text: ref.read(cashPurchaseDraftProvider).comment,
-    )..addListener(_syncComment);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -53,9 +49,6 @@ class _CashPurchaseReviewPageState
     for (final draft in _draftsByCategoryId.values) {
       draft.dispose();
     }
-    _commentController
-      ..removeListener(_syncComment)
-      ..dispose();
     super.dispose();
   }
 
@@ -105,11 +98,6 @@ class _CashPurchaseReviewPageState
     setState(() {});
   }
 
-  void _syncComment() {
-    ref
-        .read(cashPurchaseDraftProvider.notifier)
-        .setComment(_commentController.text);
-  }
 
   void _syncDraftControllers(List<CashPurchaseDraftLine> lines) {
     final categoryIds = lines.map((line) => line.category.id).toSet();
@@ -191,20 +179,6 @@ class _CashPurchaseReviewPageState
     }
   }
 
-  Future<void> _changePurchaseDate(DateTime currentDate) async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: currentDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-
-    if (pickedDate == null) {
-      return;
-    }
-
-    ref.read(cashPurchaseDraftProvider.notifier).setPurchaseDate(pickedDate);
-  }
 
   void _continueToPayment() {
     final isValid = _formKey.currentState?.validate() ?? false;
@@ -292,12 +266,6 @@ class _CashPurchaseReviewPageState
                       ),
                       child: ListView(
                         children: [
-                          _PurchaseDateCard(
-                            date: purchaseDraft.purchaseDate,
-                            onTap: () =>
-                                _changePurchaseDate(purchaseDraft.purchaseDate),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
                           if (!hasItems)
                             const _EmptyPurchaseReviewState()
                           else
@@ -323,7 +291,6 @@ class _CashPurchaseReviewPageState
                             profitTotal: _profitTotal,
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          _PurchaseCommentCard(controller: _commentController),
                         ],
                       ),
                     ),
@@ -563,62 +530,6 @@ class _BackgroundGlow extends StatelessWidget {
   }
 }
 
-class _PurchaseDateCard extends StatelessWidget {
-  const _PurchaseDateCard({required this.date, required this.onTap});
-
-  final DateTime date;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final dateText =
-        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            boxShadow: AppShadows.soft,
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_rounded,
-                color: AppColors.textMuted,
-                size: 18,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  dateText,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.event_available_rounded,
-                color: AppColors.primary,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _PurchaseReviewItem extends StatelessWidget {
   const _PurchaseReviewItem({
@@ -1136,48 +1047,6 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _PurchaseCommentCard extends StatelessWidget {
-  const _PurchaseCommentCard({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'মন্তব্য',
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'অর্ডার বা বাজার সম্পর্কে নোট লিখুন...',
-              hintStyle: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _EmptyPurchaseReviewState extends StatelessWidget {
   const _EmptyPurchaseReviewState();

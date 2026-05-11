@@ -24,18 +24,18 @@ class SalesSyncService {
       return;
     }
 
-    await _pushPendingCustomers(currentUser.shopId);
-    await _pushPendingSales(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPendingCustomers(currentUser.shopId, currentUser.id);
+    await _pushPendingSales(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPendingCustomers(String shopId) async {
+  Future<void> _pushPendingCustomers(String shopId, String userId) async {
     final pendingCustomers = await database.getPendingCustomers(shopId: shopId);
 
     for (final customer in pendingCustomers) {
       final response = await apiClient.postJson(
         '/customers',
-        body: _customerToJson(customer),
+        body: {..._customerToJson(customer), 'user_id': userId},
       );
       final syncedCustomer = response['customer'];
       final syncedId = syncedCustomer is Map<String, dynamic>
@@ -59,13 +59,13 @@ class SalesSyncService {
     }
   }
 
-  Future<void> _pushPendingSales(String shopId) async {
+  Future<void> _pushPendingSales(String shopId, String userId) async {
     final bundles = await database.getPendingSaleBundles(shopId: shopId);
 
     for (final bundle in bundles) {
       final response = await apiClient.postJson(
         '/sales',
-        body: _bundleToJson(bundle),
+        body: {..._bundleToJson(bundle), 'user_id': userId},
       );
       final syncedSale = response['sale'];
       final syncedId = syncedSale is Map<String, dynamic>
@@ -78,10 +78,20 @@ class SalesSyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const customersEntityType = 'customers';
+    final customersCursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: customersEntityType,
+    );
     final customerResponse = await apiClient.getJson(
       '/customers',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (customersCursor != null)
+          'updated_after': AppTime.isoUtc(customersCursor),
+      },
     );
     final rawCustomers = customerResponse['customers'];
     if (rawCustomers is List) {
@@ -92,10 +102,24 @@ class SalesSyncService {
             .toList(),
       );
     }
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: customersEntityType,
+      serverTime: _dateTime(customerResponse['server_time']),
+    );
 
+    const salesEntityType = 'sales';
+    final salesCursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: salesEntityType,
+    );
     final saleResponse = await apiClient.getJson(
       '/sales',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (salesCursor != null) 'updated_after': AppTime.isoUtc(salesCursor),
+      },
     );
     final rawSales = saleResponse['sales'];
     if (rawSales is List) {
@@ -105,6 +129,11 @@ class SalesSyncService {
           .toList();
       await database.upsertSyncedSaleBundles(saleRows);
     }
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: salesEntityType,
+      serverTime: _dateTime(saleResponse['server_time']),
+    );
   }
 
   Map<String, dynamic> _customerToJson(LocalCustomer customer) {

@@ -24,11 +24,11 @@ class CategorySyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final pendingCategories = await database.getPendingCategories(
       shopId: shopId,
     );
@@ -46,6 +46,7 @@ class CategorySyncService {
           'created_at': AppTime.isoUtc(category.createdAt),
           'updated_at': AppTime.isoUtc(category.updatedAt),
           'deleted_at': AppTime.nullableIsoUtc(category.deletedAt),
+          'user_id': userId,
         },
       );
       final syncedCategory = response['category'];
@@ -59,10 +60,19 @@ class CategorySyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'categories';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/categories',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawCategories = response['categories'];
@@ -75,6 +85,11 @@ class CategorySyncService {
           .whereType<Map<String, dynamic>>()
           .map(_categoryFromJson)
           .toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

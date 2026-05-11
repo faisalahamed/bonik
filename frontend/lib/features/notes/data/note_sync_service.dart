@@ -24,17 +24,17 @@ class NoteSyncService {
       return;
     }
 
-    await _pushPending(currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await _pushPending(currentUser.shopId, currentUser.id);
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
-  Future<void> _pushPending(String shopId) async {
+  Future<void> _pushPending(String shopId, String userId) async {
     final pendingNotes = await database.getPendingNotes(shopId: shopId);
 
     for (final note in pendingNotes) {
       final response = await apiClient.postJson(
         '/notes',
-        body: _noteToJson(note),
+        body: {..._noteToJson(note), 'user_id': userId},
       );
       final syncedNote = response['note'];
       final syncedId = syncedNote is Map<String, dynamic>
@@ -47,10 +47,19 @@ class NoteSyncService {
     }
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'notes';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/notes',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawNotes = response['notes'];
@@ -60,6 +69,11 @@ class NoteSyncService {
 
     await database.upsertSyncedNotes(
       rawNotes.whereType<Map<String, dynamic>>().map(_noteFromJson).toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

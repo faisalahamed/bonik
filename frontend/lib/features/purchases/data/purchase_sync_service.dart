@@ -37,8 +37,11 @@ class PurchaseSyncService {
       return;
     }
 
-    await syncPendingPurchases(shopId: currentUser.shopId);
-    await _pullCurrentShop(currentUser.shopId);
+    await syncPendingPurchases(
+      shopId: currentUser.shopId,
+      userId: currentUser.id,
+    );
+    await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
   Future<String> saveDraftLocally(CashPurchaseDraftState draft) async {
@@ -136,13 +139,19 @@ class PurchaseSyncService {
     return purchaseId;
   }
 
-  Future<void> syncPendingPurchases({String? shopId}) async {
+  Future<void> syncPendingPurchases({
+    String? shopId,
+    required String userId,
+  }) async {
     final bundles = await database.getPendingPurchaseBundles(shopId: shopId);
     await _ensurePendingPurchaseCategoriesAreSynced(bundles);
     await _ensurePendingPurchaseSuppliersAreSynced(bundles);
 
     for (final bundle in bundles) {
-      await apiClient.postJson('/purchases', body: _bundleToJson(bundle));
+      await apiClient.postJson(
+        '/purchases',
+        body: {..._bundleToJson(bundle), 'user_id': userId},
+      );
       await database.markPurchaseBundleSynced(bundle.purchase.id);
     }
   }
@@ -209,10 +218,19 @@ class PurchaseSyncService {
     await supplierSyncService.syncSuppliers();
   }
 
-  Future<void> _pullCurrentShop(String shopId) async {
+  Future<void> _pullCurrentShop(String shopId, String userId) async {
+    const entityType = 'purchases';
+    final cursor = await database.getLastPulledAt(
+      shopId: shopId,
+      entityType: entityType,
+    );
     final response = await apiClient.getJson(
       '/purchases',
-      queryParameters: {'shop_id': shopId},
+      queryParameters: {
+        'shop_id': shopId,
+        'user_id': userId,
+        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+      },
     );
 
     final rawPurchases = response['purchases'];
@@ -244,6 +262,11 @@ class PurchaseSyncService {
             }),
           )
           .toList(),
+    );
+    await database.markPullSucceeded(
+      shopId: shopId,
+      entityType: entityType,
+      serverTime: _dateTime(response['server_time']),
     );
   }
 

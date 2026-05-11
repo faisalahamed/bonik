@@ -12557,6 +12557,400 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
   }
 }
 
+class $SyncStatesTable extends SyncStates
+    with TableInfo<$SyncStatesTable, SyncState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPulledAtMeta = const VerificationMeta(
+    'lastPulledAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPulledAt = GeneratedColumn<DateTime>(
+    'last_pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSuccessfulSyncAtMeta =
+      const VerificationMeta('lastSuccessfulSyncAt');
+  @override
+  late final GeneratedColumn<DateTime> lastSuccessfulSyncAt =
+      GeneratedColumn<DateTime>(
+        'last_successful_sync_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    shopId,
+    entityType,
+    lastPulledAt,
+    lastSuccessfulSyncAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('last_pulled_at')) {
+      context.handle(
+        _lastPulledAtMeta,
+        lastPulledAt.isAcceptableOrUnknown(
+          data['last_pulled_at']!,
+          _lastPulledAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_successful_sync_at')) {
+      context.handle(
+        _lastSuccessfulSyncAtMeta,
+        lastSuccessfulSyncAt.isAcceptableOrUnknown(
+          data['last_successful_sync_at']!,
+          _lastSuccessfulSyncAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {shopId, entityType};
+  @override
+  SyncState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncState(
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      lastPulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_pulled_at'],
+      ),
+      lastSuccessfulSyncAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_successful_sync_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncStatesTable createAlias(String alias) {
+    return $SyncStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncState extends DataClass implements Insertable<SyncState> {
+  final String shopId;
+  final String entityType;
+  final DateTime? lastPulledAt;
+  final DateTime? lastSuccessfulSyncAt;
+  final DateTime updatedAt;
+  const SyncState({
+    required this.shopId,
+    required this.entityType,
+    this.lastPulledAt,
+    this.lastSuccessfulSyncAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['shop_id'] = Variable<String>(shopId);
+    map['entity_type'] = Variable<String>(entityType);
+    if (!nullToAbsent || lastPulledAt != null) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt);
+    }
+    if (!nullToAbsent || lastSuccessfulSyncAt != null) {
+      map['last_successful_sync_at'] = Variable<DateTime>(lastSuccessfulSyncAt);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncStatesCompanion toCompanion(bool nullToAbsent) {
+    return SyncStatesCompanion(
+      shopId: Value(shopId),
+      entityType: Value(entityType),
+      lastPulledAt: lastPulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPulledAt),
+      lastSuccessfulSyncAt: lastSuccessfulSyncAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSuccessfulSyncAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncState(
+      shopId: serializer.fromJson<String>(json['shopId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      lastPulledAt: serializer.fromJson<DateTime?>(json['lastPulledAt']),
+      lastSuccessfulSyncAt: serializer.fromJson<DateTime?>(
+        json['lastSuccessfulSyncAt'],
+      ),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'shopId': serializer.toJson<String>(shopId),
+      'entityType': serializer.toJson<String>(entityType),
+      'lastPulledAt': serializer.toJson<DateTime?>(lastPulledAt),
+      'lastSuccessfulSyncAt': serializer.toJson<DateTime?>(
+        lastSuccessfulSyncAt,
+      ),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncState copyWith({
+    String? shopId,
+    String? entityType,
+    Value<DateTime?> lastPulledAt = const Value.absent(),
+    Value<DateTime?> lastSuccessfulSyncAt = const Value.absent(),
+    DateTime? updatedAt,
+  }) => SyncState(
+    shopId: shopId ?? this.shopId,
+    entityType: entityType ?? this.entityType,
+    lastPulledAt: lastPulledAt.present ? lastPulledAt.value : this.lastPulledAt,
+    lastSuccessfulSyncAt: lastSuccessfulSyncAt.present
+        ? lastSuccessfulSyncAt.value
+        : this.lastSuccessfulSyncAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncState copyWithCompanion(SyncStatesCompanion data) {
+    return SyncState(
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      lastPulledAt: data.lastPulledAt.present
+          ? data.lastPulledAt.value
+          : this.lastPulledAt,
+      lastSuccessfulSyncAt: data.lastSuccessfulSyncAt.present
+          ? data.lastSuccessfulSyncAt.value
+          : this.lastSuccessfulSyncAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncState(')
+          ..write('shopId: $shopId, ')
+          ..write('entityType: $entityType, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('lastSuccessfulSyncAt: $lastSuccessfulSyncAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    shopId,
+    entityType,
+    lastPulledAt,
+    lastSuccessfulSyncAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncState &&
+          other.shopId == this.shopId &&
+          other.entityType == this.entityType &&
+          other.lastPulledAt == this.lastPulledAt &&
+          other.lastSuccessfulSyncAt == this.lastSuccessfulSyncAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncStatesCompanion extends UpdateCompanion<SyncState> {
+  final Value<String> shopId;
+  final Value<String> entityType;
+  final Value<DateTime?> lastPulledAt;
+  final Value<DateTime?> lastSuccessfulSyncAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SyncStatesCompanion({
+    this.shopId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.lastSuccessfulSyncAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncStatesCompanion.insert({
+    required String shopId,
+    required String entityType,
+    this.lastPulledAt = const Value.absent(),
+    this.lastSuccessfulSyncAt = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : shopId = Value(shopId),
+       entityType = Value(entityType),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncState> custom({
+    Expression<String>? shopId,
+    Expression<String>? entityType,
+    Expression<DateTime>? lastPulledAt,
+    Expression<DateTime>? lastSuccessfulSyncAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (shopId != null) 'shop_id': shopId,
+      if (entityType != null) 'entity_type': entityType,
+      if (lastPulledAt != null) 'last_pulled_at': lastPulledAt,
+      if (lastSuccessfulSyncAt != null)
+        'last_successful_sync_at': lastSuccessfulSyncAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncStatesCompanion copyWith({
+    Value<String>? shopId,
+    Value<String>? entityType,
+    Value<DateTime?>? lastPulledAt,
+    Value<DateTime?>? lastSuccessfulSyncAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncStatesCompanion(
+      shopId: shopId ?? this.shopId,
+      entityType: entityType ?? this.entityType,
+      lastPulledAt: lastPulledAt ?? this.lastPulledAt,
+      lastSuccessfulSyncAt: lastSuccessfulSyncAt ?? this.lastSuccessfulSyncAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (lastPulledAt.present) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt.value);
+    }
+    if (lastSuccessfulSyncAt.present) {
+      map['last_successful_sync_at'] = Variable<DateTime>(
+        lastSuccessfulSyncAt.value,
+      );
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStatesCompanion(')
+          ..write('shopId: $shopId, ')
+          ..write('entityType: $entityType, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
+          ..write('lastSuccessfulSyncAt: $lastSuccessfulSyncAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12588,6 +12982,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalRecycleBinEntriesTable localRecycleBinEntries =
       $LocalRecycleBinEntriesTable(this);
   late final $LocalNotesTable localNotes = $LocalNotesTable(this);
+  late final $SyncStatesTable syncStates = $SyncStatesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12611,6 +13006,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localIncomes,
     localRecycleBinEntries,
     localNotes,
+    syncStates,
   ];
 }
 
@@ -25641,6 +26037,209 @@ typedef $$LocalNotesTableProcessedTableManager =
       LocalNote,
       PrefetchHooks Function({bool shopId})
     >;
+typedef $$SyncStatesTableCreateCompanionBuilder =
+    SyncStatesCompanion Function({
+      required String shopId,
+      required String entityType,
+      Value<DateTime?> lastPulledAt,
+      Value<DateTime?> lastSuccessfulSyncAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncStatesTableUpdateCompanionBuilder =
+    SyncStatesCompanion Function({
+      Value<String> shopId,
+      Value<String> entityType,
+      Value<DateTime?> lastPulledAt,
+      Value<DateTime?> lastSuccessfulSyncAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncStatesTable> {
+  $$SyncStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get shopId => $composableBuilder(
+    column: $table.shopId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSuccessfulSyncAt => $composableBuilder(
+    column: $table.lastSuccessfulSyncAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncStatesTable> {
+  $$SyncStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get shopId => $composableBuilder(
+    column: $table.shopId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSuccessfulSyncAt => $composableBuilder(
+    column: $table.lastSuccessfulSyncAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncStatesTable> {
+  $$SyncStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get shopId =>
+      $composableBuilder(column: $table.shopId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSuccessfulSyncAt => $composableBuilder(
+    column: $table.lastSuccessfulSyncAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncStatesTable,
+          SyncState,
+          $$SyncStatesTableFilterComposer,
+          $$SyncStatesTableOrderingComposer,
+          $$SyncStatesTableAnnotationComposer,
+          $$SyncStatesTableCreateCompanionBuilder,
+          $$SyncStatesTableUpdateCompanionBuilder,
+          (
+            SyncState,
+            BaseReferences<_$AppDatabase, $SyncStatesTable, SyncState>,
+          ),
+          SyncState,
+          PrefetchHooks Function()
+        > {
+  $$SyncStatesTableTableManager(_$AppDatabase db, $SyncStatesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> shopId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<DateTime?> lastSuccessfulSyncAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStatesCompanion(
+                shopId: shopId,
+                entityType: entityType,
+                lastPulledAt: lastPulledAt,
+                lastSuccessfulSyncAt: lastSuccessfulSyncAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String shopId,
+                required String entityType,
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<DateTime?> lastSuccessfulSyncAt = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStatesCompanion.insert(
+                shopId: shopId,
+                entityType: entityType,
+                lastPulledAt: lastPulledAt,
+                lastSuccessfulSyncAt: lastSuccessfulSyncAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncStatesTable,
+      SyncState,
+      $$SyncStatesTableFilterComposer,
+      $$SyncStatesTableOrderingComposer,
+      $$SyncStatesTableAnnotationComposer,
+      $$SyncStatesTableCreateCompanionBuilder,
+      $$SyncStatesTableUpdateCompanionBuilder,
+      (SyncState, BaseReferences<_$AppDatabase, $SyncStatesTable, SyncState>),
+      SyncState,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -25684,4 +26283,6 @@ class $AppDatabaseManager {
       );
   $$LocalNotesTableTableManager get localNotes =>
       $$LocalNotesTableTableManager(_db, _db.localNotes);
+  $$SyncStatesTableTableManager get syncStates =>
+      $$SyncStatesTableTableManager(_db, _db.syncStates);
 }
