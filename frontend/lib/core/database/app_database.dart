@@ -1794,6 +1794,158 @@ final class AppDatabase extends _$AppDatabase {
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
+  Stream<LocalProfitLossSummary> watchProfitLossSummaryForCurrentShop({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final hasDateRange = start != null && end != null;
+    final salesDateFilter = hasDateRange
+        ? 'AND s.created_at >= ? AND s.created_at < ?'
+        : '';
+    final incomeDateFilter = hasDateRange
+        ? 'AND created_at >= ? AND created_at < ?'
+        : '';
+    final expenseDateFilter = hasDateRange
+        ? 'AND created_at >= ? AND created_at < ?'
+        : '';
+
+    return customSelect(
+      '''
+      WITH current_shop AS (
+        SELECT shop_id
+        FROM local_users
+        WHERE is_current = 1
+      ),
+      sold_items AS (
+        SELECT
+          si.id,
+          si.quantity,
+          si.sale_price,
+          si.buy_price,
+          COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
+            WHERE sri.sale_item_id = si.id
+              AND sri.deleted_at IS NULL
+              AND sr.deleted_at IS NULL
+          ), 0) AS returned_quantity
+        FROM local_sale_items si
+        INNER JOIN local_sales s ON s.id = si.order_id
+        WHERE si.shop_id IN (SELECT shop_id FROM current_shop)
+          AND si.deleted_at IS NULL
+          AND s.deleted_at IS NULL
+          $salesDateFilter
+      ),
+      sales_profit AS (
+        SELECT
+          COALESCE(SUM(sale_price * MAX(quantity - returned_quantity, 0)), 0.0)
+            AS sales_total,
+          COALESCE(SUM(buy_price * MAX(quantity - returned_quantity, 0)), 0.0)
+            AS product_cost,
+          COALESCE(SUM(MAX(quantity - returned_quantity, 0)), 0) AS item_count
+        FROM sold_items
+      ),
+      dues AS (
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN (
+              s.total
+              - COALESCE((
+                SELECT SUM(sr.refund_total)
+                FROM local_sale_returns sr
+                WHERE sr.sale_id = s.id
+                  AND sr.deleted_at IS NULL
+              ), 0.0)
+              - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
+              ), 0.0)
+            ) > 0
+            THEN (
+              s.total
+              - COALESCE((
+                SELECT SUM(sr.refund_total)
+                FROM local_sale_returns sr
+                WHERE sr.sale_id = s.id
+                  AND sr.deleted_at IS NULL
+              ), 0.0)
+              - COALESCE((
+                SELECT SUM(cp.payments)
+                FROM local_customer_payments cp
+                WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
+              ), 0.0)
+            )
+            ELSE 0.0
+          END
+        ), 0.0) AS due_amount
+        FROM local_sales s
+        WHERE s.shop_id IN (SELECT shop_id FROM current_shop)
+          AND s.deleted_at IS NULL
+          $salesDateFilter
+      ),
+      incomes AS (
+        SELECT COALESCE(SUM(amount), 0.0) AS total
+        FROM local_incomes
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          $incomeDateFilter
+      ),
+      expenses AS (
+        SELECT COALESCE(SUM(amount), 0.0) AS total
+        FROM local_expenses
+        WHERE shop_id IN (SELECT shop_id FROM current_shop)
+          AND deleted_at IS NULL
+          $expenseDateFilter
+      )
+      SELECT
+        sales_profit.sales_total,
+        sales_profit.product_cost,
+        0.0 AS delivery_charge,
+        sales_profit.item_count,
+        dues.due_amount,
+        incomes.total AS other_income,
+        expenses.total AS expense_total
+      FROM sales_profit, dues, incomes, expenses
+      ''',
+      variables: hasDateRange
+          ? [
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+            ]
+          : const [],
+      readsFrom: {
+        localUsers,
+        localSales,
+        localSaleItems,
+        localSaleReturns,
+        localSaleReturnItems,
+        localCustomerPayments,
+        localIncomes,
+        localExpenses,
+      },
+    ).watchSingle().map(
+      (row) => LocalProfitLossSummary(
+        salesTotal: row.read<double>('sales_total'),
+        productCost: row.read<double>('product_cost'),
+        deliveryCharge: row.read<double>('delivery_charge'),
+        itemCount: row.read<int>('item_count'),
+        dueAmount: row.read<double>('due_amount'),
+        otherIncome: row.read<double>('other_income'),
+        expenseTotal: row.read<double>('expense_total'),
+      ),
+    );
+  }
+
   Future<String> saveOwnerGivenLocally({
     required double amount,
     required DateTime transactionDate,
@@ -4463,6 +4615,30 @@ class LocalPurchaseHistoryEntry {
   final String syncStatus;
 
   double get dueAmount => total - paidAmount;
+}
+
+class LocalProfitLossSummary {
+  const LocalProfitLossSummary({
+    required this.salesTotal,
+    required this.productCost,
+    required this.deliveryCharge,
+    required this.itemCount,
+    required this.dueAmount,
+    required this.otherIncome,
+    required this.expenseTotal,
+  });
+
+  final double salesTotal;
+  final double productCost;
+  final double deliveryCharge;
+  final int itemCount;
+  final double dueAmount;
+  final double otherIncome;
+  final double expenseTotal;
+
+  double get salesProfit => salesTotal - productCost - deliveryCharge;
+
+  double get netProfit => salesProfit + otherIncome - expenseTotal;
 }
 
 class LocalSalesHistoryEntry {
