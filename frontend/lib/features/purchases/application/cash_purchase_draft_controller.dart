@@ -8,7 +8,7 @@ class CashPurchaseDraftState {
     this.lines = const {},
     this.comment = '',
     this.supplierId,
-    this.paymentMethod = 'due',
+    this.paymentMethod = 'cash',
     this.paidAmount = '',
   });
 
