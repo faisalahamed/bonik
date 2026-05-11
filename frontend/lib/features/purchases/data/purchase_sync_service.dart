@@ -49,9 +49,6 @@ class PurchaseSyncService {
     if (currentUser == null) {
       throw StateError('No current user found.');
     }
-    if (draft.supplierId == null || draft.supplierId!.isEmpty) {
-      throw StateError('সাপ্লায়ার নির্বাচন করুন।');
-    }
     if (draft.selectedLines.isEmpty) {
       throw StateError('কোনো পণ্য নির্বাচন করা হয়নি।');
     }
@@ -72,12 +69,13 @@ class PurchaseSyncService {
     final paidAmount = _paidAmountForDraft(draft);
     final paymentId = paidAmount > 0 ? const Uuid().v4() : null;
     final status = paidAmount >= draft.purchaseTotal ? 'completed' : 'pending';
+    final supplierId = await _supplierIdForDraft(draft);
 
     await database.insertPurchaseBundle(
       purchase: LocalPurchasesCompanion(
         id: Value(purchaseId),
         shopId: Value(currentUser.shopId),
-        supplierId: Value(draft.supplierId!),
+        supplierId: Value(supplierId),
         total: Value(draft.purchaseTotal),
         otherCharge: const Value(0),
         description: Value(_nullableTrimmed(draft.comment)),
@@ -137,6 +135,16 @@ class PurchaseSyncService {
     );
 
     return purchaseId;
+  }
+
+  Future<String> _supplierIdForDraft(CashPurchaseDraftState draft) async {
+    final selectedSupplierId = draft.supplierId?.trim();
+    if (selectedSupplierId != null && selectedSupplierId.isNotEmpty) {
+      return selectedSupplierId;
+    }
+
+    final defaultSupplier = await database.getOrCreateDefaultSupplier();
+    return defaultSupplier.id;
   }
 
   Future<void> syncPendingPurchases({

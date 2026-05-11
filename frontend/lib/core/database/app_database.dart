@@ -2433,6 +2433,45 @@ final class AppDatabase extends _$AppDatabase {
     )..where((supplier) => supplier.id.equals(id))).getSingle();
   }
 
+  Future<LocalSupplier> getOrCreateDefaultSupplier() async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    const defaultName = 'Default Supplier';
+    final existingSupplier =
+        await (select(localSuppliers)
+              ..where(
+                (supplier) =>
+                    supplier.shopId.equals(currentUser.shopId) &
+                    supplier.deletedAt.isNull() &
+                    supplier.name.equals(defaultName),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existingSupplier != null) {
+      return existingSupplier;
+    }
+
+    final now = AppTime.nowUtc();
+    final id = const Uuid().v4();
+    await into(localSuppliers).insert(
+      LocalSuppliersCompanion(
+        id: Value(id),
+        shopId: Value(currentUser.shopId),
+        name: const Value(defaultName),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    return (select(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).getSingle();
+  }
+
   Future<void> markSupplierSynced(String id) async {
     await (update(localSuppliers)..where((supplier) => supplier.id.equals(id)))
         .write(const LocalSuppliersCompanion(syncStatus: Value('synced')));

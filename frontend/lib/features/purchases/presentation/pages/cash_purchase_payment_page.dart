@@ -224,6 +224,19 @@ class _CashPurchasePaymentPageState
   Future<void> _confirmPurchase(BuildContext context, WidgetRef ref) async {
     try {
       final draft = ref.read(cashPurchaseDraftProvider);
+      final hasSelectedSupplier = draft.supplierId?.trim().isNotEmpty ?? false;
+      if (!hasSelectedSupplier) {
+        final decision = await _confirmDefaultSupplier();
+        if (decision == _DefaultSupplierDecision.selectSupplier) {
+          if (context.mounted) {
+            await _showSupplierSelection(ref.read(appDatabaseProvider));
+          }
+          return;
+        }
+        if (decision != _DefaultSupplierDecision.continueWithDefault) {
+          return;
+        }
+      }
       await ref.read(purchaseSyncServiceProvider).saveDraftLocally(draft);
       ref.read(cashPurchaseDraftProvider.notifier).clear();
       if (context.mounted) {
@@ -236,7 +249,37 @@ class _CashPurchasePaymentPageState
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
+
+  Future<_DefaultSupplierDecision?> _confirmDefaultSupplier() {
+    return showDialog<_DefaultSupplierDecision>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('সাপ্লায়ার নির্বাচন করা হয়নি'),
+        content: const Text('আপনি কি ডিফল্ট সাপ্লায়ার দিয়ে সংরক্ষণ করতে চান?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('বাতিল'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, _DefaultSupplierDecision.selectSupplier),
+            child: const Text('সাপ্লায়ার নির্বাচন'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              _DefaultSupplierDecision.continueWithDefault,
+            ),
+            child: const Text('চালিয়ে যান'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+enum _DefaultSupplierDecision { continueWithDefault, selectSupplier }
 
 class _RedesignedTopBar extends StatelessWidget {
   @override
@@ -308,7 +351,10 @@ class _SupplierAndDateSection extends ConsumerWidget {
                 onTap: onSupplierTap,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
@@ -363,7 +409,10 @@ class _SupplierAndDateSection extends ConsumerWidget {
               onTap: onDateTap,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
@@ -476,14 +525,19 @@ class _PurchaseReceiptCard extends StatelessWidget {
                     ),
                     const Text(
                       'GRAND TOTAL',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ],
                 ),
                 Text(
-                  _toBengaliNumber(total == total.toInt()
-                      ? total.toInt().toString()
-                      : total.toStringAsFixed(2)),
+                  _formatTaka(
+                    total == total.toInt()
+                        ? total.toInt().toString()
+                        : total.toStringAsFixed(2),
+                  ),
                   style: const TextStyle(
                     color: Color(0xFF004D40),
                     fontSize: 22,
@@ -522,7 +576,7 @@ class _ProductItemRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_toBengaliNumber(line.quantityValue.toStringAsFixed(0))} টি × ${_toBengaliNumber(line.buyingPriceValue == line.buyingPriceValue.toInt() ? line.buyingPriceValue.toInt().toString() : line.buyingPriceValue.toStringAsFixed(2))}',
+                  '${_toBengaliNumber(line.quantityValue.toStringAsFixed(0))} টি × ${_formatTaka(line.buyingPriceValue == line.buyingPriceValue.toInt() ? line.buyingPriceValue.toInt().toString() : line.buyingPriceValue.toStringAsFixed(2))}',
                   style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 12,
@@ -533,9 +587,11 @@ class _ProductItemRow extends StatelessWidget {
             ),
           ),
           Text(
-            _toBengaliNumber(line.purchaseTotal == line.purchaseTotal.toInt()
-                ? line.purchaseTotal.toInt().toString()
-                : line.purchaseTotal.toStringAsFixed(2)),
+            _formatTaka(
+              line.purchaseTotal == line.purchaseTotal.toInt()
+                  ? line.purchaseTotal.toInt().toString()
+                  : line.purchaseTotal.toStringAsFixed(2),
+            ),
             style: const TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 15,
@@ -594,10 +650,13 @@ class _TransactionAccountCard extends StatelessWidget {
               Expanded(
                 child: _CustomInputField(
                   label: 'মোট বিল',
-                  value: totalAmount == totalAmount.toInt()
-                      ? totalAmount.toInt().toString()
-                      : totalAmount.toStringAsFixed(2),
+                  value: _toBengaliNumber(
+                    totalAmount == totalAmount.toInt()
+                        ? totalAmount.toInt().toString()
+                        : totalAmount.toStringAsFixed(2),
+                  ),
                   isReadOnly: true,
+                  showTakaPrefix: true,
                 ),
               ),
               const SizedBox(width: 12),
@@ -606,6 +665,7 @@ class _TransactionAccountCard extends StatelessWidget {
                   label: 'পরিশোধিত (PAID)',
                   controller: paidAmountController,
                   hint: '0.00',
+                  showTakaPrefix: true,
                 ),
               ),
             ],
@@ -656,9 +716,11 @@ class _TransactionAccountCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _toBengaliNumber(remainingAmount == remainingAmount.toInt()
-                            ? remainingAmount.toInt().toString()
-                            : remainingAmount.toStringAsFixed(2)),
+                        _formatTaka(
+                          remainingAmount == remainingAmount.toInt()
+                              ? remainingAmount.toInt().toString()
+                              : remainingAmount.toStringAsFixed(2),
+                        ),
                         style: const TextStyle(
                           color: Color(0xFFC62828),
                           fontSize: 20,
@@ -696,6 +758,7 @@ class _CustomInputField extends StatelessWidget {
     this.controller,
     this.hint,
     this.isReadOnly = false,
+    this.showTakaPrefix = false,
   });
 
   final String label;
@@ -703,6 +766,7 @@ class _CustomInputField extends StatelessWidget {
   final TextEditingController? controller;
   final String? hint;
   final bool isReadOnly;
+  final bool showTakaPrefix;
 
   @override
   Widget build(BuildContext context) {
@@ -734,6 +798,12 @@ class _CustomInputField extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
             decoration: InputDecoration(
               hintText: hint,
+              prefixText: showTakaPrefix ? '৳ ' : null,
+              prefixStyle: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: Color(0xFF004D40),
+              ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               border: InputBorder.none,
             ),
@@ -830,7 +900,6 @@ class _MethodButton extends StatelessWidget {
     );
   }
 }
-
 
 class _DashedDivider extends StatelessWidget {
   const _DashedDivider();
@@ -964,7 +1033,6 @@ class _BottomActionBar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-         
         ],
       ),
     );
@@ -1002,6 +1070,8 @@ String _toBengaliNumber(String input) {
   }
   return output;
 }
+
+String _formatTaka(String value) => '৳ ${_toBengaliNumber(value)}';
 
 // Reusing Dialog classes
 class _SupplierDraft {
@@ -1098,7 +1168,8 @@ class _SupplierSelectionDialog extends StatefulWidget {
   final AppDatabase database;
 
   @override
-  State<_SupplierSelectionDialog> createState() => _SupplierSelectionDialogState();
+  State<_SupplierSelectionDialog> createState() =>
+      _SupplierSelectionDialogState();
 }
 
 class _SupplierSelectionDialogState extends State<_SupplierSelectionDialog> {
@@ -1159,7 +1230,9 @@ class _SupplierSelectionDialogState extends State<_SupplierSelectionDialog> {
               builder: (context, snapshot) {
                 final suppliers = snapshot.data ?? [];
                 final filtered = suppliers.where((s) {
-                  final nameMatch = s.name.toLowerCase().contains(_searchQuery.toLowerCase());
+                  final nameMatch = s.name.toLowerCase().contains(
+                    _searchQuery.toLowerCase(),
+                  );
                   final mobileMatch = s.mobile?.contains(_searchQuery) ?? false;
                   return nameMatch || mobileMatch;
                 }).toList();
@@ -1175,10 +1248,8 @@ class _SupplierSelectionDialogState extends State<_SupplierSelectionDialog> {
                   shrinkWrap: true,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   itemCount: filtered.length,
-                  separatorBuilder: (c, i) => Divider(
-                    height: 1,
-                    color: Colors.grey.withOpacity(0.1),
-                  ),
+                  separatorBuilder: (c, i) =>
+                      Divider(height: 1, color: Colors.grey.withOpacity(0.1)),
                   itemBuilder: (context, index) {
                     final supplier = filtered[index];
                     return ListTile(
@@ -1233,9 +1304,9 @@ class _SupplierSelectionDialogState extends State<_SupplierSelectionDialog> {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
                     }
                   }
                 }
