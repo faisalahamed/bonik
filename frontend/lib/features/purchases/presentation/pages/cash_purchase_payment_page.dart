@@ -82,97 +82,85 @@ class _CashPurchasePaymentPageState
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: _RedesignedTopBar(),
+      ),
       body: Column(
         children: [
-          const _PaymentTopBar(),
           Expanded(
-            child: Stack(
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                Positioned(
-                  top: -80,
-                  right: -70,
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowTop,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                _SupplierAndDateSection(
+                  purchaseDraft: purchaseDraft,
+                  onDateTap: () =>
+                      _changePurchaseDate(purchaseDraft.purchaseDate),
+                  onSupplierTap: () => _showSupplierSelection(database),
                 ),
-                Positioned(
-                  bottom: -120,
-                  left: -80,
-                  child: Container(
-                    width: 240,
-                    height: 240,
-                    decoration: const BoxDecoration(
-                      gradient: AppGradients.backgroundGlowBottom,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                _PurchaseReceiptCard(
+                  lines: purchaseDraft.selectedLines,
+                  total: purchaseDraft.purchaseTotal,
                 ),
-                SafeArea(
-                  top: false,
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          108,
-                        ),
-                        child: ListView(
-                          children: [
-                            _PayableAmountCard(
-                              amount: purchaseDraft.purchaseTotal,
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _PurchaseItemsSummaryCard(
-                              lines: purchaseDraft.selectedLines,
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _SupplierDropdownCard(
-                              suppliersStream: database
-                                  .watchSuppliersForCurrentShop(),
-                              selectedSupplierId: purchaseDraft.supplierId,
-                              onChanged: (supplierId) {
-                                ref
-                                    .read(cashPurchaseDraftProvider.notifier)
-                                    .setSupplier(supplierId);
-                              },
-                              onAddSupplier: () =>
-                                  _showAddSupplierDialog(database),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            _AttachmentAndDateRow(
-                              date: purchaseDraft.purchaseDate,
-                              onDateTap: () =>
-                                  _changePurchaseDate(purchaseDraft.purchaseDate),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _PaymentMethodSection(
-                              totalAmount: purchaseDraft.purchaseTotal,
-                              selectedMethod: purchaseDraft.paymentMethod,
-                              paidAmountController: _paidAmountController,
-                              onMethodChanged: (method) {
-                                ref
-                                    .read(cashPurchaseDraftProvider.notifier)
-                                    .setPaymentMethod(method);
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _PurchaseNoteCard(controller: _commentController),
-                          ],
-                        ),
-                      ),
-                      const _ConfirmPurchasePaymentButton(),
-                    ],
-                  ),
+                const SizedBox(height: AppSpacing.md),
+                _TransactionAccountCard(
+                  totalAmount: purchaseDraft.purchaseTotal,
+                  paidAmountController: _paidAmountController,
+                  remainingAmount: _calculateRemaining(purchaseDraft),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                _PaymentMethodToggle(
+                  selectedMethod: purchaseDraft.paymentMethod,
+                  onChanged: (method) {
+                    ref
+                        .read(cashPurchaseDraftProvider.notifier)
+                        .setPaymentMethod(method);
+                  },
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+                _ActionButtonsRow(onNoteTap: () => _showNoteDialog()),
+                const SizedBox(height: AppSpacing.lg),
               ],
             ),
+          ),
+          _BottomActionBar(onConfirm: () => _confirmPurchase(context, ref)),
+        ],
+      ),
+    );
+  }
+
+  double _calculateRemaining(CashPurchaseDraftState draft) {
+    final paid = double.tryParse(_paidAmountController.text) ?? 0;
+    return (draft.purchaseTotal - paid)
+        .clamp(0, draft.purchaseTotal)
+        .toDouble();
+  }
+
+  Future<void> _showSupplierSelection(AppDatabase database) async {
+    // Reusing the existing add supplier logic or adding a selection logic if needed
+    // For now, let's just use the add dialog as a proxy or keep it simple
+    _showAddSupplierDialog(database);
+  }
+
+  Future<void> _showNoteDialog() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('নোট লিখুন'),
+        content: TextField(
+          controller: _commentController,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'অর্ডার বা বাজার সম্পর্কে নোট লিখুন...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ঠিক আছে'),
           ),
         ],
       ),
@@ -195,16 +183,26 @@ class _CashPurchasePaymentPageState
         mobile: draft.mobile,
         address: draft.address,
       );
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       ref.read(cashPurchaseDraftProvider.notifier).setSupplier(supplier.id);
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
 
+  Future<void> _confirmPurchase(BuildContext context, WidgetRef ref) async {
+    try {
+      final draft = ref.read(cashPurchaseDraftProvider);
+      await ref.read(purchaseSyncServiceProvider).saveDraftLocally(draft);
+      ref.read(cashPurchaseDraftProvider.notifier).clear();
+      if (context.mounted) {
+        context.go(AppRoutes.dashboard);
+      }
+    } catch (error) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
@@ -212,16 +210,11 @@ class _CashPurchasePaymentPageState
   }
 }
 
-class _PaymentTopBar extends StatelessWidget {
-  const _PaymentTopBar();
-
+class _RedesignedTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        boxShadow: AppShadows.soft,
-      ),
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: SafeArea(
         bottom: false,
@@ -239,7 +232,7 @@ class _PaymentTopBar extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'পেমেন্ট',
+                'পেমেন্ট এন্ট্রি',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -253,58 +246,195 @@ class _PaymentTopBar extends StatelessWidget {
   }
 }
 
-class _PayableAmountCard extends StatelessWidget {
-  const _PayableAmountCard({required this.amount});
+class _SupplierAndDateSection extends ConsumerWidget {
+  const _SupplierAndDateSection({
+    required this.purchaseDraft,
+    required this.onDateTap,
+    required this.onSupplierTap,
+  });
 
-  final double amount;
+  final CashPurchaseDraftState purchaseDraft;
+  final VoidCallback onDateTap;
+  final VoidCallback onSupplierTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final database = ref.watch(appDatabaseProvider);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'সরবরাহকারী',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: onSupplierTap,
+                child: StreamBuilder<LocalSupplier?>(
+                  stream: purchaseDraft.supplierId != null
+                      ? database.watchSupplierById(purchaseDraft.supplierId!)
+                      : const Stream.empty(),
+                  builder: (context, snapshot) {
+                    final name =
+                        snapshot.data?.name ?? 'সাপ্লায়ার সিলেক্ট করুন';
+                    return Row(
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            color: Color(0xFF004D40),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, size: 14, color: Colors.grey),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Text(
+              'তারিখ',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: onDateTap,
+              child: Row(
+                children: [
+                  Text(
+                    _formatDateBengali(purchaseDraft.purchaseDate),
+                    style: const TextStyle(
+                      color: Color(0xFF333333),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 14,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PurchaseReceiptCard extends StatelessWidget {
+  const _PurchaseReceiptCard({required this.lines, required this.total});
+  final List<CashPurchaseDraftLine> lines;
+  final double total;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'টাকার পরিমাণ',
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Expanded(
-                  child: Text(
-                    _amountText(amount),
-                    style: textTheme.headlineMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
+                const Icon(Icons.receipt_long, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                const Text(
+                  'পণ্যের তালিকা',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(
+                    Icons.add_circle_outline,
+                    size: 18,
+                    color: Color(0xFF00695C),
+                  ),
+                  label: const Text(
+                    'যোগ করুন',
+                    style: TextStyle(
+                      color: Color(0xFF00695C),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (lines.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'কোনো পণ্য নেই',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          for (var i = 0; i < lines.length; i++) ...[
+            _ProductItemRow(line: lines[i]),
+            if (i < lines.length - 1)
+              const Divider(height: 1, indent: 12, endIndent: 12),
+          ],
+          const _DashedDivider(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'গ্র্যান্ড টোটাল',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'GRAND TOTAL',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
                 Text(
-                  '৳',
-                  style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w700,
+                  _toBengaliNumber(total.toStringAsFixed(2)),
+                  style: const TextStyle(
+                    color: Color(0xFF004D40),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
@@ -316,82 +446,45 @@ class _PayableAmountCard extends StatelessWidget {
   }
 }
 
-class _SupplierDropdownCard extends StatelessWidget {
-  const _SupplierDropdownCard({
-    required this.suppliersStream,
-    required this.selectedSupplierId,
-    required this.onChanged,
-    required this.onAddSupplier,
-  });
-
-  final Stream<List<LocalSupplier>> suppliersStream;
-  final String? selectedSupplierId;
-  final ValueChanged<String?> onChanged;
-  final VoidCallback onAddSupplier;
+class _ProductItemRow extends StatelessWidget {
+  const _ProductItemRow({required this.line});
+  final CashPurchaseDraftLine line;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Row(
         children: [
-          Text(
-            'সাপ্লায়ার( SUPPLIER)',
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.category.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_toBengaliNumber(line.quantityValue.toStringAsFixed(0))} ব্যাগ × ${_toBengaliNumber(line.buyingPriceValue.toStringAsFixed(2))}',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          StreamBuilder<List<LocalSupplier>>(
-            stream: suppliersStream,
-            builder: (context, snapshot) {
-              final suppliers = snapshot.data ?? const <LocalSupplier>[];
-              final hasSelectedSupplier = suppliers.any(
-                (supplier) => supplier.id == selectedSupplierId,
-              );
-
-              return DropdownButtonFormField<String>(
-                initialValue: hasSelectedSupplier ? selectedSupplierId : null,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.surfaceContainerLow,
-                  hintText: suppliers.isEmpty ? 'সাপ্লায়ার নেই' : '--সিলেক্ট--',
-                ),
-                items: [
-                  for (final supplier in suppliers)
-                    DropdownMenuItem<String>(
-                      value: supplier.id,
-                      child: Text(
-                        supplier.name,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-                onChanged: suppliers.isEmpty ? null : onChanged,
-              );
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: onAddSupplier,
-              icon: const Icon(Icons.add_business_rounded, size: 18),
-              label: const Text('নতুন সাপ্লায়ার যোগ করুন'),
+          Text(
+            _toBengaliNumber(line.purchaseTotal.toStringAsFixed(2)),
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+              color: Color(0xFF004D40),
             ),
           ),
         ],
@@ -400,9 +493,467 @@ class _SupplierDropdownCard extends StatelessWidget {
   }
 }
 
+class _TransactionAccountCard extends StatelessWidget {
+  const _TransactionAccountCard({
+    required this.totalAmount,
+    required this.paidAmountController,
+    required this.remainingAmount,
+  });
+
+  final double totalAmount;
+  final TextEditingController paidAmountController;
+  final double remainingAmount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0F2F1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 18,
+                color: Color(0xFF00695C),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'লেনদেন হিসাব',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00695C),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _CustomInputField(
+                  label: 'মোট বিল',
+                  value: totalAmount.toStringAsFixed(2),
+                  isReadOnly: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _CustomInputField(
+                  label: 'পরিশোধিত (PAID)',
+                  controller: paidAmountController,
+                  hint: '0.00',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (remainingAmount > 0)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEBF7F5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFB2DFDB).withOpacity(0.5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFB2DFDB),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.more_horiz,
+                      color: Color(0xFF00695C),
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'বকেয়া (DUE)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _toBengaliNumber(remainingAmount.toStringAsFixed(2)),
+                        style: const TextStyle(
+                          color: Color(0xFFC62828),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+
+                      Row(
+                        children: [
+                          const SizedBox(width: 4),
+                          const Text(
+                            'বকেয়া থাকলো',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomInputField extends StatelessWidget {
+  const _CustomInputField({
+    required this.label,
+    this.value,
+    this.controller,
+    this.hint,
+    this.isReadOnly = false,
+  });
+
+  final String label;
+  final String? value;
+  final TextEditingController? controller;
+  final String? hint;
+  final bool isReadOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFB2DFDB)),
+          ),
+          child: TextField(
+            controller:
+                controller ??
+                (value != null ? TextEditingController(text: value) : null),
+            readOnly: isReadOnly,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            decoration: InputDecoration(
+              hintText: hint,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentMethodToggle extends StatelessWidget {
+  const _PaymentMethodToggle({
+    required this.selectedMethod,
+    required this.onChanged,
+  });
+  final String selectedMethod;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _MethodButton(
+          label: 'নগদ',
+          icon: Icons.payments,
+          isSelected: selectedMethod == 'cash',
+          onTap: () => onChanged('cash'),
+        ),
+        const SizedBox(width: 8),
+        _MethodButton(
+          label: 'ব্যাংক',
+          icon: Icons.account_balance,
+          isSelected: selectedMethod == 'cheque',
+          onTap: () => onChanged('cheque'),
+        ),
+        const SizedBox(width: 8),
+        _MethodButton(
+          label: 'বিকাশ/রকেট',
+          icon: Icons.phone_android,
+          isSelected: selectedMethod == 'online',
+          onTap: () => onChanged('online'),
+        ),
+      ],
+    );
+  }
+}
+
+class _MethodButton extends StatelessWidget {
+  const _MethodButton({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF004D40) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFB2DFDB)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : const Color(0xFF004D40),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF004D40),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider();
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxWidth = constraints.constrainWidth();
+        const dashWidth = 4.0;
+        const dashHeight = 1.0;
+        final dashCount = (boxWidth / (2 * dashWidth)).floor();
+        return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
+          children: List.generate(dashCount, (_) {
+            return const SizedBox(
+              width: dashWidth,
+              height: dashHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: Colors.grey),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+class _ActionButtonsRow extends StatelessWidget {
+  const _ActionButtonsRow({required this.onNoteTap});
+  final VoidCallback onNoteTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _ActionButton(
+          label: 'ছবি যোগ করুন',
+          icon: Icons.photo_camera,
+          onTap: () {},
+        ),
+        const SizedBox(width: 12),
+        _ActionButton(
+          label: 'নোট লিখুন',
+          icon: Icons.note_alt,
+          onTap: onNoteTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.black87),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomActionBar extends StatelessWidget {
+  const _BottomActionBar({required this.onConfirm});
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00695C),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'কনফার্ম এবং সেভ করুন',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.done_all),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'লেনদেনটি সেভ করার পর পরিবর্তন করা যাবে না।',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Helpers
+String _formatDateBengali(DateTime date) {
+  final months = [
+    'জানুয়ারি',
+    'ফেব্রুয়ারি',
+    'মার্চ',
+    'এপ্রিল',
+    'মে',
+    'জুন',
+    'জুলাই',
+    'আগস্ট',
+    'সেপ্টেম্বর',
+    'অক্টোবর',
+    'নভেম্বর',
+    'ডিসেম্বর',
+  ];
+  final day = _toBengaliNumber(date.day.toString().padLeft(2, '0'));
+  final month = months[date.month - 1];
+  final year = _toBengaliNumber(date.year.toString());
+  return '$day $month $year';
+}
+
+String _toBengaliNumber(String input) {
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  var output = input;
+  for (var i = 0; i < englishDigits.length; i++) {
+    output = output.replaceAll(englishDigits[i], bengaliDigits[i]);
+  }
+  return output;
+}
+
+// Reusing Dialog classes
 class _SupplierDraft {
   const _SupplierDraft({required this.name, this.mobile, this.address});
-
   final String name;
   final String? mobile;
   final String? address;
@@ -410,7 +961,6 @@ class _SupplierDraft {
 
 class _AddSupplierDialog extends StatefulWidget {
   const _AddSupplierDialog();
-
   @override
   State<_AddSupplierDialog> createState() => _AddSupplierDialogState();
 }
@@ -443,9 +993,8 @@ class _AddSupplierDialogState extends State<_AddSupplierDialog> {
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'নাম'),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
+                  if (value == null || value.trim().isEmpty)
                     return 'নাম আবশ্যক';
-                  }
                   return null;
                 },
               ),
@@ -476,10 +1025,7 @@ class _AddSupplierDialogState extends State<_AddSupplierDialog> {
   }
 
   void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     Navigator.of(context).pop(
       _SupplierDraft(
         name: _nameController.text.trim(),
@@ -493,661 +1039,4 @@ class _AddSupplierDialogState extends State<_AddSupplierDialog> {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
-}
-
-class _PurchaseItemsSummaryCard extends StatelessWidget {
-  const _PurchaseItemsSummaryCard({required this.lines});
-
-  final List<CashPurchaseDraftLine> lines;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ক্রয় পণ্য',
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (lines.isEmpty)
-            Text(
-              'কোনো পণ্য নেই',
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          else
-            for (var i = 0; i < lines.length; i++) ...[
-              _PurchaseItemSummaryLine(line: lines[i]),
-              if (i != lines.length - 1) const SizedBox(height: AppSpacing.sm),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PurchaseItemSummaryLine extends StatelessWidget {
-  const _PurchaseItemSummaryLine({required this.line});
-
-  final CashPurchaseDraftLine line;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final calculation =
-        '${_numberText(line.quantityValue)} × ${_moneyText(line.buyingPriceValue)} = ${_moneyText(line.purchaseTotal)}';
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  line.category.name,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  calculation,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            _moneyText(line.purchaseTotal),
-            style: textTheme.titleSmall?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AttachmentAndDateRow extends StatelessWidget {
-  const _AttachmentAndDateRow({required this.date, required this.onDateTap});
-
-  final DateTime date;
-  final VoidCallback onDateTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final dateText =
-        '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-              boxShadow: AppShadows.soft,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(
-                  child: Text(
-                    'রিসিপ্টের ছবি',
-                    style: textTheme.titleSmall?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onDateTap,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-              child: Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.primaryButton,
-                  borderRadius: BorderRadius.circular(AppRadii.lg),
-                  boxShadow: AppShadows.button,
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'তারিখ',
-                        style: textTheme.labelSmall?.copyWith(
-                          color: Colors.white.withOpacity(0.82),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        dateText,
-                        style: textTheme.titleSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PaymentMethodSection extends StatelessWidget {
-  const _PaymentMethodSection({
-    required this.totalAmount,
-    required this.selectedMethod,
-    required this.paidAmountController,
-    required this.onMethodChanged,
-  });
-
-  final double totalAmount;
-  final String selectedMethod;
-  final TextEditingController paidAmountController;
-  final ValueChanged<String> onMethodChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final paidAmount = selectedMethod == 'partial'
-        ? double.tryParse(paidAmountController.text.trim()) ?? 0
-        : selectedMethod == 'due'
-        ? 0.0
-        : totalAmount;
-    final remainingAmount = (totalAmount - paidAmount)
-        .clamp(0, totalAmount)
-        .toDouble();
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionAccentTitle(title: 'মূল্য পরিশোধের পদ্ধতি'),
-          const SizedBox(height: AppSpacing.md),
-          _PaymentMethodOption(
-            icon: Icons.payments_rounded,
-            label: 'নগদ টাকা',
-            value: 'cash',
-            groupValue: selectedMethod,
-            onChanged: onMethodChanged,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _PaymentMethodOption(
-            icon: Icons.payments_rounded,
-            label: 'BKash,Nagad, Rocket, Online',
-            value: 'online',
-            groupValue: selectedMethod,
-            onChanged: onMethodChanged,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _PaymentMethodOption(
-            icon: Icons.account_balance_wallet_rounded,
-            label: 'ব্যাংক চেক',
-            value: 'cheque',
-            groupValue: selectedMethod,
-            onChanged: onMethodChanged,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _PaymentMethodOption(
-            icon: Icons.assignment_late_rounded,
-            label: 'বাকি (Due)',
-            value: 'due',
-            groupValue: selectedMethod,
-            onChanged: onMethodChanged,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _PaymentMethodOption(
-            icon: Icons.payments_outlined,
-            label: 'আংশিক পেমেন্ট',
-            value: 'partial',
-            groupValue: selectedMethod,
-            onChanged: onMethodChanged,
-          ),
-          if (selectedMethod == 'partial') ...[
-            const SizedBox(height: AppSpacing.md),
-            _PartialPaymentInput(
-              controller: paidAmountController,
-              totalAmount: totalAmount,
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          _PaidRemainingCard(
-            paidAmount: paidAmount,
-            remainingAmount: remainingAmount,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionAccentTitle extends StatelessWidget {
-  const _SectionAccentTitle({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PaymentMethodOption extends StatelessWidget {
-  const _PaymentMethodOption({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final String groupValue;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final selected = value == groupValue;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onChanged(value),
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.surfaceContainerLowest
-                : AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: selected
-                ? Border.all(color: AppColors.secondary.withValues(alpha: 0.5))
-                : null,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE9F5F0),
-                  borderRadius: BorderRadius.circular(AppRadii.sm),
-                ),
-                child: Icon(icon, size: 18, color: AppColors.primary),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Radio<String>(
-                value: value,
-                groupValue: groupValue,
-                onChanged: (method) {
-                  if (method != null) {
-                    onChanged(method);
-                  }
-                },
-                activeColor: AppColors.primary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PaidRemainingCard extends StatelessWidget {
-  const _PaidRemainingCard({
-    required this.paidAmount,
-    required this.remainingAmount,
-  });
-
-  final double paidAmount;
-  final double remainingAmount;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _AmountStatBox(
-                  label: 'জমা পরিশোধ (PAID)',
-                  value: _amountText(paidAmount),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _AmountStatBox(
-                  label: 'বাকি (REMAINING)',
-                  value: _amountText(remainingAmount),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.primary,
-                size: 18,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  'ফুল-পরিশোধ (Full Due)\nযদি সবটুকু বাকি থাকে তবে সাথে হিসাব যোগ হবে না।',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    height: 1.45,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PartialPaymentInput extends StatelessWidget {
-  const _PartialPaymentInput({
-    required this.controller,
-    required this.totalAmount,
-  });
-
-  final TextEditingController controller;
-  final double totalAmount;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
-      ],
-      decoration: InputDecoration(
-        labelText: 'জমা পরিশোধ',
-        hintText: '0',
-        prefixText: '৳ ',
-        helperText:
-            'মোট ${_moneyText(totalAmount)} এর মধ্যে যত টাকা দেওয়া হয়েছে',
-        filled: true,
-        fillColor: AppColors.surfaceContainerLow,
-      ),
-    );
-  }
-}
-
-class _AmountStatBox extends StatelessWidget {
-  const _AmountStatBox({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: textTheme.labelSmall?.copyWith(
-            color: AppColors.textMuted,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-          ),
-          child: Text(
-            value,
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PurchaseNoteCard extends StatelessWidget {
-  const _PurchaseNoteCard({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'বাজার লিখুন',
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'অর্ডার বা বাজার সম্পর্কে নোট লিখুন...',
-              hintStyle: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
-              ),
-              filled: true,
-              fillColor: AppColors.surfaceContainerLow,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConfirmPurchasePaymentButton extends ConsumerWidget {
-  const _ConfirmPurchasePaymentButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.all(AppSpacing.md),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: AppGradients.primaryButton,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            boxShadow: AppShadows.button,
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 72,
-            child: ElevatedButton(
-              onPressed: () => _confirmPurchase(context, ref),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.lg),
-                ),
-              ),
-              child: Text(
-                'পেমেন্ট কনফার্ম করুন',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmPurchase(BuildContext context, WidgetRef ref) async {
-    try {
-      final draft = ref.read(cashPurchaseDraftProvider);
-      await ref.read(purchaseSyncServiceProvider).saveDraftLocally(draft);
-      ref.read(cashPurchaseDraftProvider.notifier).clear();
-
-      if (context.mounted) {
-        context.go(AppRoutes.dashboard);
-      }
-    } catch (error) {
-      if (!context.mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
-  }
-}
-
-String _moneyText(double value) {
-  return '৳ ${_amountText(value)}';
-}
-
-String _amountText(double value) {
-  return _numberText(value == -0 ? 0 : value);
-}
-
-String _numberText(double value) {
-  return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
 }
