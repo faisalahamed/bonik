@@ -1068,12 +1068,14 @@ Future<void> _showEditBatchDialog(
             controller: stockController,
             label: 'বর্তমান স্টক',
             icon: Icons.inventory_2_rounded,
+            enabled: false,
           ),
           const SizedBox(height: AppSpacing.sm),
           _BatchEditField(
             controller: buyingController,
-            label: 'ক্রয় মূল্য',
+            label: 'ক্রয় মূল্য/প্রতি পিস',
             icon: Icons.shopping_bag_rounded,
+            enabled: false,
           ),
           const SizedBox(height: AppSpacing.sm),
           _BatchEditField(
@@ -1081,6 +1083,8 @@ Future<void> _showEditBatchDialog(
             label: 'বিক্রয় মূল্য',
             icon: Icons.sell_rounded,
           ),
+          const SizedBox(height: AppSpacing.xs),
+          const _BarcodeReprintNotice(),
         ],
       ),
       actions: [
@@ -1188,18 +1192,52 @@ class _BatchEditField extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.icon,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
   final String label;
   final IconData icon;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+    );
+  }
+}
+
+class _BarcodeReprintNotice extends StatelessWidget {
+  const _BarcodeReprintNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: Color(0xFFD9534F),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            'আগে যদি এই দামে বারকোড প্রিন্ট করে থাকেন, দাম পরিবর্তনের পর বারকোড আবার প্রিন্ট করতে হবে।',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFFD9534F),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

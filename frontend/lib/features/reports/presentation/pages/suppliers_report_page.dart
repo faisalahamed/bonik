@@ -51,11 +51,11 @@ class SuppliersReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
-                    _SuppliersFilters(),
+                    _SuppliersHeroCard(),
                     SizedBox(height: AppSpacing.md),
                     _SuppliersDateCard(),
                     SizedBox(height: AppSpacing.md),
-                    _SuppliersHeroCard(),
+                    _SuppliersFilters(),
                     SizedBox(height: AppSpacing.xl),
                     _SuppliersSectionHeader(),
                     SizedBox(height: AppSpacing.md),
@@ -130,9 +130,9 @@ class _SuppliersTopBar extends StatelessWidget {
                   child: Text(
                     'Supplier Report',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 Container(
@@ -183,10 +183,7 @@ class _SuppliersFilters extends StatelessWidget {
 }
 
 class _SuppliersChip extends StatelessWidget {
-  const _SuppliersChip({
-    required this.label,
-    this.active = false,
-  });
+  const _SuppliersChip({required this.label, this.active = false});
 
   final String label;
   final bool active;
@@ -205,9 +202,9 @@ class _SuppliersChip extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: active ? Colors.white : AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+          color: active ? Colors.white : AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -241,9 +238,9 @@ class _SuppliersDateCard extends StatelessWidget {
           Text(
             '০১ জানুয়ারি - ৩১ ডিসেম্বর ২০২৪',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const Spacer(),
           const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
@@ -270,17 +267,17 @@ class _SuppliersHeroCard extends StatelessWidget {
           Text(
             'মোট সরবরাহ করা হয়েছে',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Colors.white70,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             '৳ ৮,৪৪৮.৫',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Container(
@@ -295,9 +292,9 @@ class _SuppliersHeroCard extends StatelessWidget {
             child: Text(
               '১২ টি পণ্য',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -317,9 +314,9 @@ class _SuppliersSectionHeader extends StatelessWidget {
           child: Text(
             'সামগ্রিক তালিকা',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
         Container(
@@ -394,9 +391,9 @@ class _SupplierRecordCard extends StatelessWidget {
             child: Text(
               indexLabel,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -407,17 +404,17 @@ class _SupplierRecordCard extends StatelessWidget {
                 Text(
                   name,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'সর্বমোট পণ্য: $productCount',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -429,9 +426,9 @@ class _SupplierRecordCard extends StatelessWidget {
               Text(
                 amount,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 6),
               Container(
@@ -446,9 +443,9 @@ class _SupplierRecordCard extends StatelessWidget {
                 child: Text(
                   status,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
