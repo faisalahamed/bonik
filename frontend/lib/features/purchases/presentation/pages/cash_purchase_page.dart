@@ -11,13 +11,6 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../application/cash_purchase_draft_controller.dart';
 
-class AddProductCategoryDraft {
-  const AddProductCategoryDraft({required this.name, this.details});
-
-  final String name;
-  final String? details;
-}
-
 enum _CategorySortMode { nameAsc, nameDesc, newest, oldest }
 
 class CashPurchasePage extends ConsumerStatefulWidget {
@@ -191,12 +184,12 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
   }
 
   Future<void> _showAddCategoryDialog() async {
-    final draft = await showDialog<AddProductCategoryDraft>(
+    final created = await showDialog<bool>(
       context: context,
       builder: (context) => const _AddCategoryDialog(),
     );
 
-    if (draft == null || draft.name.trim().isEmpty) {
+    if (created != true) {
       return;
     }
 
@@ -204,21 +197,9 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
       return;
     }
 
-    try {
-      await ref
-          .read(appDatabaseProvider)
-          .createProductCategory(draft.name, details: draft.details);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('পণ্যের নাম সফলভাবে যোগ করা হয়েছে')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('পণ্যের নাম সফলভাবে যোগ করা হয়েছে')),
+    );
   }
 
   void _navigateToManageCategories() {
@@ -672,20 +653,30 @@ class _EmptyCategoryState extends StatelessWidget {
   }
 }
 
-class _AddCategoryDialog extends StatefulWidget {
+class _AddCategoryDialog extends ConsumerStatefulWidget {
   const _AddCategoryDialog();
 
   @override
-  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+  ConsumerState<_AddCategoryDialog> createState() => _AddCategoryDialogState();
 }
 
-class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+class _AddCategoryDialogState extends ConsumerState<_AddCategoryDialog> {
   final _nameController = TextEditingController();
   final _detailsController = TextEditingController();
+  String? _nameErrorText;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_clearNameError);
+  }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nameController
+      ..removeListener(_clearNameError)
+      ..dispose();
     _detailsController.dispose();
     super.dispose();
   }
@@ -710,11 +701,13 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                   size: 28,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'নতুন পণ্যের নাম যোগ করুন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w900,
+                Expanded(
+                  child: Text(
+                    'নতুন পণ্যের নাম যোগ করুন',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ],
@@ -723,9 +716,12 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             TextField(
               controller: _nameController,
               autofocus: true,
+              enabled: !_isSaving,
               decoration: InputDecoration(
                 labelText: 'পণ্যের নাম',
                 hintText: 'উদা: শার্ট, প্যান্ট, জুতা ইত্যাদি',
+                errorText: _nameErrorText,
+                errorMaxLines: 3,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
@@ -735,10 +731,11 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: _detailsController,
+              enabled: !_isSaving,
               maxLines: 2,
               decoration: InputDecoration(
                 labelText: 'বিস্তারিত (ঐচ্ছিক)',
-                hintText: 'পণ্যের সংক্ষিপ্ত বিবরণ, যেমন: রঙ, মডেল,কোড ইত্যাদি',
+                hintText: 'পণ্যের সংক্ষিপ্ত বিবরণ, যেমন: রং, মডেল, কোড ইত্যাদি',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
@@ -750,24 +747,14 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
                     child: const Text('বাতিল'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      final name = _nameController.text.trim();
-                      if (name.isEmpty) return;
-                      Navigator.pop(
-                        context,
-                        AddProductCategoryDraft(
-                          name: name,
-                          details: _detailsController.text.trim(),
-                        ),
-                      );
-                    },
+                    onPressed: _isSaving ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -778,7 +765,16 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
                         borderRadius: BorderRadius.circular(AppRadii.lg),
                       ),
                     ),
-                    child: const Text('সেভ করুন'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('সেভ করুন'),
                   ),
                 ),
               ],
@@ -787,5 +783,69 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
         ),
       ),
     );
+  }
+
+  void _clearNameError() {
+    if (_nameErrorText == null) {
+      return;
+    }
+
+    setState(() {
+      _nameErrorText = null;
+    });
+  }
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() {
+        _nameErrorText = 'পণ্যের নাম লিখুন';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _nameErrorText = null;
+    });
+
+    try {
+      final database = ref.read(appDatabaseProvider);
+      final existingCategory = await database
+          .findProductCategoryByNameForCurrentShop(name);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (existingCategory != null) {
+        setState(() {
+          _isSaving = false;
+          _nameErrorText =
+              'এই পণ্যের নাম আগে থেকেই যোগ করা আছে। পণ্যের কোড, রং, সাইজ বা মডেল যোগ করুন।';
+        });
+        return;
+      }
+
+      await database.createProductCategory(
+        name,
+        details: _detailsController.text.trim(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSaving = false;
+        _nameErrorText = error.toString();
+      });
+    }
   }
 }

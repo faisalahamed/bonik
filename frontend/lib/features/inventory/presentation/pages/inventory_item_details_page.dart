@@ -28,7 +28,7 @@ class InventoryItemDetailsPage extends StatelessWidget {
     final item = product;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8F7),
+      backgroundColor: AppColors.background,
       body: item == null
           ? const _MissingProductView()
           : _InventoryItemDetailsView(product: item),
@@ -147,13 +147,13 @@ class _DetailsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         boxShadow: AppShadows.soft,
       ),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 76,
+          height: 72,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
@@ -162,7 +162,7 @@ class _DetailsHeader extends StatelessWidget {
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(
                     Icons.arrow_back_rounded,
-                    color: AppColors.textPrimary,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
@@ -172,13 +172,13 @@ class _DetailsHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.more_vert_rounded, color: AppColors.primary),
+                const Icon(Icons.more_vert_rounded, color: Colors.white),
               ],
             ),
           ),
@@ -208,9 +208,9 @@ class _ProductProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
+        color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.button,
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,12 +221,12 @@ class _ProductProfileCard extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: AppColors.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
                 child: const Icon(
                   Icons.inventory_2_rounded,
-                  color: Colors.white,
+                  color: AppColors.primary,
                   size: 34,
                 ),
               ),
@@ -245,7 +245,7 @@ class _ProductProfileCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -302,7 +302,7 @@ class _ProfileSummaryTile extends StatelessWidget {
       height: 88,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadii.lg),
       ),
       child: Column(
@@ -311,7 +311,7 @@ class _ProfileSummaryTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.white.withValues(alpha: 0.82), size: 17),
+              Icon(icon, color: AppColors.primary, size: 17),
               const SizedBox(width: AppSpacing.xs),
               Flexible(
                 child: Text(
@@ -319,7 +319,7 @@ class _ProfileSummaryTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.78),
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -332,7 +332,7 @@ class _ProfileSummaryTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -357,9 +357,9 @@ class _ExpectedProfitTile extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
+        color: const Color(0xFFE8FFF4),
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -367,12 +367,12 @@ class _ExpectedProfitTile extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppRadii.md),
             ),
             child: const Icon(
               Icons.trending_up_rounded,
-              color: Colors.white,
+              color: AppColors.primary,
               size: 24,
             ),
           ),
@@ -384,7 +384,7 @@ class _ExpectedProfitTile extends StatelessWidget {
                 Text(
                   'প্রত্যাশিত লাভ',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.78),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -394,7 +394,7 @@ class _ExpectedProfitTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -402,7 +402,7 @@ class _ExpectedProfitTile extends StatelessWidget {
                 Text(
                   '${_bnNumber(stockQuantity)}টি স্টক বিক্রি হলে সম্ভাব্য মোট লাভ',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.78),
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -429,15 +429,13 @@ class _StatusPill extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: warning
-            ? const Color(0xFFFFE7E5)
-            : Colors.white.withValues(alpha: 0.16),
+        color: warning ? const Color(0xFFFFE7E5) : const Color(0xFFE8FFF4),
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: warning ? const Color(0xFFD9534F) : Colors.white,
+          color: warning ? const Color(0xFFD9534F) : AppColors.primary,
           fontWeight: FontWeight.w800,
         ),
       ),

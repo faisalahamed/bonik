@@ -2077,6 +2077,21 @@ final class AppDatabase extends _$AppDatabase {
     return _createCategory(name, type: 'product', details: details);
   }
 
+  Future<LocalCategory?> findProductCategoryByNameForCurrentShop(
+    String name,
+  ) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    return _findCategoryByName(
+      shopId: currentUser.shopId,
+      type: 'product',
+      name: name.trim(),
+    );
+  }
+
   Future<LocalCategory> _createCategory(
     String name, {
     required String type,
@@ -2567,19 +2582,42 @@ final class AppDatabase extends _$AppDatabase {
         p.id,
         p.supplier_id,
         COALESCE(s.name, 'সাপ্লায়ার') AS supplier_name,
-        p.total,
+        COALESCE((
+          SELECT SUM((quantity * buying_price) + other_charge)
+          FROM local_purchase_items
+          WHERE purchase_id = p.id
+            AND deleted_at IS NULL
+        ), 0.0) + p.other_charge AS total,
         p.status,
         p.created_at,
-        p.sync_status,
+        CASE
+          WHEN p.sync_status != 'synced'
+            OR EXISTS (
+              SELECT 1
+              FROM local_purchase_items pi_sync
+              WHERE pi_sync.purchase_id = p.id
+                AND pi_sync.sync_status != 'synced'
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM local_purchase_payments pp_sync
+              WHERE pp_sync.purchase_id = p.id
+                AND pp_sync.sync_status != 'synced'
+            )
+          THEN 'pending'
+          ELSE 'synced'
+        END AS sync_status,
         COALESCE((
           SELECT SUM(payments)
           FROM local_purchase_payments
           WHERE purchase_id = p.id
+            AND deleted_at IS NULL
         ), 0.0) AS paid_amount,
         COALESCE((
           SELECT COUNT(*)
           FROM local_purchase_items
           WHERE purchase_id = p.id
+            AND deleted_at IS NULL
         ), 0) AS item_count
       FROM local_purchases p
       LEFT JOIN local_suppliers s ON s.id = p.supplier_id
@@ -2587,6 +2625,13 @@ final class AppDatabase extends _$AppDatabase {
         SELECT shop_id
         FROM local_users
         WHERE is_current = 1
+      )
+      AND p.deleted_at IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM local_purchase_items pi
+        WHERE pi.purchase_id = p.id
+          AND pi.deleted_at IS NULL
       )
       ORDER BY p.created_at DESC
       ''',
@@ -2617,21 +2662,29 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<LocalPurchase?> watchPurchaseById(String id) {
-    return (select(
-      localPurchases,
-    )..where((purchase) => purchase.id.equals(id))).watchSingleOrNull();
+    return (select(localPurchases)..where(
+          (purchase) => purchase.id.equals(id) & purchase.deletedAt.isNull(),
+        ))
+        .watchSingleOrNull();
   }
 
   Stream<List<LocalPurchaseItem>> watchPurchaseItems(String purchaseId) {
     return (select(localPurchaseItems)
-          ..where((item) => item.purchaseId.equals(purchaseId))
+          ..where(
+            (item) =>
+                item.purchaseId.equals(purchaseId) & item.deletedAt.isNull(),
+          )
           ..orderBy([(item) => OrderingTerm.asc(item.createdAt)]))
         .watch();
   }
 
   Stream<List<LocalPurchasePayment>> watchPurchasePayments(String purchaseId) {
     return (select(localPurchasePayments)
-          ..where((payment) => payment.purchaseId.equals(purchaseId))
+          ..where(
+            (payment) =>
+                payment.purchaseId.equals(purchaseId) &
+                payment.deletedAt.isNull(),
+          )
           ..orderBy([(payment) => OrderingTerm.asc(payment.createdAt)]))
         .watch();
   }

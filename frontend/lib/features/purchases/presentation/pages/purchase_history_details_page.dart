@@ -143,7 +143,12 @@ class _DetailsContent extends StatelessWidget {
       0,
       (sum, payment) => sum + payment.payments,
     );
-    final dueAmount = purchase.total - paidAmount;
+    final purchaseTotal = items.fold<double>(
+      purchase.otherCharge,
+      (sum, item) =>
+          sum + (item.buyingPrice * item.quantity) + item.otherCharge,
+    );
+    final dueAmount = purchaseTotal - paidAmount;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -161,6 +166,7 @@ class _DetailsContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _TotalsCard(
           purchase: purchase,
+          total: purchaseTotal,
           paidAmount: paidAmount,
           dueAmount: dueAmount,
         ),
@@ -515,11 +521,13 @@ class _OrderItemRow extends StatelessWidget {
 class _TotalsCard extends StatelessWidget {
   const _TotalsCard({
     required this.purchase,
+    required this.total,
     required this.paidAmount,
     required this.dueAmount,
   });
 
   final LocalPurchase purchase;
+  final double total;
   final double paidAmount;
   final double dueAmount;
 
@@ -534,7 +542,7 @@ class _TotalsCard extends StatelessWidget {
         children: [
           _TotalRow(
             label: 'মোট ক্রয়',
-            value: _money(purchase.total),
+            value: _money(total),
             textTheme: textTheme,
           ),
           const SizedBox(height: AppSpacing.sm),

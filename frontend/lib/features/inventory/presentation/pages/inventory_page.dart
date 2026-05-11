@@ -186,13 +186,12 @@ class _InventoryList extends StatelessWidget {
             _InventoryItemCard(
               icon: Icons.category_rounded,
               title: products[i].name,
-              invoiceText: '#${products[i].description ?? 'বর্ণনা নেই'}',
+              description: products[i].description,
               stockText: '${_bnNumber(products[i].stockQuantity)} টি',
-
-              priceText: '${_money(products[i].sellingPrice)}/পিস',
+              buyingPriceText: _money(products[i].stockValue),
+              expectedProfitText: _money(products[i].expectedProfit),
               accentColor:
                   _inventoryAccentColors[i % _inventoryAccentColors.length],
-              salesText: _money(products[i].expectedProfit),
               warningStock: products[i].stockQuantity <= 5,
               onTap: () =>
                   context.push(AppRoutes.inventoryDetails, extra: products[i]),
@@ -271,12 +270,13 @@ class _InventoryStatsRow extends StatelessWidget {
           child: _InventoryStatCard(
             title: 'স্টক মূল্য',
             value: _money(stockValue),
+            highlighted: true,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _InventoryStatCard(
-            title: 'সামগ্র লাভ',
+            title: 'সামগ্রিক লাভ',
             value: _money(totalProfit),
             highlighted: true,
           ),
@@ -410,10 +410,10 @@ class _InventoryHeaderRow extends StatelessWidget {
 class _InventoryItemCard extends StatelessWidget {
   const _InventoryItemCard({
     required this.title,
+    this.description,
     required this.stockText,
-    required this.invoiceText,
-    required this.priceText,
-    required this.salesText,
+    required this.buyingPriceText,
+    required this.expectedProfitText,
     this.icon,
     this.accentColor,
     this.warningStock = false,
@@ -422,10 +422,10 @@ class _InventoryItemCard extends StatelessWidget {
 
   final IconData? icon;
   final String title;
+  final String? description;
   final String stockText;
-  final String invoiceText;
-  final String priceText;
-  final String salesText;
+  final String buyingPriceText;
+  final String expectedProfitText;
   final Color? accentColor;
   final bool warningStock;
   final VoidCallback? onTap;
@@ -433,109 +433,181 @@ class _InventoryItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final themeColor = accentColor ?? AppColors.primary;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        child: Ink(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppRadii.xl),
-            boxShadow: AppShadows.soft,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 74,
-                height: 74,
-                decoration: BoxDecoration(
-                  color: accentColor != null
-                      ? accentColor!.withValues(alpha: 0.15)
-                      : AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(AppRadii.lg),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  icon ?? Icons.inventory_2_rounded,
-                  color: AppColors.textSecondary,
-                  size: 34,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        boxShadow: AppShadows.soft,
+        border: Border.all(
+          color: themeColor.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      title,
-                      style: textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: themeColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                      ),
+                      child: Icon(
+                        icon ?? Icons.inventory_2_rounded,
+                        color: themeColor,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    RichText(
-                      text: TextSpan(
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextSpan(
-                            text: stockText,
-                            style: TextStyle(
+                          Text(
+                            title,
+                            style: textTheme.titleLarge?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (description != null && description!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                description!,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: warningStock
+                                ? const Color(0xFFFFEBEE)
+                                : const Color(0xFFE0F2F1),
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
+                          ),
+                          child: Text(
+                            stockText,
+                            style: textTheme.labelSmall?.copyWith(
                               color: warningStock
-                                  ? const Color(0xFFD9534F)
-                                  : AppColors.primary,
+                                  ? const Color(0xFFC62828)
+                                  : const Color(0xFF00695C),
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          TextSpan(
-                            text: '  $invoiceText',
-                            style: const TextStyle(color: AppColors.textMuted),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: AppColors.textMuted.withValues(alpha: 0.3),
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Divider(height: 1, color: Color(0xFFF1F1F1)),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InventoryCardMetric(
+                        label: 'স্টক মূল্য (Buying)',
+                        value: buyingPriceText,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Container(
+                      height: 30,
+                      width: 1,
+                      color: const Color(0xFFF1F1F1),
+                    ),
+                    Expanded(
+                      child: _InventoryCardMetric(
+                        label: 'সম্ভাব্য লাভ',
+                        value: expectedProfitText,
+                        color: const Color(0xFF2E7D32),
+                        isPositive: true,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    priceText,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: TextSpan(
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'লাভ: ',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
-                        TextSpan(
-                          text: salesText,
-                          style: const TextStyle(color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _InventoryCardMetric extends StatelessWidget {
+  const _InventoryCardMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.isPositive = false,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+  final bool isPositive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            color: color,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 }

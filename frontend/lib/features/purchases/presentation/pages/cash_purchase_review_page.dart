@@ -10,7 +10,6 @@ import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../application/cash_purchase_draft_controller.dart';
 
 class CashPurchaseReviewPage extends ConsumerStatefulWidget {
@@ -98,7 +97,6 @@ class _CashPurchaseReviewPageState
     setState(() {});
   }
 
-
   void _syncDraftControllers(List<CashPurchaseDraftLine> lines) {
     final categoryIds = lines.map((line) => line.category.id).toSet();
     final removedIds = _draftsByCategoryId.keys
@@ -135,6 +133,7 @@ class _CashPurchaseReviewPageState
           buyingPrice: draft.buyingPriceController.text,
           sellingPrice: draft.sellingPriceController.text,
           barcode: draft.barcodeController.text,
+          note: draft.noteController.text,
         );
   }
 
@@ -178,7 +177,6 @@ class _CashPurchaseReviewPageState
       }
     }
   }
-
 
   void _continueToPayment() {
     final isValid = _formKey.currentState?.validate() ?? false;
@@ -357,6 +355,7 @@ class CashPurchaseLineInput {
     required this.buyingPrice,
     required this.sellingPrice,
     this.barcode,
+    this.note,
   });
 
   final LocalCategory category;
@@ -364,6 +363,7 @@ class CashPurchaseLineInput {
   final double buyingPrice;
   final double sellingPrice;
   final String? barcode;
+  final String? note;
 }
 
 class _PurchaseLineDraft {
@@ -386,6 +386,8 @@ class _PurchaseLineDraft {
     profitController.addListener(_onProfitChanged);
     barcodeController.text = line.barcode;
     barcodeController.addListener(_onBarcodeChanged);
+    noteController.text = line.note;
+    noteController.addListener(_onNoteChanged);
   }
 
   final LocalCategory category;
@@ -396,12 +398,14 @@ class _PurchaseLineDraft {
   final sellingPriceController = TextEditingController();
   final profitController = TextEditingController();
   final barcodeController = TextEditingController();
+  final noteController = TextEditingController();
 
   double get quantity => _parse(quantityController.text);
   double get buyingPrice => _parse(buyingPriceController.text);
   double get sellingPrice => _parse(sellingPriceController.text);
   double get profitPerItem => _parse(profitController.text);
   String get barcode => barcodeController.text.trim();
+  String get note => noteController.text.trim();
   double get purchaseTotal => quantity * buyingPrice;
   double get profitTotal => quantity * (sellingPrice - buyingPrice);
   double get profitPercent {
@@ -422,6 +426,7 @@ class _PurchaseLineDraft {
       buyingPrice: buyingPrice,
       sellingPrice: sellingPrice,
       barcode: barcode.isEmpty ? null : barcode,
+      note: note.isEmpty ? null : note,
     );
   }
 
@@ -441,6 +446,9 @@ class _PurchaseLineDraft {
     barcodeController
       ..removeListener(_onBarcodeChanged)
       ..dispose();
+    noteController
+      ..removeListener(_onNoteChanged)
+      ..dispose();
   }
 
   void _onQuantityChanged() {
@@ -449,6 +457,10 @@ class _PurchaseLineDraft {
   }
 
   void _onBarcodeChanged() {
+    onChanged(this);
+  }
+
+  void _onNoteChanged() {
     onChanged(this);
   }
 
@@ -529,7 +541,6 @@ class _BackgroundGlow extends StatelessWidget {
     );
   }
 }
-
 
 class _PurchaseReviewItem extends StatelessWidget {
   const _PurchaseReviewItem({
@@ -634,7 +645,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                _NoteBox(text: '${category.name} - $itemNumber'),
+                _NoteBox(controller: draft.noteController),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
@@ -871,33 +882,45 @@ class _PriceWarning extends StatelessWidget {
 }
 
 class _NoteBox extends StatelessWidget {
-  const _NoteBox({required this.text});
+  const _NoteBox({required this.controller});
 
-  final String text;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
+    return TextFormField(
+      controller: controller,
+      minLines: 1,
+      maxLines: 3,
+      keyboardType: TextInputType.text,
+      decoration: InputDecoration(
+        hintText: 'পণ্যের কোড, নোট বা অতিরিক্ত তথ্য লিখুন',
+        filled: true,
+        fillColor: AppColors.surfaceContainerLow,
+        prefixIcon: const Icon(
+          Icons.note_alt_outlined,
+          color: AppColors.primary,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
+      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -1046,7 +1069,6 @@ class _SummaryRow extends StatelessWidget {
     );
   }
 }
-
 
 class _EmptyPurchaseReviewState extends StatelessWidget {
   const _EmptyPurchaseReviewState();

@@ -96,7 +96,9 @@ class PurchaseSyncService {
             estSellingPrice: Value(line.sellingPriceValue),
             quantity: Value(line.quantityValue.round()),
             barcode: Value(_nullableString(line.barcode)),
-            description: Value(line.category.details),
+            description: Value(
+              _nullableString(line.note) ?? line.category.details,
+            ),
             createdAt: Value(purchaseDate),
             updatedAt: Value(now),
             syncStatus: const Value('pending'),
