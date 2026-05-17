@@ -26,6 +26,19 @@ extension on _SalesPaymentMethod {
   }
 }
 
+String _enNumber(String value) {
+  const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '۷', '৮', '۹'];
+  var output = value;
+  output = output.replaceAllMapped(
+    RegExp(r'[\u09E6-\u09EF]'),
+    (match) => (match.group(0)!.codeUnitAt(0) - 0x09E6).toString(),
+  );
+  for (var i = 0; i < banglaDigits.length; i++) {
+    output = output.replaceAll(banglaDigits[i], i.toString());
+  }
+  return output;
+}
+
 class SalesPaymentPage extends ConsumerStatefulWidget {
   const SalesPaymentPage({super.key});
 
@@ -66,6 +79,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     final subtotal = cartController.total;
     final grandTotal = checkout.grandTotal(subtotal);
     final remaining = (grandTotal - _cashReceived).clamp(0, double.infinity);
+    final returnAmount = (_cashReceived - grandTotal).clamp(0, double.infinity);
 
     _syncCashReceived(grandTotal);
 
@@ -136,6 +150,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                               totalAmount: grandTotal,
                               paidController: _cashReceivedController,
                               remainingAmount: remaining.toDouble(),
+                              returnAmount: returnAmount.toDouble(),
                             ),
                             const SizedBox(height: AppSpacing.md),
                             _PaymentMethodGrid(
@@ -175,7 +190,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
 
       _lastGrandTotal = grandTotal;
       _cashReceived = grandTotal;
-      final text = _numberText(grandTotal);
+      final text = _bnNumber(_numberText(grandTotal));
       _cashReceivedController.value = TextEditingValue(
         text: text,
         selection: TextSelection.collapsed(offset: text.length),
@@ -192,7 +207,9 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
   }
 
   double _readNumber(String value) {
-    final normalized = value.replaceAll(',', '').trim();
+    final normalized = _enNumber(
+      value.replaceAll(',', '').replaceAll('৳', '').trim(),
+    );
     if (normalized.isEmpty) {
       return 0;
     }
@@ -834,11 +851,13 @@ class _SalesTransactionAccountCard extends StatelessWidget {
     required this.totalAmount,
     required this.paidController,
     required this.remainingAmount,
+    required this.returnAmount,
   });
 
   final double totalAmount;
   final TextEditingController paidController;
   final double remainingAmount;
+  final double returnAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -951,6 +970,80 @@ class _SalesTransactionAccountCard extends StatelessWidget {
               ),
             ),
           ],
+          if (returnAmount > 0) ...[
+            const SizedBox(height: 12),
+            _PaymentBalanceNotice(amount: returnAmount, isReturn: true),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentBalanceNotice extends StatelessWidget {
+  const _PaymentBalanceNotice({required this.amount, required this.isReturn});
+
+  final double amount;
+  final bool isReturn;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isReturn ? const Color(0xFF00695C) : const Color(0xFFC62828);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEBF7F5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFB2DFDB).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFB2DFDB),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isReturn ? Icons.keyboard_return_rounded : Icons.more_horiz,
+              color: const Color(0xFF00695C),
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isReturn ? 'ফেরত (RETURN)' : 'বকেয়া (DUE)',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _money(amount),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                isReturn ? 'কাস্টমারকে ফেরত দিন' : 'বকেয়া থাকলো',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1028,11 +1121,7 @@ class _LedgerInputField extends StatelessWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'^\d*\.?\d{0,2}'),
-                    ),
-                  ],
+                  inputFormatters: [const _BanglaNumberInputFormatter()],
                   decoration: InputDecoration(
                     hintText: hint,
                     prefixText: showTakaPrefix ? '৳ ' : null,
@@ -1048,6 +1137,74 @@ class _LedgerInputField extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  const _BanglaNumberInputFormatter();
+
+  static const _englishDigits = [
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+  ];
+  static const _banglaDigits = [
+    '০',
+    '১',
+    '২',
+    '৩',
+    '৪',
+    '৫',
+    '৬',
+    '৭',
+    '৮',
+    '৯',
+  ];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final buffer = StringBuffer();
+    var decimalSeen = false;
+    var decimalPlaces = 0;
+
+    for (final rune in newValue.text.runes) {
+      final char = String.fromCharCode(rune);
+      final englishIndex = _englishDigits.indexOf(char);
+      final banglaIndex = _banglaDigits.indexOf(char);
+      final isDigit = englishIndex != -1 || banglaIndex != -1;
+
+      if (isDigit) {
+        if (decimalSeen && decimalPlaces >= 2) {
+          continue;
+        }
+        buffer.write(banglaIndex != -1 ? char : _banglaDigits[englishIndex]);
+        if (decimalSeen) {
+          decimalPlaces++;
+        }
+        continue;
+      }
+
+      if (char == '.' && !decimalSeen) {
+        buffer.write(char);
+        decimalSeen = true;
+      }
+    }
+
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }
