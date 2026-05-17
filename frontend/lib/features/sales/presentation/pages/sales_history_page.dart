@@ -987,6 +987,10 @@ String _customerLabel(LocalSalesHistoryEntry entry) {
 }
 
 String _paymentMethodText(String? method) {
+  if (method == 'bank_card') {
+    return 'ব্যাংক/কার্ড';
+  }
+
   return switch (method) {
     'cash' => 'নগদ টাকা',
     'mobile_banking' => 'বিকাশ/নগদ',

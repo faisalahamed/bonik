@@ -22,6 +22,7 @@ class SalesSaveService {
     required String paymentMethod,
     required String customerName,
     required String customerMobile,
+    DateTime? saleDate,
   }) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
@@ -31,7 +32,7 @@ class SalesSaveService {
       throw StateError('কার্টে কোনো পণ্য নেই।');
     }
 
-    final now = AppTime.nowUtc();
+    final now = AppTime.toUtc(saleDate ?? DateTime.now());
     final customer = await database.getOrCreateCustomer(
       shopId: currentUser.shopId,
       name: customerName.trim().isEmpty ? 'Walk-in Customer' : customerName,
@@ -140,7 +141,7 @@ class SalesSaveService {
   String _paymentDescription(String paymentMethod) {
     return switch (paymentMethod) {
       'cash' => 'নগদ টাকা',
-      'due' => 'বাকি',
+      'bank_card' => 'ব্যাংক/কার্ড',
       'mobile_banking' => 'বিকাশ/নগদ',
       _ => paymentMethod,
     };

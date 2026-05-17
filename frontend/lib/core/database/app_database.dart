@@ -3772,6 +3772,69 @@ final class AppDatabase extends _$AppDatabase {
     )..where((customer) => customer.id.equals(id))).getSingle();
   }
 
+  Future<LocalCustomer> createCustomer({
+    required String name,
+    String? phone,
+    String? address,
+  }) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    final trimmedName = name.trim();
+    final trimmedPhone = _nullableTrimmed(phone);
+
+    if (trimmedPhone != null) {
+      final existingByPhone =
+          await (select(localCustomers)
+                ..where(
+                  (customer) =>
+                      customer.shopId.equals(currentUser.shopId) &
+                      customer.deletedAt.isNull() &
+                      customer.phone.equals(trimmedPhone),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+      if (existingByPhone != null) {
+        return existingByPhone;
+      }
+    }
+
+    final existingCustomer =
+        await (select(localCustomers)
+              ..where(
+                (customer) =>
+                    customer.shopId.equals(currentUser.shopId) &
+                    customer.deletedAt.isNull() &
+                    customer.name.lower().equals(trimmedName.toLowerCase()),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (existingCustomer != null) {
+      return existingCustomer;
+    }
+
+    final now = AppTime.nowUtc();
+    final id = const Uuid().v4();
+    await into(localCustomers).insert(
+      LocalCustomersCompanion(
+        id: Value(id),
+        shopId: Value(currentUser.shopId),
+        name: Value(trimmedName),
+        phone: Value(trimmedPhone),
+        address: Value(_nullableTrimmed(address)),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    return (select(
+      localCustomers,
+    )..where((customer) => customer.id.equals(id))).getSingle();
+  }
+
   Future<List<LocalAvailablePurchaseBatch>> getAvailablePurchaseBatches({
     required String shopId,
     required String productName,
