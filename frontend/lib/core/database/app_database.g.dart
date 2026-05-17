@@ -12951,6 +12951,1172 @@ class SyncStatesCompanion extends UpdateCompanion<SyncState> {
   }
 }
 
+class $LocalSessionsTable extends LocalSessions
+    with TableInfo<$LocalSessionsTable, LocalSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('singleton'),
+  );
+  static const VerificationMeta _authUserIdMeta = const VerificationMeta(
+    'authUserId',
+  );
+  @override
+  late final GeneratedColumn<String> authUserId = GeneratedColumn<String>(
+    'auth_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _selectedShopIdMeta = const VerificationMeta(
+    'selectedShopId',
+  );
+  @override
+  late final GeneratedColumn<String> selectedShopId = GeneratedColumn<String>(
+    'selected_shop_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _isAuthenticatedMeta = const VerificationMeta(
+    'isAuthenticated',
+  );
+  @override
+  late final GeneratedColumn<bool> isAuthenticated = GeneratedColumn<bool>(
+    'is_authenticated',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_authenticated" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastLoginAtMeta = const VerificationMeta(
+    'lastLoginAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastLoginAt = GeneratedColumn<DateTime>(
+    'last_login_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    authUserId,
+    selectedShopId,
+    isAuthenticated,
+    lastLoginAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('auth_user_id')) {
+      context.handle(
+        _authUserIdMeta,
+        authUserId.isAcceptableOrUnknown(
+          data['auth_user_id']!,
+          _authUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('selected_shop_id')) {
+      context.handle(
+        _selectedShopIdMeta,
+        selectedShopId.isAcceptableOrUnknown(
+          data['selected_shop_id']!,
+          _selectedShopIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_authenticated')) {
+      context.handle(
+        _isAuthenticatedMeta,
+        isAuthenticated.isAcceptableOrUnknown(
+          data['is_authenticated']!,
+          _isAuthenticatedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_login_at')) {
+      context.handle(
+        _lastLoginAtMeta,
+        lastLoginAt.isAcceptableOrUnknown(
+          data['last_login_at']!,
+          _lastLoginAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalSession(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      authUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auth_user_id'],
+      ),
+      selectedShopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}selected_shop_id'],
+      ),
+      isAuthenticated: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_authenticated'],
+      )!,
+      lastLoginAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_login_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalSessionsTable createAlias(String alias) {
+    return $LocalSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalSession extends DataClass implements Insertable<LocalSession> {
+  final String id;
+  final String? authUserId;
+  final String? selectedShopId;
+  final bool isAuthenticated;
+  final DateTime? lastLoginAt;
+  final DateTime updatedAt;
+  const LocalSession({
+    required this.id,
+    this.authUserId,
+    this.selectedShopId,
+    required this.isAuthenticated,
+    this.lastLoginAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || authUserId != null) {
+      map['auth_user_id'] = Variable<String>(authUserId);
+    }
+    if (!nullToAbsent || selectedShopId != null) {
+      map['selected_shop_id'] = Variable<String>(selectedShopId);
+    }
+    map['is_authenticated'] = Variable<bool>(isAuthenticated);
+    if (!nullToAbsent || lastLoginAt != null) {
+      map['last_login_at'] = Variable<DateTime>(lastLoginAt);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LocalSessionsCompanion toCompanion(bool nullToAbsent) {
+    return LocalSessionsCompanion(
+      id: Value(id),
+      authUserId: authUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(authUserId),
+      selectedShopId: selectedShopId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(selectedShopId),
+      isAuthenticated: Value(isAuthenticated),
+      lastLoginAt: lastLoginAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLoginAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LocalSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalSession(
+      id: serializer.fromJson<String>(json['id']),
+      authUserId: serializer.fromJson<String?>(json['authUserId']),
+      selectedShopId: serializer.fromJson<String?>(json['selectedShopId']),
+      isAuthenticated: serializer.fromJson<bool>(json['isAuthenticated']),
+      lastLoginAt: serializer.fromJson<DateTime?>(json['lastLoginAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'authUserId': serializer.toJson<String?>(authUserId),
+      'selectedShopId': serializer.toJson<String?>(selectedShopId),
+      'isAuthenticated': serializer.toJson<bool>(isAuthenticated),
+      'lastLoginAt': serializer.toJson<DateTime?>(lastLoginAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LocalSession copyWith({
+    String? id,
+    Value<String?> authUserId = const Value.absent(),
+    Value<String?> selectedShopId = const Value.absent(),
+    bool? isAuthenticated,
+    Value<DateTime?> lastLoginAt = const Value.absent(),
+    DateTime? updatedAt,
+  }) => LocalSession(
+    id: id ?? this.id,
+    authUserId: authUserId.present ? authUserId.value : this.authUserId,
+    selectedShopId: selectedShopId.present
+        ? selectedShopId.value
+        : this.selectedShopId,
+    isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+    lastLoginAt: lastLoginAt.present ? lastLoginAt.value : this.lastLoginAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LocalSession copyWithCompanion(LocalSessionsCompanion data) {
+    return LocalSession(
+      id: data.id.present ? data.id.value : this.id,
+      authUserId: data.authUserId.present
+          ? data.authUserId.value
+          : this.authUserId,
+      selectedShopId: data.selectedShopId.present
+          ? data.selectedShopId.value
+          : this.selectedShopId,
+      isAuthenticated: data.isAuthenticated.present
+          ? data.isAuthenticated.value
+          : this.isAuthenticated,
+      lastLoginAt: data.lastLoginAt.present
+          ? data.lastLoginAt.value
+          : this.lastLoginAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSession(')
+          ..write('id: $id, ')
+          ..write('authUserId: $authUserId, ')
+          ..write('selectedShopId: $selectedShopId, ')
+          ..write('isAuthenticated: $isAuthenticated, ')
+          ..write('lastLoginAt: $lastLoginAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    authUserId,
+    selectedShopId,
+    isAuthenticated,
+    lastLoginAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalSession &&
+          other.id == this.id &&
+          other.authUserId == this.authUserId &&
+          other.selectedShopId == this.selectedShopId &&
+          other.isAuthenticated == this.isAuthenticated &&
+          other.lastLoginAt == this.lastLoginAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LocalSessionsCompanion extends UpdateCompanion<LocalSession> {
+  final Value<String> id;
+  final Value<String?> authUserId;
+  final Value<String?> selectedShopId;
+  final Value<bool> isAuthenticated;
+  final Value<DateTime?> lastLoginAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LocalSessionsCompanion({
+    this.id = const Value.absent(),
+    this.authUserId = const Value.absent(),
+    this.selectedShopId = const Value.absent(),
+    this.isAuthenticated = const Value.absent(),
+    this.lastLoginAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    this.authUserId = const Value.absent(),
+    this.selectedShopId = const Value.absent(),
+    this.isAuthenticated = const Value.absent(),
+    this.lastLoginAt = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : updatedAt = Value(updatedAt);
+  static Insertable<LocalSession> custom({
+    Expression<String>? id,
+    Expression<String>? authUserId,
+    Expression<String>? selectedShopId,
+    Expression<bool>? isAuthenticated,
+    Expression<DateTime>? lastLoginAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (authUserId != null) 'auth_user_id': authUserId,
+      if (selectedShopId != null) 'selected_shop_id': selectedShopId,
+      if (isAuthenticated != null) 'is_authenticated': isAuthenticated,
+      if (lastLoginAt != null) 'last_login_at': lastLoginAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? authUserId,
+    Value<String?>? selectedShopId,
+    Value<bool>? isAuthenticated,
+    Value<DateTime?>? lastLoginAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return LocalSessionsCompanion(
+      id: id ?? this.id,
+      authUserId: authUserId ?? this.authUserId,
+      selectedShopId: selectedShopId ?? this.selectedShopId,
+      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (authUserId.present) {
+      map['auth_user_id'] = Variable<String>(authUserId.value);
+    }
+    if (selectedShopId.present) {
+      map['selected_shop_id'] = Variable<String>(selectedShopId.value);
+    }
+    if (isAuthenticated.present) {
+      map['is_authenticated'] = Variable<bool>(isAuthenticated.value);
+    }
+    if (lastLoginAt.present) {
+      map['last_login_at'] = Variable<DateTime>(lastLoginAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('authUserId: $authUserId, ')
+          ..write('selectedShopId: $selectedShopId, ')
+          ..write('isAuthenticated: $isAuthenticated, ')
+          ..write('lastLoginAt: $lastLoginAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncOutboxTable extends SyncOutbox
+    with TableInfo<$SyncOutboxTable, SyncOutboxData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncOutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _shopIdMeta = const VerificationMeta('shopId');
+  @override
+  late final GeneratedColumn<String> shopId = GeneratedColumn<String>(
+    'shop_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_shops (id)',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES local_users (id)',
+    ),
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _operationTypeMeta = const VerificationMeta(
+    'operationType',
+  );
+  @override
+  late final GeneratedColumn<String> operationType = GeneratedColumn<String>(
+    'operation_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _retryCountMeta = const VerificationMeta(
+    'retryCount',
+  );
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+    'retry_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    shopId,
+    userId,
+    entityType,
+    entityId,
+    operationType,
+    payloadJson,
+    status,
+    retryCount,
+    errorMessage,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_outbox';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncOutboxData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('shop_id')) {
+      context.handle(
+        _shopIdMeta,
+        shopId.isAcceptableOrUnknown(data['shop_id']!, _shopIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shopIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('operation_type')) {
+      context.handle(
+        _operationTypeMeta,
+        operationType.isAcceptableOrUnknown(
+          data['operation_type']!,
+          _operationTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_operationTypeMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+        _retryCountMeta,
+        retryCount.isAcceptableOrUnknown(data['retry_count']!, _retryCountMeta),
+      );
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SyncOutboxData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncOutboxData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      shopId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shop_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      operationType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation_type'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      retryCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retry_count'],
+      )!,
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncOutboxTable createAlias(String alias) {
+    return $SyncOutboxTable(attachedDatabase, alias);
+  }
+}
+
+class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
+  final String id;
+  final String shopId;
+  final String userId;
+  final String entityType;
+  final String entityId;
+  final String operationType;
+  final String payloadJson;
+  final String status;
+  final int retryCount;
+  final String? errorMessage;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SyncOutboxData({
+    required this.id,
+    required this.shopId,
+    required this.userId,
+    required this.entityType,
+    required this.entityId,
+    required this.operationType,
+    required this.payloadJson,
+    required this.status,
+    required this.retryCount,
+    this.errorMessage,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['shop_id'] = Variable<String>(shopId);
+    map['user_id'] = Variable<String>(userId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['operation_type'] = Variable<String>(operationType);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['status'] = Variable<String>(status);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncOutboxCompanion toCompanion(bool nullToAbsent) {
+    return SyncOutboxCompanion(
+      id: Value(id),
+      shopId: Value(shopId),
+      userId: Value(userId),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      operationType: Value(operationType),
+      payloadJson: Value(payloadJson),
+      status: Value(status),
+      retryCount: Value(retryCount),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncOutboxData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncOutboxData(
+      id: serializer.fromJson<String>(json['id']),
+      shopId: serializer.fromJson<String>(json['shopId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      operationType: serializer.fromJson<String>(json['operationType']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      status: serializer.fromJson<String>(json['status']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'shopId': serializer.toJson<String>(shopId),
+      'userId': serializer.toJson<String>(userId),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'operationType': serializer.toJson<String>(operationType),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'status': serializer.toJson<String>(status),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncOutboxData copyWith({
+    String? id,
+    String? shopId,
+    String? userId,
+    String? entityType,
+    String? entityId,
+    String? operationType,
+    String? payloadJson,
+    String? status,
+    int? retryCount,
+    Value<String?> errorMessage = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SyncOutboxData(
+    id: id ?? this.id,
+    shopId: shopId ?? this.shopId,
+    userId: userId ?? this.userId,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    operationType: operationType ?? this.operationType,
+    payloadJson: payloadJson ?? this.payloadJson,
+    status: status ?? this.status,
+    retryCount: retryCount ?? this.retryCount,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncOutboxData copyWithCompanion(SyncOutboxCompanion data) {
+    return SyncOutboxData(
+      id: data.id.present ? data.id.value : this.id,
+      shopId: data.shopId.present ? data.shopId.value : this.shopId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      operationType: data.operationType.present
+          ? data.operationType.value
+          : this.operationType,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      status: data.status.present ? data.status.value : this.status,
+      retryCount: data.retryCount.present
+          ? data.retryCount.value
+          : this.retryCount,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxData(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('userId: $userId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operationType: $operationType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    shopId,
+    userId,
+    entityType,
+    entityId,
+    operationType,
+    payloadJson,
+    status,
+    retryCount,
+    errorMessage,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncOutboxData &&
+          other.id == this.id &&
+          other.shopId == this.shopId &&
+          other.userId == this.userId &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.operationType == this.operationType &&
+          other.payloadJson == this.payloadJson &&
+          other.status == this.status &&
+          other.retryCount == this.retryCount &&
+          other.errorMessage == this.errorMessage &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
+  final Value<String> id;
+  final Value<String> shopId;
+  final Value<String> userId;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> operationType;
+  final Value<String> payloadJson;
+  final Value<String> status;
+  final Value<int> retryCount;
+  final Value<String?> errorMessage;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SyncOutboxCompanion({
+    this.id = const Value.absent(),
+    this.shopId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.operationType = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncOutboxCompanion.insert({
+    required String id,
+    required String shopId,
+    required String userId,
+    required String entityType,
+    required String entityId,
+    required String operationType,
+    required String payloadJson,
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       shopId = Value(shopId),
+       userId = Value(userId),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       operationType = Value(operationType),
+       payloadJson = Value(payloadJson),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncOutboxData> custom({
+    Expression<String>? id,
+    Expression<String>? shopId,
+    Expression<String>? userId,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? operationType,
+    Expression<String>? payloadJson,
+    Expression<String>? status,
+    Expression<int>? retryCount,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shopId != null) 'shop_id': shopId,
+      if (userId != null) 'user_id': userId,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (operationType != null) 'operation_type': operationType,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (status != null) 'status': status,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncOutboxCompanion copyWith({
+    Value<String>? id,
+    Value<String>? shopId,
+    Value<String>? userId,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? operationType,
+    Value<String>? payloadJson,
+    Value<String>? status,
+    Value<int>? retryCount,
+    Value<String?>? errorMessage,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncOutboxCompanion(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      userId: userId ?? this.userId,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      operationType: operationType ?? this.operationType,
+      payloadJson: payloadJson ?? this.payloadJson,
+      status: status ?? this.status,
+      retryCount: retryCount ?? this.retryCount,
+      errorMessage: errorMessage ?? this.errorMessage,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (shopId.present) {
+      map['shop_id'] = Variable<String>(shopId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (operationType.present) {
+      map['operation_type'] = Variable<String>(operationType.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOutboxCompanion(')
+          ..write('id: $id, ')
+          ..write('shopId: $shopId, ')
+          ..write('userId: $userId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operationType: $operationType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12983,6 +14149,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalRecycleBinEntriesTable(this);
   late final $LocalNotesTable localNotes = $LocalNotesTable(this);
   late final $SyncStatesTable syncStates = $SyncStatesTable(this);
+  late final $LocalSessionsTable localSessions = $LocalSessionsTable(this);
+  late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -13007,6 +14175,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localRecycleBinEntries,
     localNotes,
     syncStates,
+    localSessions,
+    syncOutbox,
   ];
 }
 
@@ -13410,6 +14580,45 @@ final class $$LocalShopsTableReferences
     ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_localNotesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LocalSessionsTable, List<LocalSession>>
+  _localSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localSessions,
+    aliasName: $_aliasNameGenerator(
+      db.localShops.id,
+      db.localSessions.selectedShopId,
+    ),
+  );
+
+  $$LocalSessionsTableProcessedTableManager get localSessionsRefs {
+    final manager = $$LocalSessionsTableTableManager(
+      $_db,
+      $_db.localSessions,
+    ).filter((f) => f.selectedShopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_localSessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SyncOutboxTable, List<SyncOutboxData>>
+  _syncOutboxRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.syncOutbox,
+    aliasName: $_aliasNameGenerator(db.localShops.id, db.syncOutbox.shopId),
+  );
+
+  $$SyncOutboxTableProcessedTableManager get syncOutboxRefs {
+    final manager = $$SyncOutboxTableTableManager(
+      $_db,
+      $_db.syncOutbox,
+    ).filter((f) => f.shopId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_syncOutboxRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -13895,6 +15104,56 @@ class $$LocalShopsTableFilterComposer
           }) => $$LocalNotesTableFilterComposer(
             $db: $db,
             $table: $db.localNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> localSessionsRefs(
+    Expression<bool> Function($$LocalSessionsTableFilterComposer f) f,
+  ) {
+    final $$LocalSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localSessions,
+      getReferencedColumn: (t) => t.selectedShopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.localSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> syncOutboxRefs(
+    Expression<bool> Function($$SyncOutboxTableFilterComposer f) f,
+  ) {
+    final $$SyncOutboxTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.syncOutbox,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncOutboxTableFilterComposer(
+            $db: $db,
+            $table: $db.syncOutbox,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14442,6 +15701,56 @@ class $$LocalShopsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> localSessionsRefs<T extends Object>(
+    Expression<T> Function($$LocalSessionsTableAnnotationComposer a) f,
+  ) {
+    final $$LocalSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localSessions,
+      getReferencedColumn: (t) => t.selectedShopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> syncOutboxRefs<T extends Object>(
+    Expression<T> Function($$SyncOutboxTableAnnotationComposer a) f,
+  ) {
+    final $$SyncOutboxTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.syncOutbox,
+      getReferencedColumn: (t) => t.shopId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncOutboxTableAnnotationComposer(
+            $db: $db,
+            $table: $db.syncOutbox,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalShopsTableTableManager
@@ -14475,6 +15784,8 @@ class $$LocalShopsTableTableManager
             bool localIncomesRefs,
             bool localRecycleBinEntriesRefs,
             bool localNotesRefs,
+            bool localSessionsRefs,
+            bool syncOutboxRefs,
           })
         > {
   $$LocalShopsTableTableManager(_$AppDatabase db, $LocalShopsTable table)
@@ -14567,6 +15878,8 @@ class $$LocalShopsTableTableManager
                 localIncomesRefs = false,
                 localRecycleBinEntriesRefs = false,
                 localNotesRefs = false,
+                localSessionsRefs = false,
+                syncOutboxRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -14588,6 +15901,8 @@ class $$LocalShopsTableTableManager
                     if (localIncomesRefs) db.localIncomes,
                     if (localRecycleBinEntriesRefs) db.localRecycleBinEntries,
                     if (localNotesRefs) db.localNotes,
+                    if (localSessionsRefs) db.localSessions,
+                    if (syncOutboxRefs) db.syncOutbox,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -14949,6 +16264,48 @@ class $$LocalShopsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (localSessionsRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          LocalSession
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._localSessionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localSessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.selectedShopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (syncOutboxRefs)
+                        await $_getPrefetchedData<
+                          LocalShop,
+                          $LocalShopsTable,
+                          SyncOutboxData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalShopsTableReferences
+                              ._syncOutboxRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalShopsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).syncOutboxRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.shopId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -14987,6 +16344,8 @@ typedef $$LocalShopsTableProcessedTableManager =
         bool localIncomesRefs,
         bool localRecycleBinEntriesRefs,
         bool localNotesRefs,
+        bool localSessionsRefs,
+        bool syncOutboxRefs,
       })
     >;
 typedef $$LocalUsersTableCreateCompanionBuilder =
@@ -15071,6 +16430,45 @@ final class $$LocalUsersTableReferences
     final cache = $_typedResult.readTableOrNull(
       _localRecycleBinEntriesRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LocalSessionsTable, List<LocalSession>>
+  _localSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.localSessions,
+    aliasName: $_aliasNameGenerator(
+      db.localUsers.id,
+      db.localSessions.authUserId,
+    ),
+  );
+
+  $$LocalSessionsTableProcessedTableManager get localSessionsRefs {
+    final manager = $$LocalSessionsTableTableManager(
+      $_db,
+      $_db.localSessions,
+    ).filter((f) => f.authUserId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_localSessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SyncOutboxTable, List<SyncOutboxData>>
+  _syncOutboxRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.syncOutbox,
+    aliasName: $_aliasNameGenerator(db.localUsers.id, db.syncOutbox.userId),
+  );
+
+  $$SyncOutboxTableProcessedTableManager get syncOutboxRefs {
+    final manager = $$SyncOutboxTableTableManager(
+      $_db,
+      $_db.syncOutbox,
+    ).filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_syncOutboxRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -15187,6 +16585,56 @@ class $$LocalUsersTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> localSessionsRefs(
+    Expression<bool> Function($$LocalSessionsTableFilterComposer f) f,
+  ) {
+    final $$LocalSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localSessions,
+      getReferencedColumn: (t) => t.authUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.localSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> syncOutboxRefs(
+    Expression<bool> Function($$SyncOutboxTableFilterComposer f) f,
+  ) {
+    final $$SyncOutboxTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.syncOutbox,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncOutboxTableFilterComposer(
+            $db: $db,
+            $table: $db.syncOutbox,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -15375,6 +16823,56 @@ class $$LocalUsersTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> localSessionsRefs<T extends Object>(
+    Expression<T> Function($$LocalSessionsTableAnnotationComposer a) f,
+  ) {
+    final $$LocalSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.localSessions,
+      getReferencedColumn: (t) => t.authUserId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> syncOutboxRefs<T extends Object>(
+    Expression<T> Function($$SyncOutboxTableAnnotationComposer a) f,
+  ) {
+    final $$SyncOutboxTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.syncOutbox,
+      getReferencedColumn: (t) => t.userId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SyncOutboxTableAnnotationComposer(
+            $db: $db,
+            $table: $db.syncOutbox,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$LocalUsersTableTableManager
@@ -15390,7 +16888,12 @@ class $$LocalUsersTableTableManager
           $$LocalUsersTableUpdateCompanionBuilder,
           (LocalUser, $$LocalUsersTableReferences),
           LocalUser,
-          PrefetchHooks Function({bool shopId, bool localRecycleBinEntriesRefs})
+          PrefetchHooks Function({
+            bool shopId,
+            bool localRecycleBinEntriesRefs,
+            bool localSessionsRefs,
+            bool syncOutboxRefs,
+          })
         > {
   $$LocalUsersTableTableManager(_$AppDatabase db, $LocalUsersTable table)
     : super(
@@ -15472,11 +16975,18 @@ class $$LocalUsersTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({shopId = false, localRecycleBinEntriesRefs = false}) {
+              ({
+                shopId = false,
+                localRecycleBinEntriesRefs = false,
+                localSessionsRefs = false,
+                syncOutboxRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (localRecycleBinEntriesRefs) db.localRecycleBinEntries,
+                    if (localSessionsRefs) db.localSessions,
+                    if (syncOutboxRefs) db.syncOutbox,
                   ],
                   addJoins:
                       <
@@ -15534,6 +17044,48 @@ class $$LocalUsersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (localSessionsRefs)
+                        await $_getPrefetchedData<
+                          LocalUser,
+                          $LocalUsersTable,
+                          LocalSession
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._localSessionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).localSessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.authUserId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (syncOutboxRefs)
+                        await $_getPrefetchedData<
+                          LocalUser,
+                          $LocalUsersTable,
+                          SyncOutboxData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LocalUsersTableReferences
+                              ._syncOutboxRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LocalUsersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).syncOutboxRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.userId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -15554,7 +17106,12 @@ typedef $$LocalUsersTableProcessedTableManager =
       $$LocalUsersTableUpdateCompanionBuilder,
       (LocalUser, $$LocalUsersTableReferences),
       LocalUser,
-      PrefetchHooks Function({bool shopId, bool localRecycleBinEntriesRefs})
+      PrefetchHooks Function({
+        bool shopId,
+        bool localRecycleBinEntriesRefs,
+        bool localSessionsRefs,
+        bool syncOutboxRefs,
+      })
     >;
 typedef $$LocalCategoriesTableCreateCompanionBuilder =
     LocalCategoriesCompanion Function({
@@ -26240,6 +27797,995 @@ typedef $$SyncStatesTableProcessedTableManager =
       SyncState,
       PrefetchHooks Function()
     >;
+typedef $$LocalSessionsTableCreateCompanionBuilder =
+    LocalSessionsCompanion Function({
+      Value<String> id,
+      Value<String?> authUserId,
+      Value<String?> selectedShopId,
+      Value<bool> isAuthenticated,
+      Value<DateTime?> lastLoginAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$LocalSessionsTableUpdateCompanionBuilder =
+    LocalSessionsCompanion Function({
+      Value<String> id,
+      Value<String?> authUserId,
+      Value<String?> selectedShopId,
+      Value<bool> isAuthenticated,
+      Value<DateTime?> lastLoginAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$LocalSessionsTableReferences
+    extends BaseReferences<_$AppDatabase, $LocalSessionsTable, LocalSession> {
+  $$LocalSessionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $LocalUsersTable _authUserIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.localSessions.authUserId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager? get authUserId {
+    final $_column = $_itemColumn<String>('auth_user_id');
+    if ($_column == null) return null;
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_authUserIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalShopsTable _selectedShopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(db.localSessions.selectedShopId, db.localShops.id),
+      );
+
+  $$LocalShopsTableProcessedTableManager? get selectedShopId {
+    final $_column = $_itemColumn<String>('selected_shop_id');
+    if ($_column == null) return null;
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_selectedShopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LocalSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isAuthenticated => $composableBuilder(
+    column: $table.isAuthenticated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalUsersTableFilterComposer get authUserId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.authUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalShopsTableFilterComposer get selectedShopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.selectedShopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isAuthenticated => $composableBuilder(
+    column: $table.isAuthenticated,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalUsersTableOrderingComposer get authUserId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.authUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalShopsTableOrderingComposer get selectedShopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.selectedShopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAuthenticated => $composableBuilder(
+    column: $table.isAuthenticated,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastLoginAt => $composableBuilder(
+    column: $table.lastLoginAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$LocalUsersTableAnnotationComposer get authUserId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.authUserId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalShopsTableAnnotationComposer get selectedShopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.selectedShopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LocalSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalSessionsTable,
+          LocalSession,
+          $$LocalSessionsTableFilterComposer,
+          $$LocalSessionsTableOrderingComposer,
+          $$LocalSessionsTableAnnotationComposer,
+          $$LocalSessionsTableCreateCompanionBuilder,
+          $$LocalSessionsTableUpdateCompanionBuilder,
+          (LocalSession, $$LocalSessionsTableReferences),
+          LocalSession,
+          PrefetchHooks Function({bool authUserId, bool selectedShopId})
+        > {
+  $$LocalSessionsTableTableManager(_$AppDatabase db, $LocalSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> authUserId = const Value.absent(),
+                Value<String?> selectedShopId = const Value.absent(),
+                Value<bool> isAuthenticated = const Value.absent(),
+                Value<DateTime?> lastLoginAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSessionsCompanion(
+                id: id,
+                authUserId: authUserId,
+                selectedShopId: selectedShopId,
+                isAuthenticated: isAuthenticated,
+                lastLoginAt: lastLoginAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> authUserId = const Value.absent(),
+                Value<String?> selectedShopId = const Value.absent(),
+                Value<bool> isAuthenticated = const Value.absent(),
+                Value<DateTime?> lastLoginAt = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSessionsCompanion.insert(
+                id: id,
+                authUserId: authUserId,
+                selectedShopId: selectedShopId,
+                isAuthenticated: isAuthenticated,
+                lastLoginAt: lastLoginAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LocalSessionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({authUserId = false, selectedShopId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (authUserId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.authUserId,
+                                    referencedTable:
+                                        $$LocalSessionsTableReferences
+                                            ._authUserIdTable(db),
+                                    referencedColumn:
+                                        $$LocalSessionsTableReferences
+                                            ._authUserIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (selectedShopId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.selectedShopId,
+                                    referencedTable:
+                                        $$LocalSessionsTableReferences
+                                            ._selectedShopIdTable(db),
+                                    referencedColumn:
+                                        $$LocalSessionsTableReferences
+                                            ._selectedShopIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$LocalSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalSessionsTable,
+      LocalSession,
+      $$LocalSessionsTableFilterComposer,
+      $$LocalSessionsTableOrderingComposer,
+      $$LocalSessionsTableAnnotationComposer,
+      $$LocalSessionsTableCreateCompanionBuilder,
+      $$LocalSessionsTableUpdateCompanionBuilder,
+      (LocalSession, $$LocalSessionsTableReferences),
+      LocalSession,
+      PrefetchHooks Function({bool authUserId, bool selectedShopId})
+    >;
+typedef $$SyncOutboxTableCreateCompanionBuilder =
+    SyncOutboxCompanion Function({
+      required String id,
+      required String shopId,
+      required String userId,
+      required String entityType,
+      required String entityId,
+      required String operationType,
+      required String payloadJson,
+      Value<String> status,
+      Value<int> retryCount,
+      Value<String?> errorMessage,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncOutboxTableUpdateCompanionBuilder =
+    SyncOutboxCompanion Function({
+      Value<String> id,
+      Value<String> shopId,
+      Value<String> userId,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String> operationType,
+      Value<String> payloadJson,
+      Value<String> status,
+      Value<int> retryCount,
+      Value<String?> errorMessage,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$SyncOutboxTableReferences
+    extends BaseReferences<_$AppDatabase, $SyncOutboxTable, SyncOutboxData> {
+  $$SyncOutboxTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LocalShopsTable _shopIdTable(_$AppDatabase db) =>
+      db.localShops.createAlias(
+        $_aliasNameGenerator(db.syncOutbox.shopId, db.localShops.id),
+      );
+
+  $$LocalShopsTableProcessedTableManager get shopId {
+    final $_column = $_itemColumn<String>('shop_id')!;
+
+    final manager = $$LocalShopsTableTableManager(
+      $_db,
+      $_db.localShops,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_shopIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LocalUsersTable _userIdTable(_$AppDatabase db) =>
+      db.localUsers.createAlias(
+        $_aliasNameGenerator(db.syncOutbox.userId, db.localUsers.id),
+      );
+
+  $$LocalUsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$LocalUsersTableTableManager(
+      $_db,
+      $_db.localUsers,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SyncOutboxTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operationType => $composableBuilder(
+    column: $table.operationType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LocalShopsTableFilterComposer get shopId {
+    final $$LocalShopsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableFilterComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableFilterComposer get userId {
+    final $$LocalUsersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableFilterComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SyncOutboxTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operationType => $composableBuilder(
+    column: $table.operationType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LocalShopsTableOrderingComposer get shopId {
+    final $$LocalShopsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableOrderingComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableOrderingComposer get userId {
+    final $$LocalUsersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableOrderingComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SyncOutboxTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncOutboxTable> {
+  $$SyncOutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get operationType => $composableBuilder(
+    column: $table.operationType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+    column: $table.retryCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$LocalShopsTableAnnotationComposer get shopId {
+    final $$LocalShopsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.shopId,
+      referencedTable: $db.localShops,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalShopsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localShops,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LocalUsersTableAnnotationComposer get userId {
+    final $$LocalUsersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.userId,
+      referencedTable: $db.localUsers,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LocalUsersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.localUsers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SyncOutboxTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncOutboxTable,
+          SyncOutboxData,
+          $$SyncOutboxTableFilterComposer,
+          $$SyncOutboxTableOrderingComposer,
+          $$SyncOutboxTableAnnotationComposer,
+          $$SyncOutboxTableCreateCompanionBuilder,
+          $$SyncOutboxTableUpdateCompanionBuilder,
+          (SyncOutboxData, $$SyncOutboxTableReferences),
+          SyncOutboxData,
+          PrefetchHooks Function({bool shopId, bool userId})
+        > {
+  $$SyncOutboxTableTableManager(_$AppDatabase db, $SyncOutboxTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncOutboxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncOutboxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncOutboxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> shopId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> operationType = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> retryCount = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOutboxCompanion(
+                id: id,
+                shopId: shopId,
+                userId: userId,
+                entityType: entityType,
+                entityId: entityId,
+                operationType: operationType,
+                payloadJson: payloadJson,
+                status: status,
+                retryCount: retryCount,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String shopId,
+                required String userId,
+                required String entityType,
+                required String entityId,
+                required String operationType,
+                required String payloadJson,
+                Value<String> status = const Value.absent(),
+                Value<int> retryCount = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOutboxCompanion.insert(
+                id: id,
+                shopId: shopId,
+                userId: userId,
+                entityType: entityType,
+                entityId: entityId,
+                operationType: operationType,
+                payloadJson: payloadJson,
+                status: status,
+                retryCount: retryCount,
+                errorMessage: errorMessage,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SyncOutboxTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({shopId = false, userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (shopId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.shopId,
+                                referencedTable: $$SyncOutboxTableReferences
+                                    ._shopIdTable(db),
+                                referencedColumn: $$SyncOutboxTableReferences
+                                    ._shopIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (userId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.userId,
+                                referencedTable: $$SyncOutboxTableReferences
+                                    ._userIdTable(db),
+                                referencedColumn: $$SyncOutboxTableReferences
+                                    ._userIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SyncOutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncOutboxTable,
+      SyncOutboxData,
+      $$SyncOutboxTableFilterComposer,
+      $$SyncOutboxTableOrderingComposer,
+      $$SyncOutboxTableAnnotationComposer,
+      $$SyncOutboxTableCreateCompanionBuilder,
+      $$SyncOutboxTableUpdateCompanionBuilder,
+      (SyncOutboxData, $$SyncOutboxTableReferences),
+      SyncOutboxData,
+      PrefetchHooks Function({bool shopId, bool userId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -26285,4 +28831,8 @@ class $AppDatabaseManager {
       $$LocalNotesTableTableManager(_db, _db.localNotes);
   $$SyncStatesTableTableManager get syncStates =>
       $$SyncStatesTableTableManager(_db, _db.syncStates);
+  $$LocalSessionsTableTableManager get localSessions =>
+      $$LocalSessionsTableTableManager(_db, _db.localSessions);
+  $$SyncOutboxTableTableManager get syncOutbox =>
+      $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
 }

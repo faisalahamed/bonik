@@ -16,7 +16,10 @@ abstract class Controller
             ?? $request->header('X-User-Id');
 
         if (! $userId) {
-            return;
+            throw ValidationException::withMessages([
+                'user_id' => ['USER_REQUIRED: Sync requests must include the authenticated local user id.'],
+                'shop_id' => ['SELECTED_SHOP_INVALID: Selected shop could not be validated.'],
+            ]);
         }
 
         $hasAccess = User::query()
@@ -27,7 +30,7 @@ abstract class Controller
 
         if (! $hasAccess) {
             throw ValidationException::withMessages([
-                'shop_id' => ['SHOP_ACCESS_DENIED: User is not authorized for this shop.'],
+                'shop_id' => ['SELECTED_SHOP_INVALID: User is not authorized for this shop.'],
             ]);
         }
     }

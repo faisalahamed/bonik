@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -32,19 +31,30 @@ class AuthRepositoryImpl implements AuthRepository {
       return AuthLoginResult.online;
     }
 
+    try {
+      final response = await _remoteDataSource.login(
+        identity: identity,
+        password: password,
+      );
+
+      await _saveRemoteLogin(
+        response: response,
+        database: database,
+        password: password,
+      );
+      return AuthLoginResult.online;
+    } on ApiException catch (error) {
+      if (error.statusCode != null) {
+        rethrow;
+      }
+    }
+
     final didLoginOffline = await _tryOfflineLogin(
       database: database,
       identity: identity,
       password: password,
     );
     if (didLoginOffline) {
-      unawaited(
-        _refreshRemoteLogin(
-          database: database,
-          identity: identity,
-          password: password,
-        ),
-      );
       return AuthLoginResult.offline;
     }
 
@@ -121,33 +131,9 @@ class AuthRepositoryImpl implements AuthRepository {
       return false;
     }
 
-    await database.clearCurrentSession();
-    await database.localUsers.update().replace(
-      localUser.copyWith(isCurrent: true),
-    );
+    await database.activateLocalSession(localUser);
 
     return true;
-  }
-
-  Future<void> _refreshRemoteLogin({
-    required AppDatabase database,
-    required String identity,
-    required String password,
-  }) async {
-    try {
-      final response = await _remoteDataSource.login(
-        identity: identity,
-        password: password,
-      );
-
-      await _saveRemoteLogin(
-        response: response,
-        database: database,
-        password: password,
-      );
-    } on ApiException {
-      // Local login already succeeded. Network refresh can wait until later.
-    }
   }
 
   @override

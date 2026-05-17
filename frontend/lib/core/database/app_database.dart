@@ -341,6 +341,38 @@ class SyncStates extends Table {
   Set<Column<Object>> get primaryKey => {shopId, entityType};
 }
 
+class LocalSessions extends Table {
+  TextColumn get id => text().withDefault(const Constant('singleton'))();
+  TextColumn get authUserId => text().nullable().references(LocalUsers, #id)();
+  TextColumn get selectedShopId =>
+      text().nullable().references(LocalShops, #id)();
+  BoolColumn get isAuthenticated =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get lastLoginAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class SyncOutbox extends Table {
+  TextColumn get id => text()();
+  TextColumn get shopId => text().references(LocalShops, #id)();
+  TextColumn get userId => text().references(LocalUsers, #id)();
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  TextColumn get operationType => text()();
+  TextColumn get payloadJson => text()();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  TextColumn get errorMessage => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalShops,
@@ -362,6 +394,8 @@ class SyncStates extends Table {
     LocalRecycleBinEntries,
     LocalNotes,
     SyncStates,
+    LocalSessions,
+    SyncOutbox,
   ],
 )
 final class AppDatabase extends _$AppDatabase {
@@ -378,7 +412,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -559,8 +593,42 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 16) {
         await migrator.createTable(syncStates);
       }
+      if (from < 17) {
+        await migrator.createTable(localSessions);
+        await migrator.createTable(syncOutbox);
+        await customStatement('''
+          INSERT OR REPLACE INTO local_sessions (
+            id,
+            auth_user_id,
+            selected_shop_id,
+            is_authenticated,
+            last_login_at,
+            updated_at
+          )
+          SELECT
+            'singleton',
+            id,
+            shop_id,
+            1,
+            CAST(strftime('%s', 'now') AS INTEGER) * 1000,
+            CAST(strftime('%s', 'now') AS INTEGER) * 1000
+          FROM local_users
+          WHERE is_current = 1
+          LIMIT 1
+        ''');
+      }
     },
   );
+
+  dynamic _selectedShopIdsQuery() {
+    return selectOnly(localSessions)
+      ..addColumns([localSessions.selectedShopId])
+      ..where(
+        localSessions.id.equals('singleton') &
+            localSessions.isAuthenticated.equals(true) &
+            localSessions.selectedShopId.isNotNull(),
+      );
+  }
 
   Future<DateTime?> getLastPulledAt({
     required String shopId,
@@ -593,10 +661,111 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<String?> _firstUserIdForShop(String shopId) async {
+    final user =
+        await (select(localUsers)
+              ..where(
+                (user) => user.shopId.equals(shopId) & user.deletedAt.isNull(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return user?.id;
+  }
+
+  Future<bool> _shopHasUnsyncedData(String shopId) async {
+    final row = await customSelect(
+      '''
+      SELECT EXISTS(
+        SELECT 1 FROM local_shops
+          WHERE id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_users
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_categories
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_suppliers
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchases
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchase_items
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_purchase_payments
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_customers
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_sales
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_sale_items
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_sale_returns
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_sale_return_items
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_customer_payments
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_cash_transactions
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_expenses
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_incomes
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_recycle_bin_entries
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM local_notes
+          WHERE shop_id = ?1 AND sync_status != 'synced'
+        UNION ALL
+        SELECT 1 FROM sync_outbox
+          WHERE shop_id = ?1 AND status != 'synced'
+      ) AS has_unsynced
+      ''',
+      variables: [Variable<String>(shopId)],
+      readsFrom: {
+        localShops,
+        localUsers,
+        localCategories,
+        localSuppliers,
+        localPurchases,
+        localPurchaseItems,
+        localPurchasePayments,
+        localCustomers,
+        localSales,
+        localSaleItems,
+        localSaleReturns,
+        localSaleReturnItems,
+        localCustomerPayments,
+        localCashTransactions,
+        localExpenses,
+        localIncomes,
+        localRecycleBinEntries,
+        localNotes,
+        syncOutbox,
+      },
+    ).getSingle();
+
+    return row.read<bool>('has_unsynced');
+  }
+
   Future<void> saveLoggedInSession({
     required LocalShopsCompanion shop,
     required LocalUsersCompanion user,
   }) async {
+    final now = AppTime.nowUtc();
     await transaction(() async {
       await into(localShops).insertOnConflictUpdate(shop);
       await update(
@@ -605,13 +774,76 @@ final class AppDatabase extends _$AppDatabase {
       await into(
         localUsers,
       ).insertOnConflictUpdate(user.copyWith(isCurrent: const Value(true)));
+
+      final existingSession = await (select(
+        localSessions,
+      )..where((session) => session.id.equals('singleton'))).getSingleOrNull();
+      final incomingShopId = user.shopId.value;
+      final previousSelectedShopId = existingSession?.selectedShopId;
+      final keepPreviousShop =
+          previousSelectedShopId != null &&
+          previousSelectedShopId != incomingShopId &&
+          await _shopHasUnsyncedData(previousSelectedShopId);
+      final selectedShopId = keepPreviousShop
+          ? previousSelectedShopId
+          : incomingShopId;
+      final authUserId = selectedShopId == incomingShopId
+          ? user.id.value
+          : await _firstUserIdForShop(selectedShopId) ?? user.id.value;
+
+      await into(localSessions).insertOnConflictUpdate(
+        LocalSessionsCompanion(
+          id: const Value('singleton'),
+          authUserId: Value(authUserId),
+          selectedShopId: Value(selectedShopId),
+          isAuthenticated: const Value(true),
+          lastLoginAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
     });
   }
 
   Future<void> clearCurrentSession() async {
-    await update(
-      localUsers,
-    ).write(const LocalUsersCompanion(isCurrent: Value(false)));
+    final now = AppTime.nowUtc();
+    await transaction(() async {
+      await update(
+        localUsers,
+      ).write(const LocalUsersCompanion(isCurrent: Value(false)));
+      final existingSession = await (select(
+        localSessions,
+      )..where((session) => session.id.equals('singleton'))).getSingleOrNull();
+      await into(localSessions).insertOnConflictUpdate(
+        LocalSessionsCompanion(
+          id: const Value('singleton'),
+          authUserId: const Value(null),
+          selectedShopId: Value(existingSession?.selectedShopId),
+          isAuthenticated: const Value(false),
+          lastLoginAt: Value(existingSession?.lastLoginAt),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
+  Future<void> activateLocalSession(LocalUser user) async {
+    final now = AppTime.nowUtc();
+    await transaction(() async {
+      await update(
+        localUsers,
+      ).write(const LocalUsersCompanion(isCurrent: Value(false)));
+      await localUsers.update().replace(user.copyWith(isCurrent: true));
+      await into(localSessions).insertOnConflictUpdate(
+        LocalSessionsCompanion(
+          id: const Value('singleton'),
+          authUserId: Value(user.id),
+          selectedShopId: Value(user.shopId),
+          isAuthenticated: const Value(true),
+          lastLoginAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
   }
 
   Future<LocalUser?> findUserForOfflineLogin(String identity) {
@@ -632,15 +864,21 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<LocalUser?> watchCurrentUser() {
+    final currentUserIds = selectOnly(localSessions)
+      ..addColumns([localSessions.authUserId])
+      ..where(
+        localSessions.id.equals('singleton') &
+            localSessions.isAuthenticated.equals(true) &
+            localSessions.authUserId.isNotNull(),
+      );
+
     return (select(
       localUsers,
-    )..where((user) => user.isCurrent.equals(true))).watchSingleOrNull();
+    )..where((user) => user.id.isInQuery(currentUserIds))).watchSingleOrNull();
   }
 
   Stream<LocalShop?> watchCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(
       localShops,
@@ -651,9 +889,10 @@ final class AppDatabase extends _$AppDatabase {
     return customSelect(
       '''
       WITH current_shop AS (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id AS shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
         LIMIT 1
       )
       SELECT EXISTS(
@@ -767,20 +1006,47 @@ final class AppDatabase extends _$AppDatabase {
         localIncomes,
         localRecycleBinEntries,
         localNotes,
+        localSessions,
       },
     ).watchSingle().map((row) => row.read<bool>('has_unsynced'));
   }
 
-  Future<LocalUser?> getCurrentUser() {
-    return (select(
-      localUsers,
-    )..where((user) => user.isCurrent.equals(true))).getSingleOrNull();
+  Future<LocalUser?> getCurrentUser() async {
+    final session = await (select(
+      localSessions,
+    )..where((session) => session.id.equals('singleton'))).getSingleOrNull();
+    if (session == null || !session.isAuthenticated) {
+      return null;
+    }
+
+    if (session.authUserId != null) {
+      final authUser =
+          await (select(localUsers)
+                ..where((user) => user.id.equals(session.authUserId!)))
+              .getSingleOrNull();
+      if (authUser != null &&
+          (session.selectedShopId == null ||
+              authUser.shopId == session.selectedShopId)) {
+        return authUser;
+      }
+    }
+
+    if (session.selectedShopId == null) {
+      return null;
+    }
+
+    return (select(localUsers)
+          ..where(
+            (user) =>
+                user.shopId.equals(session.selectedShopId!) &
+                user.deletedAt.isNull(),
+          )
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Stream<List<LocalNote>> watchNotesForCurrentShop({required bool archived}) {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localNotes)
           ..where(
@@ -941,9 +1207,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalRecycleBinEntry>> watchRecycleBinEntriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localRecycleBinEntries)
           ..where(
@@ -1264,9 +1528,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCategory>> watchProductCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1280,9 +1542,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCategory>> watchDeletedProductCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1296,9 +1556,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalPurchaseItem>> watchPurchaseItemsWithBarcodes() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localPurchaseItems)
           ..where(
@@ -1312,9 +1570,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCategory>> watchExpenseCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1328,9 +1584,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCategory>> watchDeletedExpenseCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1352,15 +1606,16 @@ final class AppDatabase extends _$AppDatabase {
       SELECT COALESCE(SUM(amount), 0.0) AS total
       FROM local_expenses
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND created_at >= ?
         AND created_at < ?
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
-      readsFrom: {localExpenses, localUsers},
+      readsFrom: {localExpenses, localSessions},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
@@ -1379,13 +1634,14 @@ final class AppDatabase extends _$AppDatabase {
       FROM local_expenses e
       LEFT JOIN local_categories c ON c.id = e.category_id
       WHERE e.shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
       ORDER BY e.created_at DESC
       ''',
-      readsFrom: {localExpenses, localCategories, localUsers},
+      readsFrom: {localExpenses, localCategories, localSessions},
     ).watch().map(
       (rows) => [
         for (final row in rows)
@@ -1404,9 +1660,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCategory>> watchIncomeCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1428,15 +1682,16 @@ final class AppDatabase extends _$AppDatabase {
       SELECT COALESCE(SUM(amount), 0.0) AS total
       FROM local_incomes
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND created_at >= ?
         AND created_at < ?
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
-      readsFrom: {localIncomes, localUsers},
+      readsFrom: {localIncomes, localSessions},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
@@ -1459,23 +1714,22 @@ final class AppDatabase extends _$AppDatabase {
       FROM local_sales
       s
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND deleted_at IS NULL
         AND created_at >= ?
         AND created_at < ?
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
-      readsFrom: {localSales, localUsers},
+      readsFrom: {localSales, localSessions},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
   Stream<List<LocalCategory>> watchDeletedIncomeCategoriesForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCategories)
           ..where(
@@ -1505,14 +1759,15 @@ final class AppDatabase extends _$AppDatabase {
         sync_status
       FROM local_cash_transactions
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND type IN ('owner_given', 'owner_taken')
       ORDER BY created_at DESC
       ''',
-      readsFrom: {localCashTransactions, localUsers},
+      readsFrom: {localCashTransactions, localSessions},
     ).watch().map(
       (rows) => [
         for (final row in rows)
@@ -1547,9 +1802,10 @@ final class AppDatabase extends _$AppDatabase {
       ), 0.0) AS total
       FROM local_cash_transactions
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND deleted_at IS NULL
         AND type IN ('owner_given', 'owner_taken')
@@ -1557,7 +1813,7 @@ final class AppDatabase extends _$AppDatabase {
         AND created_at < ?
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
-      readsFrom: {localCashTransactions, localUsers},
+      readsFrom: {localCashTransactions, localSessions},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
@@ -1576,9 +1832,10 @@ final class AppDatabase extends _$AppDatabase {
       ), 0.0) AS total
       FROM local_cash_transactions
       WHERE shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND deleted_at IS NULL
         AND method IN ('online', 'mobile_banking')
@@ -1586,7 +1843,7 @@ final class AppDatabase extends _$AppDatabase {
         AND created_at < ?
       ''',
       variables: [Variable<DateTime>(start), Variable<DateTime>(end)],
-      readsFrom: {localCashTransactions, localUsers},
+      readsFrom: {localCashTransactions, localSessions},
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
@@ -1629,9 +1886,10 @@ final class AppDatabase extends _$AppDatabase {
       ), 0.0) AS total
       FROM local_sales s
       WHERE s.shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND s.deleted_at IS NULL
         AND s.created_at >= ?
@@ -1642,7 +1900,7 @@ final class AppDatabase extends _$AppDatabase {
         localSales,
         localSaleReturns,
         localCustomerPayments,
-        localUsers,
+        localSessions,
       },
     ).watchSingle().map((row) => row.read<double>('total'));
   }
@@ -1654,9 +1912,10 @@ final class AppDatabase extends _$AppDatabase {
     return customSelect(
       '''
       WITH current_shop AS (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id AS shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       ),
       sales AS (
         SELECT COALESCE(SUM(
@@ -1789,7 +2048,7 @@ final class AppDatabase extends _$AppDatabase {
         localExpenses,
         localIncomes,
         localCashTransactions,
-        localUsers,
+        localSessions,
       },
     ).watchSingle().map((row) => row.read<double>('total'));
   }
@@ -1812,9 +2071,10 @@ final class AppDatabase extends _$AppDatabase {
     return customSelect(
       '''
       WITH current_shop AS (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id AS shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       ),
       sold_items AS (
         SELECT
@@ -1924,7 +2184,7 @@ final class AppDatabase extends _$AppDatabase {
             ]
           : const [],
       readsFrom: {
-        localUsers,
+        localSessions,
         localSales,
         localSaleItems,
         localSaleReturns,
@@ -2500,9 +2760,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalSupplier>> watchSuppliersForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localSuppliers)
           ..where(
@@ -2774,9 +3032,10 @@ final class AppDatabase extends _$AppDatabase {
       FROM local_purchases p
       LEFT JOIN local_suppliers s ON s.id = p.supplier_id
       WHERE p.shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
       AND p.deleted_at IS NULL
       AND EXISTS (
@@ -2792,7 +3051,7 @@ final class AppDatabase extends _$AppDatabase {
         localSuppliers,
         localPurchasePayments,
         localPurchaseItems,
-        localUsers,
+        localSessions,
       },
     ).watch().map(
       (rows) => rows
@@ -2908,9 +3167,10 @@ final class AppDatabase extends _$AppDatabase {
       FROM local_sales s
       LEFT JOIN local_customers c ON c.id = s.customer_id
       WHERE s.shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
       ORDER BY s.created_at DESC
       ''',
@@ -2922,7 +3182,7 @@ final class AppDatabase extends _$AppDatabase {
         localSaleReturns,
         localSaleReturnItems,
         localCashTransactions,
-        localUsers,
+        localSessions,
       },
     ).watch().map(
       (rows) => rows
@@ -2972,9 +3232,10 @@ final class AppDatabase extends _$AppDatabase {
           )
           FROM local_sales s
           WHERE s.shop_id IN (
-            SELECT shop_id
-            FROM local_users
-            WHERE is_current = 1
+            SELECT selected_shop_id
+            FROM local_sessions
+            WHERE id = 'singleton'
+              AND is_authenticated = 1
           )
         ), 0.0) AS receivable,
         COALESCE((
@@ -2995,9 +3256,10 @@ final class AppDatabase extends _$AppDatabase {
           )
           FROM local_purchases p
           WHERE p.shop_id IN (
-            SELECT shop_id
-            FROM local_users
-            WHERE is_current = 1
+            SELECT selected_shop_id
+            FROM local_sessions
+            WHERE id = 'singleton'
+              AND is_authenticated = 1
           )
         ), 0.0) AS payable
       ''',
@@ -3006,7 +3268,7 @@ final class AppDatabase extends _$AppDatabase {
         localCustomerPayments,
         localPurchases,
         localPurchasePayments,
-        localUsers,
+        localSessions,
       },
     ).watchSingle().map(
       (row) => LocalDuesSummary(
@@ -3037,9 +3299,10 @@ final class AppDatabase extends _$AppDatabase {
         FROM local_sales s
         LEFT JOIN local_customers c ON c.id = s.customer_id
         WHERE s.shop_id IN (
-          SELECT shop_id
-          FROM local_users
-          WHERE is_current = 1
+          SELECT selected_shop_id
+          FROM local_sessions
+          WHERE id = 'singleton'
+            AND is_authenticated = 1
         )
 
         UNION ALL
@@ -3060,9 +3323,10 @@ final class AppDatabase extends _$AppDatabase {
         FROM local_purchases p
         LEFT JOIN local_suppliers sup ON sup.id = p.supplier_id
         WHERE p.shop_id IN (
-          SELECT shop_id
-          FROM local_users
-          WHERE is_current = 1
+          SELECT selected_shop_id
+          FROM local_sessions
+          WHERE id = 'singleton'
+            AND is_authenticated = 1
         )
       ) ledger
       WHERE due_amount > 0
@@ -3075,7 +3339,7 @@ final class AppDatabase extends _$AppDatabase {
         localPurchases,
         localSuppliers,
         localPurchasePayments,
-        localUsers,
+        localSessions,
       },
     ).watch().map(
       (rows) => [
@@ -3306,9 +3570,7 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<LocalCustomer>> watchCustomersForCurrentShop() {
-    final currentShopIds = selectOnly(localUsers)
-      ..addColumns([localUsers.shopId])
-      ..where(localUsers.isCurrent.equals(true));
+    final currentShopIds = _selectedShopIdsQuery();
 
     return (select(localCustomers)
           ..where(
@@ -3416,9 +3678,10 @@ final class AppDatabase extends _$AppDatabase {
           ), 0) AS available_quantity
         FROM local_purchase_items pi
         WHERE pi.shop_id IN (
-          SELECT shop_id
-          FROM local_users
-          WHERE is_current = 1
+          SELECT selected_shop_id
+          FROM local_sessions
+          WHERE id = 'singleton'
+            AND is_authenticated = 1
         )
           AND pi.deleted_at IS NULL
       ) AS available_batches
@@ -3430,7 +3693,7 @@ final class AppDatabase extends _$AppDatabase {
         localPurchaseItems,
         localSaleItems,
         localSaleReturnItems,
-        localUsers,
+        localSessions,
       },
     ).watch().map(
       (rows) => rows
@@ -3608,9 +3871,10 @@ final class AppDatabase extends _$AppDatabase {
         pi.created_at
       FROM local_purchase_items pi
       WHERE pi.shop_id IN (
-        SELECT shop_id
-        FROM local_users
-        WHERE is_current = 1
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
       )
         AND pi.deleted_at IS NULL
         AND pi.product_name = ?
@@ -3640,7 +3904,7 @@ final class AppDatabase extends _$AppDatabase {
         localPurchaseItems,
         localSaleItems,
         localSaleReturnItems,
-        localUsers,
+        localSessions,
       },
     ).watch().map(
       (rows) => rows
