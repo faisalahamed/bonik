@@ -51,11 +51,11 @@ class ProfitLossReportDetailsPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
+                    _ProfitLossHeroCard(),
+                    SizedBox(height: AppSpacing.md),
                     _ProfitLossDateCard(),
                     SizedBox(height: AppSpacing.md),
                     _ProfitLossFilters(),
-                    SizedBox(height: AppSpacing.md),
-                    _ProfitLossHeroCard(),
                     SizedBox(height: AppSpacing.xl),
                     _ProfitLossSectionHeader(),
                     SizedBox(height: AppSpacing.md),
@@ -106,45 +106,48 @@ class _ProfitLossTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'লাভ ও ক্ষতি প্রতিবেদন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'লাভ ও ক্ষতি প্রতিবেদন',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -160,37 +163,32 @@ class _ProfitLossDateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
-          const Spacer(),
-          Column(
-            children: [
-              Text(
-                'সময়সীমা',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '০১ এপ্রিল, ২৬ - ৩০ এপ্রিল, ২৬',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ],
+          const Icon(
+            Icons.chevron_left_rounded,
+            color: Colors.white,
           ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          Text(
+            '০১ এপ্রিল, ২৬ - ৩০ এপ্রিল, ২৬',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const Spacer(),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+          ),
         ],
       ),
     );
@@ -230,7 +228,7 @@ class _ProfitLossChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         gradient: active ? AppGradients.primaryButton : null,
         color: active ? null : AppColors.surfaceContainer,

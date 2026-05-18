@@ -51,11 +51,11 @@ class OtherIncomeReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
+                    _OtherIncomeHeroCard(),
+                    SizedBox(height: AppSpacing.md),
                     _OtherIncomeDateCard(),
                     SizedBox(height: AppSpacing.md),
                     _OtherIncomeFilters(),
-                    SizedBox(height: AppSpacing.md),
-                    _OtherIncomeHeroCard(),
                     SizedBox(height: AppSpacing.xl),
                     _OtherIncomeSectionHeader(),
                     SizedBox(height: AppSpacing.md),
@@ -158,23 +158,23 @@ class _OtherIncomeDateCard extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
+          const Icon(Icons.chevron_left_rounded, color: Colors.white),
           const Spacer(),
           Text(
             '২৭ জানুয়ারি, ২০২৬',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white),
         ],
       ),
     );
@@ -214,7 +214,7 @@ class _OtherIncomeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         gradient: active ? AppGradients.primaryButton : null,
         color: active ? null : AppColors.surfaceContainer,

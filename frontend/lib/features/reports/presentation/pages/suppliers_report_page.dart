@@ -106,15 +106,12 @@ class _SuppliersTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        boxShadow: AppShadows.soft,
-      ),
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 72,
+          height: 76,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
@@ -129,10 +126,10 @@ class _SuppliersTopBar extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Supplier Report',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                 ),
                 Container(
@@ -163,21 +160,18 @@ class _SuppliersFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-      ),
-      child: Row(
-        children: const [
-          Expanded(child: _SuppliersChip(label: 'দিন')),
-          Expanded(child: _SuppliersChip(label: 'মাস')),
-          Expanded(child: _SuppliersChip(label: 'বছর')),
-          Expanded(child: _SuppliersChip(label: 'সব সময়', active: true)),
-          Expanded(child: _SuppliersChip(label: 'কাস্টম')),
-        ],
-      ),
+    return Row(
+      children: const [
+        Expanded(child: _SuppliersChip(label: 'দিন')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _SuppliersChip(label: 'মাস')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _SuppliersChip(label: 'বছর')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _SuppliersChip(label: 'সব সময়', active: true)),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _SuppliersChip(label: 'কাস্টম')),
+      ],
     );
   }
 }
@@ -191,20 +185,19 @@ class _SuppliersChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
+      height: 42,
       decoration: BoxDecoration(
         gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : Colors.transparent,
+        color: active ? null : AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       alignment: Alignment.center,
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: active ? Colors.white : AppColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
@@ -218,32 +211,32 @@ class _SuppliersDateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
-          const Spacer(),
           const Icon(
-            Icons.calendar_today_rounded,
-            size: 18,
-            color: AppColors.primary,
+            Icons.chevron_left_rounded,
+            color: Colors.white,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const Spacer(),
           Text(
             '০১ জানুয়ারি - ৩১ ডিসেম্বর ২০২৪',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w800,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
           ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+          ),
         ],
       ),
     );

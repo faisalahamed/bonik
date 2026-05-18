@@ -175,7 +175,7 @@ class _RangeCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
         gradient: AppGradients.primaryButton,
@@ -184,11 +184,11 @@ class _RangeCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: period == _ProfitLossPeriod.allTime
+          GestureDetector(
+            onTap: period == _ProfitLossPeriod.allTime
                 ? null
                 : () => _moveRange(ref, -1),
-            icon: Icon(
+            child: Icon(
               Icons.chevron_left_rounded,
               color: period == _ProfitLossPeriod.allTime
                   ? Colors.white38
@@ -201,18 +201,18 @@ class _RangeCard extends ConsumerWidget {
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
           const Spacer(),
-          IconButton(
-            onPressed: period == _ProfitLossPeriod.allTime
+          GestureDetector(
+            onTap: period == _ProfitLossPeriod.allTime
                 ? null
                 : () => _moveRange(ref, 1),
-            icon: Icon(
+            child: Icon(
               Icons.chevron_right_rounded,
               color: period == _ProfitLossPeriod.allTime
                   ? Colors.white38
@@ -232,41 +232,48 @@ class _FilterRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedPeriod = ref.watch(_profitLossPeriodProvider);
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _FilterChip(
+    return Row(
+      children: [
+        Expanded(
+          child: _FilterChip(
             label: 'দিন',
             active: selectedPeriod == _ProfitLossPeriod.day,
             onTap: () => _selectPeriod(ref, _ProfitLossPeriod.day),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _FilterChip(
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
             label: 'মাস',
             active: selectedPeriod == _ProfitLossPeriod.month,
             onTap: () => _selectPeriod(ref, _ProfitLossPeriod.month),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _FilterChip(
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
             label: 'বছর',
             active: selectedPeriod == _ProfitLossPeriod.year,
             onTap: () => _selectPeriod(ref, _ProfitLossPeriod.year),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _FilterChip(
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
             label: 'সব সময়',
             active: selectedPeriod == _ProfitLossPeriod.allTime,
             onTap: () => _selectPeriod(ref, _ProfitLossPeriod.allTime),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _FilterChip(
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _FilterChip(
             label: 'ক্যালেন্ডার',
             icon: Icons.calendar_month_rounded,
             onTap: () => _pickAnchorDate(context, ref),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -286,39 +293,35 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: active ? AppColors.primary : const Color(0xFFD9E3DE),
-            ),
-            boxShadow: AppShadows.soft,
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: active ? AppGradients.primaryButton : null,
+          color: active ? null : AppColors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
                 Icon(
                   icon,
-                  size: 18,
+                  size: 16,
                   color: active ? Colors.white : AppColors.textSecondary,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
               ],
               Text(
                 label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: active ? Colors.white : AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: active ? Colors.white : AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ],
           ),

@@ -51,13 +51,11 @@ class ExpenseReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
-                    _ExpenseReportFilters(),
+                    _ExpenseSummaryCard(),
                     SizedBox(height: AppSpacing.md),
                     _ExpenseReportDateCard(),
                     SizedBox(height: AppSpacing.md),
-                    _ExpenseSummaryCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _ExpenseBudgetCard(),
+                    _ExpenseReportFilters(),
                     SizedBox(height: AppSpacing.xl),
                     _ExpenseDayLabel(label: '৭ এপ্রিল ২০২৪'),
                     SizedBox(height: AppSpacing.md),
@@ -106,38 +104,41 @@ class _ExpenseReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'ব্যয় রিপোর্ট',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'ব্যয় রিপোর্ট',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -150,21 +151,18 @@ class _ExpenseReportFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-      ),
-      child: Row(
-        children: const [
-          Expanded(child: _ExpenseFilterChip(label: 'দিন', active: true)),
-          Expanded(child: _ExpenseFilterChip(label: 'মাস')),
-          Expanded(child: _ExpenseFilterChip(label: 'বছর')),
-          Expanded(child: _ExpenseFilterChip(label: 'সব সময়')),
-          Expanded(child: _ExpenseFilterChip(label: 'কাস্টম')),
-        ],
-      ),
+    return Row(
+      children: const [
+        Expanded(child: _ExpenseFilterChip(label: 'দিন', active: true)),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _ExpenseFilterChip(label: 'মাস')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _ExpenseFilterChip(label: 'বছর')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _ExpenseFilterChip(label: 'সব সময়')),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(child: _ExpenseFilterChip(label: 'কাস্টম')),
+      ],
     );
   }
 }
@@ -181,18 +179,18 @@ class _ExpenseFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: 42,
       decoration: BoxDecoration(
-        color: active ? AppColors.surfaceContainerLowest : Colors.transparent,
+        gradient: active ? AppGradients.primaryButton : null,
+        color: active ? null : AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: active ? AppShadows.soft : null,
       ),
       alignment: Alignment.center,
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
       ),
     );
@@ -210,20 +208,20 @@ class _ExpenseReportDateCard extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
+          const Icon(Icons.chevron_left_rounded, color: Colors.white),
           const Spacer(),
           Column(
             children: [
               Text(
                 'সময়মীমা',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textMuted,
+                      color: Colors.white70,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -231,14 +229,14 @@ class _ExpenseReportDateCard extends StatelessWidget {
               Text(
                 '০১ জানুয়ারি, ২০২৪ - ৩১ ডিসেম্বর, ২০২৪',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
               ),
             ],
           ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white),
         ],
       ),
     );
@@ -253,9 +251,9 @@ class _ExpenseSummaryCard extends StatelessWidget {
     return Container(
       height: 126,
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
@@ -263,7 +261,7 @@ class _ExpenseSummaryCard extends StatelessWidget {
             width: 4,
             margin: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
+              color: Colors.white24,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -277,7 +275,7 @@ class _ExpenseSummaryCard extends StatelessWidget {
                   Text(
                     'মোট খরচ',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Colors.white70,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -288,7 +286,7 @@ class _ExpenseSummaryCard extends StatelessWidget {
                       Text(
                         '৳ ৯৪,৬০০.০',
                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: AppColors.primary,
+                              color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -298,7 +296,7 @@ class _ExpenseSummaryCard extends StatelessWidget {
                         child: Text(
                           '↗১২%',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: AppColors.primary,
+                                color: Colors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -312,52 +310,9 @@ class _ExpenseSummaryCard extends StatelessWidget {
           Container(
             width: 64,
             margin: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            color: const Color(0xFFF5F7F6),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExpenseBudgetCard extends StatelessWidget {
-  const _ExpenseBudgetCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.button,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'বাজেট গতি',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '৮৫% ব্যবহৃত',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: 0.85,
-              minHeight: 6,
-              backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
           ),
         ],
@@ -365,6 +320,7 @@ class _ExpenseBudgetCard extends StatelessWidget {
     );
   }
 }
+
 
 class _ExpenseDayLabel extends StatelessWidget {
   const _ExpenseDayLabel({

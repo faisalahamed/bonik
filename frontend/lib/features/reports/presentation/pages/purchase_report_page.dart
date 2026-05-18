@@ -51,11 +51,11 @@ class PurchaseReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
-                    _PurchaseReportFilterTabs(),
+                    _PurchaseReportHeroCard(),
                     SizedBox(height: AppSpacing.md),
                     _PurchaseReportDateCard(),
                     SizedBox(height: AppSpacing.md),
-                    _PurchaseReportHeroCard(),
+                    _PurchaseReportFilterTabs(),
                     SizedBox(height: AppSpacing.lg),
                     _PurchaseReportSectionHeader(),
                     SizedBox(height: AppSpacing.md),
@@ -118,38 +118,41 @@ class _PurchaseReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'ক্রয় প্রতিবেদন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'ক্রয় প্রতিবেদন',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -190,18 +193,18 @@ class _PurchaseReportChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: 42,
       decoration: BoxDecoration(
-        color: active ? AppColors.surfaceContainerLowest : Colors.transparent,
+        gradient: active ? AppGradients.primaryButton : null,
+        color: active ? null : AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: active ? AppShadows.soft : null,
       ),
       alignment: Alignment.center,
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
       ),
     );
@@ -216,37 +219,31 @@ class _PurchaseReportDateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
           const Icon(
             Icons.chevron_left_rounded,
-            color: AppColors.primary,
+            color: Colors.white,
           ),
           const Spacer(),
-          const Icon(
-            Icons.calendar_today_rounded,
-            size: 18,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
           Text(
             '০৭ এপ্রিল ২০২৬',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.primary,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const Spacer(),
           const Icon(
             Icons.chevron_right_rounded,
-            color: AppColors.primary,
+            color: Colors.white,
           ),
         ],
       ),

@@ -48,9 +48,13 @@ class ProductReportPage extends StatelessWidget {
                     AppSpacing.md,
                     AppSpacing.md,
                     AppSpacing.md,
-                    118,
+                    AppSpacing.xxl,
                   ),
                   children: const [
+                    _ProductHeroCard(),
+                    SizedBox(height: AppSpacing.md),
+                    _ProductDateCard(),
+                    SizedBox(height: AppSpacing.md),
                     _ProductReportFilters(),
                     SizedBox(height: AppSpacing.md),
                     _ProductSearchBox(),
@@ -60,7 +64,6 @@ class ProductReportPage extends StatelessWidget {
                     _ProductFocusCard(),
                   ],
                 ),
-                const _ProductReportBottomBar(),
               ],
             ),
           ),
@@ -75,40 +78,135 @@ class _ProductReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'পণ্য প্রতিবেদন',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductHeroCard extends StatelessWidget {
+  const _ProductHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.button,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'মোট লাভ',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
             children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
-                ),
+              Text(
+                '৳ ৩৬,৭০৫.৪',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
-              Expanded(
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
                 child: Text(
-                  'পণ্য প্রতিবেদন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
+                  'মোট ৮০৭ টি পণ্য',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
                 ),
               ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductDateCard extends StatelessWidget {
+  const _ProductDateCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.button,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.chevron_left_rounded, color: Colors.white),
+          const Spacer(),
+          Text(
+            '২৭ জানুয়ারি, ২০২৬',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const Spacer(),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white),
+        ],
       ),
     );
   }
@@ -464,86 +562,4 @@ class _ProductFocusCard extends StatelessWidget {
   }
 }
 
-class _ProductReportBottomBar extends StatelessWidget {
-  const _ProductReportBottomBar();
 
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: AppSpacing.md,
-      right: AppSpacing.md,
-      bottom: AppSpacing.md,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          gradient: AppGradients.primaryButton,
-          borderRadius: BorderRadius.circular(AppRadii.xl),
-          boxShadow: AppShadows.button,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _BottomMetric(
-                label: 'মোট পণ্য',
-                value: 'মোট ৮০৭',
-                alignEnd: false,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 44,
-              color: Colors.white24,
-            ),
-            Expanded(
-              child: _BottomMetric(
-                label: 'মোট লাভ',
-                value: '৩৬,৭০৫.৪ ৳',
-                alignEnd: true,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomMetric extends StatelessWidget {
-  const _BottomMetric({
-    required this.label,
-    required this.value,
-    required this.alignEnd,
-  });
-
-  final String label;
-  final String value;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Colors.white70,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-      ],
-    );
-  }
-}

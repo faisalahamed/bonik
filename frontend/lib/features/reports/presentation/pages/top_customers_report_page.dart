@@ -51,9 +51,9 @@ class TopCustomersReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
-                    _TopCustomersFilters(),
-                    SizedBox(height: AppSpacing.md),
                     _TopCustomersDateCard(),
+                    SizedBox(height: AppSpacing.md),
+                    _TopCustomersFilters(),
                     SizedBox(height: AppSpacing.md),
                     _TopCustomersSearchBox(),
                     SizedBox(height: AppSpacing.lg),
@@ -121,38 +121,41 @@ class _TopCustomersTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'গ্রাহক রিপোর্ট',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'গ্রাহক রিপোর্ট',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -193,18 +196,16 @@ class _TopCustomersChip extends StatelessWidget {
     return Container(
       height: 42,
       decoration: BoxDecoration(
-        color: active
-            ? AppColors.surfaceContainerLowest
-            : AppColors.surfaceContainer,
+        gradient: active ? AppGradients.primaryButton : null,
+        color: active ? null : AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: active ? AppShadows.soft : null,
       ),
       alignment: Alignment.center,
       child: Text(
         label,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
             ),
       ),
     );
@@ -216,71 +217,36 @@ class _TopCustomersDateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const _CircleIconButton(icon: Icons.chevron_left_rounded),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(AppRadii.xl),
-              boxShadow: AppShadows.soft,
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today_rounded,
-                  size: 18,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    '০১ জানুয়ারি ২০২৪ - ৩০ জানুয়ারি ২০২৪',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        const _CircleIconButton(icon: Icons.chevron_right_rounded),
-      ],
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.icon,
-  });
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainer,
-        shape: BoxShape.circle,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
       ),
-      child: Icon(
-        icon,
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.button,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.chevron_left_rounded,
+            color: Colors.white,
+          ),
+          const Spacer(),
+          Text(
+            '০১ জানুয়ারি ২০২৪ - ৩০ জানুয়ারি ২০২৪',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const Spacer(),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+          ),
+        ],
       ),
     );
   }

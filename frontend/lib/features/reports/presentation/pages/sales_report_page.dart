@@ -51,11 +51,11 @@ class SalesReportPage extends StatelessWidget {
                     112,
                   ),
                   children: const [
+                    _SalesReportHeroCard(),
+                    SizedBox(height: AppSpacing.md),
                     _SalesReportDateBar(),
                     SizedBox(height: AppSpacing.md),
                     _SalesReportFilters(),
-                    SizedBox(height: AppSpacing.lg),
-                    _SalesReportHeroCard(),
                     SizedBox(height: AppSpacing.lg),
                     _SalesReportDayHeader(label: '09 APR 2026'),
                     SizedBox(height: AppSpacing.md),
@@ -117,38 +117,41 @@ class _SalesReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 76,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  'বিক্রয় প্রতিবেদন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                Expanded(
+                  child: Text(
+                    'বিক্রয় প্রতিবেদন',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.download_rounded,
-                  color: AppColors.primary,
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.download_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -163,37 +166,32 @@ class _SalesReportDateBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.sm,
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
+        gradient: AppGradients.primaryButton,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
           const Icon(
             Icons.chevron_left_rounded,
-            color: AppColors.textSecondary,
+            color: Colors.white,
           ),
           const Spacer(),
-          const Icon(
-            Icons.calendar_today_rounded,
-            size: 18,
-            color: AppColors.primary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
           Text(
             '০১ এপ্রিল, ২৬ - ৩০ এপ্রিল, ২৬',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.primary,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const Spacer(),
           const Icon(
             Icons.chevron_right_rounded,
-            color: AppColors.textSecondary,
+            color: Colors.white,
           ),
         ],
       ),
@@ -234,11 +232,11 @@ class _SalesReportChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         gradient: active ? AppGradients.primaryButton : null,
         color: active ? null : AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -258,11 +256,11 @@ class _SalesReportCustomChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 42,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: Row(
         children: [

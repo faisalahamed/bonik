@@ -51,9 +51,9 @@ class StockReportPage extends StatelessWidget {
                     AppSpacing.xxl,
                   ),
                   children: const [
-                    _StockReportDateCard(),
-                    SizedBox(height: AppSpacing.md),
                     _StockReportHeroCard(),
+                    SizedBox(height: AppSpacing.md),
+                    _StockReportDateCard(),
                     SizedBox(height: AppSpacing.md),
                     _StockReportFilters(),
                     SizedBox(height: AppSpacing.md),
@@ -108,15 +108,12 @@ class _StockReportTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: AppGradients.primaryButton,
-        boxShadow: AppShadows.soft,
-      ),
+    return Container(
+      decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 72,
+          height: 76,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
@@ -131,7 +128,7 @@ class _StockReportTopBar extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'স্টক রিপোর্ট',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
@@ -161,32 +158,32 @@ class _StockReportDateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        gradient: AppGradients.primaryButton,
         borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
+        boxShadow: AppShadows.button,
       ),
       child: Row(
         children: [
-          const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
-          const Spacer(),
           const Icon(
-            Icons.calendar_today_rounded,
-            size: 18,
-            color: AppColors.primary,
+            Icons.chevron_left_rounded,
+            color: Colors.white,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const Spacer(),
           Text(
             '০১ জানুয়ারি, ২০ - ০৫ এপ্রিল, ২৪',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.primary,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const Spacer(),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+          ),
         ],
       ),
     );
@@ -280,7 +277,7 @@ class _StockReportChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         gradient: active ? AppGradients.primaryButton : null,
         color: active ? null : AppColors.surfaceContainer,
@@ -305,7 +302,7 @@ class _StockReportFilterAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 62,
-      height: 40,
+      height: 42,
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadii.md),
