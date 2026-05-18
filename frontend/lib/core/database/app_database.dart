@@ -1659,6 +1659,59 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Stream<List<LocalExpenseHistoryEntry>> watchExpenseReportForCurrentShop({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final hasDateRange = start != null && end != null;
+    final dateFilter = hasDateRange
+        ? 'AND e.created_at >= ? AND e.created_at < ?'
+        : '';
+
+    return customSelect(
+      '''
+      SELECT
+        e.id,
+        e.category_id,
+        COALESCE(c.name, 'ব্যয়') AS category_name,
+        e.amount,
+        e.reason,
+        e.note,
+        e.created_at,
+        e.sync_status
+      FROM local_expenses e
+      LEFT JOIN local_categories c ON c.id = e.category_id
+      WHERE e.shop_id IN (
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
+      )
+        AND e.deleted_at IS NULL
+        $dateFilter
+      ORDER BY e.created_at DESC
+      ''',
+      variables: hasDateRange
+          ? [Variable<DateTime>(start), Variable<DateTime>(end)]
+          : const [],
+      readsFrom: {localExpenses, localCategories, localSessions},
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalExpenseHistoryEntry(
+            id: row.read<String>('id'),
+            categoryId: row.read<String>('category_id'),
+            categoryName: row.read<String>('category_name'),
+            amount: row.read<double>('amount'),
+            reason: row.readNullable<String>('reason'),
+            note: row.readNullable<String>('note'),
+            createdAt: row.read<DateTime>('created_at'),
+            syncStatus: row.read<String>('sync_status'),
+          ),
+      ],
+    );
+  }
+
   Stream<List<LocalCategory>> watchIncomeCategoriesForCurrentShop() {
     final currentShopIds = _selectedShopIdsQuery();
 

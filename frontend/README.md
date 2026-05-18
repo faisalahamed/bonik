@@ -1,6 +1,6 @@
 # tallyshop
 
-A new Flutter project.
+সহজ হিসাব, স্মার্ট ব্যবসা
 
 ## Getting Started
 

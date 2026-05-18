@@ -1,5 +1,5 @@
 class AppConfig {
-  static const String appName = 'TallyShop';
+  static const String appName = 'বণিক';
 
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',

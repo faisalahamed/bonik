@@ -11,7 +11,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/utils/app_time.dart';
 
-enum _ProfitLossPeriod { day, month, year, allTime }
+enum _ProfitLossPeriod { day, month, year, allTime, custom }
 
 class _ProfitLossDateRange {
   const _ProfitLossDateRange({required this.start, required this.end});
@@ -28,9 +28,14 @@ final _profitLossAnchorDateProvider = StateProvider<DateTime>(
   (ref) => DateTime.now(),
 );
 
+final _profitLossCustomDateRangeProvider = StateProvider<DateTimeRange?>(
+  (ref) => null,
+);
+
 final _profitLossDateRangeProvider = Provider<_ProfitLossDateRange?>((ref) {
   final period = ref.watch(_profitLossPeriodProvider);
   final anchor = ref.watch(_profitLossAnchorDateProvider).toLocal();
+  final customRange = ref.watch(_profitLossCustomDateRangeProvider);
 
   switch (period) {
     case _ProfitLossPeriod.day:
@@ -49,6 +54,21 @@ final _profitLossDateRangeProvider = Provider<_ProfitLossDateRange?>((ref) {
       return _ProfitLossDateRange(start: start.toUtc(), end: end.toUtc());
     case _ProfitLossPeriod.allTime:
       return null;
+    case _ProfitLossPeriod.custom:
+      if (customRange == null) {
+        return null;
+      }
+      final start = DateTime(
+        customRange.start.year,
+        customRange.start.month,
+        customRange.start.day,
+      );
+      final end = DateTime(
+        customRange.end.year,
+        customRange.end.month,
+        customRange.end.day,
+      ).add(const Duration(days: 1));
+      return _ProfitLossDateRange(start: start.toUtc(), end: end.toUtc());
   }
 });
 
@@ -170,7 +190,11 @@ class _RangeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(_profitLossPeriodProvider);
     final anchorDate = ref.watch(_profitLossAnchorDateProvider);
-    final label = _rangeLabel(period, anchorDate);
+    final customRange = ref.watch(_profitLossCustomDateRangeProvider);
+    final label = _rangeLabel(period, anchorDate, customRange);
+    final canNavigate =
+        period != _ProfitLossPeriod.allTime &&
+        period != _ProfitLossPeriod.custom;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -185,38 +209,35 @@ class _RangeCard extends ConsumerWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: period == _ProfitLossPeriod.allTime
-                ? null
-                : () => _moveRange(ref, -1),
-            child: Icon(
-              Icons.chevron_left_rounded,
-              color: period == _ProfitLossPeriod.allTime
-                  ? Colors.white38
-                  : Colors.white,
+            onTap: canNavigate ? () => _moveRange(ref, -1) : null,
+            child: SizedBox(
+              width: 36,
+              height: 48,
+              child: Icon(
+                Icons.chevron_left_rounded,
+                color: canNavigate ? Colors.white : Colors.white38,
+              ),
             ),
           ),
-          const Spacer(),
-          Flexible(
-            flex: 6,
+          Expanded(
             child: Text(
               label,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          const Spacer(),
           GestureDetector(
-            onTap: period == _ProfitLossPeriod.allTime
-                ? null
-                : () => _moveRange(ref, 1),
-            child: Icon(
-              Icons.chevron_right_rounded,
-              color: period == _ProfitLossPeriod.allTime
-                  ? Colors.white38
-                  : Colors.white,
+            onTap: canNavigate ? () => _moveRange(ref, 1) : null,
+            child: SizedBox(
+              width: 36,
+              height: 48,
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: canNavigate ? Colors.white : Colors.white38,
+              ),
             ),
           ),
         ],
@@ -270,7 +291,8 @@ class _FilterRow extends ConsumerWidget {
           child: _FilterChip(
             label: 'ক্যালেন্ডার',
             icon: Icons.calendar_month_rounded,
-            onTap: () => _pickAnchorDate(context, ref),
+            active: selectedPeriod == _ProfitLossPeriod.custom,
+            onTap: () => _pickCustomDateRange(context, ref),
           ),
         ),
       ],
@@ -319,9 +341,9 @@ class _FilterChip extends StatelessWidget {
               Text(
                 label,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: active ? Colors.white : AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -809,6 +831,9 @@ class _SuppliersHeroCard extends StatelessWidget {
 
 void _selectPeriod(WidgetRef ref, _ProfitLossPeriod period) {
   ref.read(_profitLossPeriodProvider.notifier).state = period;
+  if (period != _ProfitLossPeriod.custom) {
+    ref.read(_profitLossCustomDateRangeProvider.notifier).state = null;
+  }
 }
 
 void _moveRange(WidgetRef ref, int direction) {
@@ -820,31 +845,39 @@ void _moveRange(WidgetRef ref, int direction) {
     _ProfitLossPeriod.month => DateTime(anchor.year, anchor.month + direction),
     _ProfitLossPeriod.year => DateTime(anchor.year + direction, anchor.month),
     _ProfitLossPeriod.allTime => anchor,
+    _ProfitLossPeriod.custom => anchor,
   };
 
   ref.read(_profitLossAnchorDateProvider.notifier).state = next;
 }
 
-Future<void> _pickAnchorDate(BuildContext context, WidgetRef ref) async {
-  final initialDate = AppTime.toLocal(ref.read(_profitLossAnchorDateProvider));
-  final pickedDate = await showDatePicker(
+Future<void> _pickCustomDateRange(BuildContext context, WidgetRef ref) async {
+  final now = DateTime.now();
+  final currentRange = ref.read(_profitLossCustomDateRangeProvider);
+  final anchorDate = AppTime.toLocal(ref.read(_profitLossAnchorDateProvider));
+  final initialRange =
+      currentRange ?? DateTimeRange(start: anchorDate, end: anchorDate);
+  final pickedRange = await showDateRangePicker(
     context: context,
-    initialDate: initialDate,
     firstDate: DateTime(2000),
-    lastDate: DateTime(2100),
+    lastDate: DateTime(now.year + 10, 12, 31),
+    initialDateRange: initialRange,
   );
 
-  if (pickedDate == null) {
+  if (pickedRange == null) {
     return;
   }
 
-  ref.read(_profitLossAnchorDateProvider.notifier).state = pickedDate;
-  if (ref.read(_profitLossPeriodProvider) == _ProfitLossPeriod.allTime) {
-    ref.read(_profitLossPeriodProvider.notifier).state = _ProfitLossPeriod.day;
-  }
+  ref.read(_profitLossAnchorDateProvider.notifier).state = pickedRange.start;
+  ref.read(_profitLossCustomDateRangeProvider.notifier).state = pickedRange;
+  ref.read(_profitLossPeriodProvider.notifier).state = _ProfitLossPeriod.custom;
 }
 
-String _rangeLabel(_ProfitLossPeriod period, DateTime anchorDate) {
+String _rangeLabel(
+  _ProfitLossPeriod period,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
   final anchor = anchorDate.toLocal();
 
   switch (period) {
@@ -858,6 +891,12 @@ String _rangeLabel(_ProfitLossPeriod period, DateTime anchorDate) {
       return '${_bnNumber(anchor.year)} সাল';
     case _ProfitLossPeriod.allTime:
       return 'সব সময়';
+    case _ProfitLossPeriod.custom:
+      if (customRange == null) {
+        return 'কাস্টম রেঞ্জ';
+      }
+      return '${_formatBanglaDate(customRange.start)} - '
+          '${_formatBanglaDate(customRange.end)}';
   }
 }
 
