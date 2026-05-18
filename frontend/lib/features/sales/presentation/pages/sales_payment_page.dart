@@ -26,6 +26,14 @@ extension on _SalesPaymentMethod {
   }
 }
 
+_SalesPaymentMethod _methodFromValue(String? value) {
+  return switch (value) {
+    'bank_card' => _SalesPaymentMethod.bankCard,
+    'mobile_banking' => _SalesPaymentMethod.mobileBanking,
+    _ => _SalesPaymentMethod.cash,
+  };
+}
+
 String _enNumber(String value) {
   const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '۷', '৮', '۹'];
   var output = value;
@@ -61,6 +69,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
   void initState() {
     super.initState();
     _cashReceivedController.addListener(_updateCashReceived);
+    _loadEditSession();
   }
 
   @override
@@ -76,6 +85,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     final cartLines = ref.watch(salesCartProvider);
     final cartController = ref.read(salesCartProvider.notifier);
     final checkout = ref.watch(salesCheckoutProvider);
+    final editSession = ref.watch(salesEditSessionProvider);
     final subtotal = cartController.total;
     final grandTotal = checkout.grandTotal(subtotal);
     final remaining = (grandTotal - _cashReceived).clamp(0, double.infinity);
@@ -161,8 +171,12 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                 _CompletePaymentButton(
                   enabled: cartLines.isNotEmpty && !_submitting,
                   submitting: _submitting,
-                  onPressed: () =>
-                      _confirmSale(cartLines: cartLines, checkout: checkout),
+                  isEditing: editSession.isEditing,
+                  onPressed: () => _confirmSale(
+                    cartLines: cartLines,
+                    checkout: checkout,
+                    editSession: editSession,
+                  ),
                 ),
               ],
             ),
@@ -193,6 +207,25 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     });
   }
 
+  void _loadEditSession() {
+    final editSession = ref.read(salesEditSessionProvider);
+    if (!editSession.isEditing) {
+      return;
+    }
+
+    _customerNameController.text = editSession.customerName;
+    _customerMobileController.text = editSession.customerMobile;
+    _saleDate = editSession.saleDate ?? _saleDate;
+    _paymentMethod = _methodFromValue(editSession.paymentMethod);
+    _cashReceived = editSession.paidAmount;
+    _editingCash = true;
+    final text = _bnNumber(_numberText(editSession.paidAmount));
+    _cashReceivedController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   void _updateCashReceived() {
     setState(() {
       _editingCash = true;
@@ -213,6 +246,7 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
   Future<void> _confirmSale({
     required List<SalesCartLine> cartLines,
     required SalesCheckoutState checkout,
+    required SalesEditSessionState editSession,
   }) async {
     final subtotal = cartLines.fold<double>(
       0,
@@ -221,7 +255,9 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     final grandTotal = checkout.grandTotal(subtotal);
     final paidAmount = _cashReceived.clamp(0, grandTotal).toDouble();
     final isDueSale = paidAmount < grandTotal;
-    final isWalkInCustomer = _customerNameController.text.trim().isEmpty;
+    final customerName = _customerNameController.text.trim();
+    final isWalkInCustomer =
+        customerName.isEmpty || customerName == 'Walk-in Customer';
 
     if (isDueSale && isWalkInCustomer) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -237,28 +273,54 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     });
 
     try {
-      await ref
-          .read(salesSaveServiceProvider)
-          .saveSaleLocally(
-            cartLines: cartLines,
-            checkout: checkout,
-            cashReceived: _cashReceived,
-            paymentMethod: _paymentMethod.value,
-            customerName: _customerNameController.text,
-            customerMobile: _customerMobileController.text,
-            saleDate: _saleDate,
-          );
+      if (editSession.isEditing) {
+        await ref
+            .read(salesSaveServiceProvider)
+            .updateSaleLocally(
+              saleId: editSession.saleId!,
+              cartLines: cartLines,
+              checkout: checkout,
+              cashReceived: _cashReceived,
+              paymentMethod: _paymentMethod.value,
+              customerName: _customerNameController.text,
+              customerMobile: _customerMobileController.text,
+              saleDate: _saleDate,
+            );
+      } else {
+        await ref
+            .read(salesSaveServiceProvider)
+            .saveSaleLocally(
+              cartLines: cartLines,
+              checkout: checkout,
+              cashReceived: _cashReceived,
+              paymentMethod: _paymentMethod.value,
+              customerName: _customerNameController.text,
+              customerMobile: _customerMobileController.text,
+              saleDate: _saleDate,
+            );
+      }
 
       ref.read(salesCartProvider.notifier).clear();
       ref.read(salesCheckoutProvider.notifier).clear();
+      ref.read(salesEditSessionProvider.notifier).clear();
 
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('বিক্রি সফলভাবে সেভ হয়েছে')));
-      context.go(AppRoutes.dashboard);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            editSession.isEditing
+                ? 'বিক্রি আপডেট হয়েছে'
+                : 'বিক্রি সফলভাবে সেভ হয়েছে',
+          ),
+        ),
+      );
+      if (editSession.isEditing) {
+        _returnToSalesHistoryAfterEdit();
+      } else {
+        context.go(AppRoutes.dashboard);
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -272,6 +334,19 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
           _submitting = false;
         });
       }
+    }
+  }
+
+  void _returnToSalesHistoryAfterEdit() {
+    final navigator = Navigator.of(context);
+    var popsNeeded = 3;
+    while (popsNeeded > 0 && navigator.canPop()) {
+      navigator.pop();
+      popsNeeded--;
+    }
+
+    if (popsNeeded > 0 && mounted) {
+      context.go(AppRoutes.salesHistory);
     }
   }
 
@@ -1748,11 +1823,13 @@ class _CompletePaymentButton extends StatelessWidget {
   const _CompletePaymentButton({
     required this.enabled,
     required this.submitting,
+    required this.isEditing,
     required this.onPressed,
   });
 
   final bool enabled;
   final bool submitting;
+  final bool isEditing;
   final VoidCallback onPressed;
 
   @override
@@ -1796,9 +1873,15 @@ class _CompletePaymentButton extends StatelessWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.verified_rounded),
+                  : Icon(
+                      isEditing ? Icons.edit_rounded : Icons.verified_rounded,
+                    ),
               label: Text(
-                submitting ? 'সেভ হচ্ছে' : 'কনফার্ম পেমেন্ট',
+                submitting
+                    ? 'সেভ হচ্ছে'
+                    : isEditing
+                    ? 'বিক্রি আপডেট করুন'
+                    : 'কনফার্ম পেমেন্ট',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,

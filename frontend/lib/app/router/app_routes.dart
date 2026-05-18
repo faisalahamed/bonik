@@ -37,6 +37,7 @@ class AppRoutes {
   static const String reportOtherIncome = '/reports/other-income';
   static const String reportSuppliers = '/reports/suppliers';
   static const String sales = '/sales';
+  static const String salesEdit = '/sales/edit';
   static const String salesHistory = '/sales/history';
   static const String salesHistoryDetails = '/sales/history/details';
   static const String salesReturn = '/sales/return';

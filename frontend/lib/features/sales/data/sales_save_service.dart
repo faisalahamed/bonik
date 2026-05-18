@@ -139,6 +139,132 @@ class SalesSaveService {
     return saleId;
   }
 
+  Future<void> updateSaleLocally({
+    required String saleId,
+    required List<SalesCartLine> cartLines,
+    required SalesCheckoutState checkout,
+    required double cashReceived,
+    required String paymentMethod,
+    required String customerName,
+    required String customerMobile,
+    DateTime? saleDate,
+  }) async {
+    final currentUser = await database.getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+    if (cartLines.isEmpty) {
+      throw StateError(
+        'à¦•à¦¾à¦°à§à¦Ÿà§‡ à¦•à§‹à¦¨à§‹ à¦ªà¦£à§à¦¯ à¦¨à§‡à¦‡à¥¤',
+      );
+    }
+
+    final saleCreatedAt = AppTime.toUtc(saleDate ?? DateTime.now());
+    final now = AppTime.nowUtc();
+    final customer = await database.getOrCreateCustomer(
+      shopId: currentUser.shopId,
+      name: customerName.trim().isEmpty ? 'Walk-in Customer' : customerName,
+      phone: customerMobile,
+    );
+    final subtotal = cartLines.fold<double>(
+      0,
+      (total, line) => total + line.lineTotal,
+    );
+    final total = checkout.grandTotal(subtotal);
+    final paidAmount = cashReceived.clamp(0, total).toDouble();
+    final saleItems = <LocalSaleItemsCompanion>[];
+
+    for (final line in cartLines) {
+      var remainingQuantity = line.quantity;
+      final batches = await database.getAvailablePurchaseBatches(
+        shopId: currentUser.shopId,
+        productName: line.product.name,
+        categoryId: line.product.categoryId,
+        excludingSaleId: saleId,
+      );
+
+      for (final batch in batches) {
+        if (remainingQuantity <= 0) {
+          break;
+        }
+
+        final quantity = remainingQuantity > batch.availableQuantity
+            ? batch.availableQuantity
+            : remainingQuantity;
+        saleItems.add(
+          LocalSaleItemsCompanion(
+            id: Value(const Uuid().v4()),
+            shopId: Value(currentUser.shopId),
+            orderId: Value(saleId),
+            productId: Value(batch.id),
+            buyPrice: Value(batch.buyingPrice),
+            salePrice: Value(line.unitPrice),
+            quantity: Value(quantity),
+            price: Value(line.unitPrice * quantity),
+            createdAt: Value(saleCreatedAt),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+        remainingQuantity -= quantity;
+      }
+
+      if (remainingQuantity > 0) {
+        throw StateError(
+          '${line.product.name} à¦ªà¦£à§à¦¯à§‡à¦° à¦ªà¦°à§à¦¯à¦¾à¦ªà§à¦¤ à¦¸à§à¦Ÿà¦• à¦¨à§‡à¦‡à¥¤',
+        );
+      }
+    }
+
+    final status = paidAmount >= total ? 'completed' : 'pending';
+    await database.updateSaleBundle(
+      saleId: saleId,
+      customer: customer.toCompanion(true),
+      sale: LocalSalesCompanion(
+        customerId: Value(customer.id),
+        subtotal: Value(subtotal),
+        discount: Value(checkout.discountAmount),
+        vat: Value(checkout.vatAmount),
+        total: Value(total),
+        status: Value(status),
+        paymentMethod: Value(paymentMethod),
+        createdAt: Value(saleCreatedAt),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+      items: saleItems,
+      payment: paidAmount > 0
+          ? LocalCustomerPaymentsCompanion(
+              id: Value(const Uuid().v4()),
+              shopId: Value(currentUser.shopId),
+              customerId: Value(customer.id),
+              orderId: Value(saleId),
+              payments: Value(paidAmount),
+              description: Value(_paymentDescription(paymentMethod)),
+              createdAt: Value(saleCreatedAt),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            )
+          : null,
+      cashTransaction: paidAmount > 0
+          ? LocalCashTransactionsCompanion(
+              id: Value(const Uuid().v4()),
+              shopId: Value(currentUser.shopId),
+              type: const Value('sale'),
+              direction: const Value('in'),
+              amount: Value(paidAmount),
+              referenceId: Value(saleId),
+              referenceType: const Value('sale'),
+              method: Value(paymentMethod),
+              note: Value(_paymentDescription(paymentMethod)),
+              createdAt: Value(saleCreatedAt),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            )
+          : null,
+    );
+  }
+
   String _paymentDescription(String paymentMethod) {
     return switch (paymentMethod) {
       'cash' => 'নগদ টাকা',

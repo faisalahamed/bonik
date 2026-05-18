@@ -78,6 +78,7 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
+                    onEditSale: _editSale,
                     onDeleteSale: _deleteSale,
                   ),
                   loading: () =>
@@ -97,6 +98,7 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
+                    onEditSale: _editSale,
                     onDeleteSale: _deleteSale,
                     message: 'বিক্রির ডাটা পাওয়া যায়নি',
                   ),
@@ -191,6 +193,21 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
+
+  void _editSale(LocalSalesHistoryEntry entry) {
+    if (entry.hasReturns) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Returned sales cannot be edited. Reverse the return first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    context.push(AppRoutes.salesEdit, extra: entry.id);
+  }
 }
 
 class _SalesHistoryTopBar extends StatelessWidget {
@@ -247,6 +264,7 @@ class _SalesHistoryList extends StatelessWidget {
     required this.onCustomRangeSelected,
     required this.onPreviousRange,
     required this.onNextRange,
+    required this.onEditSale,
     required this.onDeleteSale,
     this.message,
   });
@@ -259,6 +277,7 @@ class _SalesHistoryList extends StatelessWidget {
   final VoidCallback onCustomRangeSelected;
   final VoidCallback onPreviousRange;
   final VoidCallback onNextRange;
+  final ValueChanged<LocalSalesHistoryEntry> onEditSale;
   final ValueChanged<LocalSalesHistoryEntry> onDeleteSale;
   final String? message;
 
@@ -327,6 +346,7 @@ class _SalesHistoryList extends StatelessWidget {
 
         return _SalesHistoryItemCard(
           entry: filteredEntries[index - 3],
+          onEdit: onEditSale,
           onDelete: onDeleteSale,
         );
       },
@@ -644,9 +664,14 @@ class _EmptySalesHistoryCard extends StatelessWidget {
 }
 
 class _SalesHistoryItemCard extends StatelessWidget {
-  const _SalesHistoryItemCard({required this.entry, required this.onDelete});
+  const _SalesHistoryItemCard({
+    required this.entry,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final LocalSalesHistoryEntry entry;
+  final ValueChanged<LocalSalesHistoryEntry> onEdit;
   final ValueChanged<LocalSalesHistoryEntry> onDelete;
 
   @override
@@ -779,9 +804,7 @@ class _SalesHistoryItemCard extends StatelessWidget {
                       _SalesIconButton(
                         icon: Icons.edit_rounded,
                         color: AppColors.primary,
-                        onPressed: () {
-                          // TODO: edit functionality
-                        },
+                        onPressed: () => onEdit(entry),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       _SalesIconButton(

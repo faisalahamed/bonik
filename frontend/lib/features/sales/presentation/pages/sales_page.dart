@@ -10,14 +10,15 @@ import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/database/app_database.dart';
 import '../../application/sales_cart_controller.dart';
-import '../../../auth/presentation/widgets/auth_top_bar.dart';
 
 final _salesProductsProvider = StreamProvider<List<LocalSalesProduct>>(
   (ref) => ref.watch(appDatabaseProvider).watchSalesProductsForCurrentShop(),
 );
 
 class SalesPage extends ConsumerStatefulWidget {
-  const SalesPage({super.key});
+  const SalesPage({super.key, this.saleId});
+
+  final String? saleId;
 
   @override
   ConsumerState<SalesPage> createState() => _SalesPageState();
@@ -26,10 +27,13 @@ class SalesPage extends ConsumerStatefulWidget {
 class _SalesPageState extends ConsumerState<SalesPage> {
   final _searchController = TextEditingController();
   String _query = '';
+  bool _loadingEditSale = false;
+  String? _loadedEditSaleId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncEditSale());
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text.trim().toLowerCase();
@@ -48,15 +52,14 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     final productsState = ref.watch(_salesProductsProvider);
     final cartLines = ref.watch(salesCartProvider);
     final cartController = ref.watch(salesCartProvider.notifier);
+    final editSession = ref.watch(salesEditSessionProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: AppGradients.primaryButton,
-          ),
+          decoration: const BoxDecoration(gradient: AppGradients.primaryButton),
         ),
         titleSpacing: 0,
         title: Row(
@@ -68,25 +71,24 @@ class _SalesPageState extends ConsumerState<SalesPage> {
             ),
             Expanded(
               child: Text(
-                'বিক্রি করুন',
+                editSession.isEditing ? 'বিক্রি এডিট করুন' : 'বিক্রি করুন',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.onPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: AppColors.onPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
         ),
         actions: [
+          if (editSession.isEditing)
+            const Icon(Icons.edit_rounded, color: Colors.white),
           IconButton(
             onPressed: () => context.push(AppRoutes.salesCart),
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(
-                  Icons.shopping_cart_rounded,
-                  color: Colors.white,
-                ),
+                const Icon(Icons.shopping_cart_rounded, color: Colors.white),
                 if (cartController.itemCount > 0)
                   Positioned(
                     right: -4,
@@ -138,42 +140,52 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                 AppSpacing.md,
                 108,
               ),
-              child: productsState.when(
-                data: (products) {
-                  final filteredProducts = _filterProducts(products);
+              child: _loadingEditSale
+                  ? const Center(child: CircularProgressIndicator())
+                  : productsState.when(
+                      data: (products) {
+                        final availableProducts = _withSelectedCartProducts(
+                          products,
+                          cartLines,
+                        );
+                        final filteredProducts = _filterProducts(
+                          availableProducts,
+                        );
 
-                  return ListView(
-                    children: [
-                      _SalesSearchBar(controller: _searchController),
-                      const SizedBox(height: AppSpacing.xl),
-                      _SalesHeaderRow(productCount: filteredProducts.length),
-                      const SizedBox(height: AppSpacing.md),
-                      _SalesProductList(
-                        products: filteredProducts,
-                        cartLines: cartLines,
-                        onProductTap: _addToCart,
-                        onProductDecrease: _decreaseFromCart,
+                        return ListView(
+                          children: [
+                            _SalesSearchBar(controller: _searchController),
+                            const SizedBox(height: AppSpacing.xl),
+                            _SalesHeaderRow(
+                              productCount: filteredProducts.length,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _SalesProductList(
+                              products: filteredProducts,
+                              cartLines: cartLines,
+                              onProductTap: _addToCart,
+                              onProductDecrease: _decreaseFromCart,
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => ListView(
+                        children: [
+                          _SalesSearchBar(controller: _searchController),
+                          const SizedBox(height: AppSpacing.xl),
+                          const Center(child: CircularProgressIndicator()),
+                        ],
                       ),
-                    ],
-                  );
-                },
-                loading: () => ListView(
-                  children: [
-                    _SalesSearchBar(controller: _searchController),
-                    const SizedBox(height: AppSpacing.xl),
-                    const Center(child: CircularProgressIndicator()),
-                  ],
-                ),
-                error: (error, stackTrace) => ListView(
-                  children: [
-                    _SalesSearchBar(controller: _searchController),
-                    const SizedBox(height: AppSpacing.xl),
-                    const _EmptySalesProductState(
-                      message: 'পণ্যের তালিকা লোড করা যায়নি',
+                      error: (error, stackTrace) => ListView(
+                        children: [
+                          _SalesSearchBar(controller: _searchController),
+                          const SizedBox(height: AppSpacing.xl),
+                          const _EmptySalesProductState(
+                            message: 'পণ্যের তালিকা লোড করা যায়নি',
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
             ),
             _SalesBottomBar(
               total: cartController.total,
@@ -183,6 +195,50 @@ class _SalesPageState extends ConsumerState<SalesPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _syncEditSale() async {
+    final saleId = widget.saleId;
+    if (saleId == null || saleId.isEmpty) {
+      if (ref.read(salesEditSessionProvider).isEditing) {
+        ref.read(salesEditSessionProvider.notifier).clear();
+        ref.read(salesCartProvider.notifier).clear();
+        ref.read(salesCheckoutProvider.notifier).clear();
+      }
+      return;
+    }
+    if (_loadedEditSaleId == saleId || _loadingEditSale) {
+      return;
+    }
+
+    setState(() {
+      _loadingEditSale = true;
+    });
+    ref.read(salesCartProvider.notifier).clear();
+    ref.read(salesCheckoutProvider.notifier).clear();
+    ref.read(salesEditSessionProvider.notifier).clear();
+
+    try {
+      final draft = await ref
+          .read(appDatabaseProvider)
+          .getSaleEditDraft(saleId);
+      ref.read(salesEditSessionProvider.notifier).start(draft);
+      _loadedEditSaleId = saleId;
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      context.pop();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingEditSale = false;
+        });
+      }
+    }
   }
 
   List<LocalSalesProduct> _filterProducts(List<LocalSalesProduct> products) {
@@ -199,6 +255,22 @@ class _SalesPageState extends ConsumerState<SalesPage> {
         .toList();
   }
 
+  List<LocalSalesProduct> _withSelectedCartProducts(
+    List<LocalSalesProduct> products,
+    List<SalesCartLine> cartLines,
+  ) {
+    final merged = [...products];
+    for (final line in cartLines) {
+      final exists = merged.any(
+        (product) => _sameProductForSalesList(product, line.product),
+      );
+      if (!exists) {
+        merged.add(line.product);
+      }
+    }
+    return merged;
+  }
+
   void _addToCart(LocalSalesProduct product) {
     final added = ref.read(salesCartProvider.notifier).addProduct(product);
     if (!added) {
@@ -210,11 +282,11 @@ class _SalesPageState extends ConsumerState<SalesPage> {
 
   void _decreaseFromCart(LocalSalesProduct product) {
     final cartController = ref.read(salesCartProvider.notifier);
-    final quantity = cartController.quantityFor(product.id);
+    final quantity = cartController.quantityForProduct(product);
     if (quantity <= 1) {
-      cartController.remove(product.id);
+      cartController.removeProduct(product);
     } else {
-      cartController.decrease(product.id);
+      cartController.decreaseProduct(product);
     }
   }
 }
@@ -361,7 +433,7 @@ class _SalesProductList extends StatelessWidget {
         for (final product in products) ...[
           _SalesProductCard(
             product: product,
-            selectedQuantity: _quantityFor(product.id),
+            selectedQuantity: _quantityFor(product),
             onTap: () => onProductTap(product),
             onDecrease: () => onProductDecrease(product),
           ),
@@ -371,9 +443,9 @@ class _SalesProductList extends StatelessWidget {
     );
   }
 
-  int _quantityFor(String productId) {
+  int _quantityFor(LocalSalesProduct product) {
     for (final line in cartLines) {
-      if (line.product.id == productId) {
+      if (_sameProductForSalesList(line.product, product)) {
         return line.quantity;
       }
     }
@@ -548,7 +620,9 @@ class _SalesProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.md),
               ),
               child: Icon(
-                isSelected ? Icons.add_rounded : Icons.add_shopping_cart_rounded,
+                isSelected
+                    ? Icons.add_rounded
+                    : Icons.add_shopping_cart_rounded,
                 color: isSelected ? Colors.white : AppColors.primary,
                 size: 22,
               ),
@@ -705,6 +779,14 @@ String _money(double value) {
 
 bool _hasText(String? value) {
   return value != null && value.trim().isNotEmpty;
+}
+
+bool _sameProductForSalesList(LocalSalesProduct left, LocalSalesProduct right) {
+  return _salesProductListKey(left) == _salesProductListKey(right);
+}
+
+String _salesProductListKey(LocalSalesProduct product) {
+  return '${product.categoryId ?? ''}\u001F${product.name.trim().toLowerCase()}';
 }
 
 String _bnNumber(Object value) {

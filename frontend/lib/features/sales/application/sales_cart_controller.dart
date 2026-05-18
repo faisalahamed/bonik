@@ -12,6 +12,11 @@ final salesCheckoutProvider =
       SalesCheckoutController.new,
     );
 
+final salesEditSessionProvider =
+    NotifierProvider<SalesEditSessionController, SalesEditSessionState>(
+      SalesEditSessionController.new,
+    );
+
 class SalesCartController extends Notifier<List<SalesCartLine>> {
   @override
   List<SalesCartLine> build() => const [];
@@ -30,31 +35,48 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
     return 0;
   }
 
-  bool addProduct(LocalSalesProduct product) {
-    final currentQuantity = quantityFor(product.id);
-    if (currentQuantity >= product.stockQuantity) {
-      return false;
+  int quantityForProduct(LocalSalesProduct product) {
+    for (final line in state) {
+      if (_sameSalesProduct(line.product, product)) {
+        return line.quantity;
+      }
     }
+    return 0;
+  }
 
-    final nextQuantity = currentQuantity + 1;
+  bool addProduct(LocalSalesProduct product) {
     final updated = <SalesCartLine>[];
     var found = false;
+    var added = false;
 
     for (final line in state) {
-      if (line.product.id == product.id) {
-        updated.add(line.copyWith(quantity: nextQuantity));
+      if (_sameSalesProduct(line.product, product)) {
+        final stockLimit = line.product.stockQuantity > product.stockQuantity
+            ? line.product.stockQuantity
+            : product.stockQuantity;
+        if (line.quantity >= stockLimit) {
+          updated.add(line);
+          found = true;
+          continue;
+        }
+        updated.add(line.copyWith(quantity: line.quantity + 1));
         found = true;
+        added = true;
       } else {
         updated.add(line);
       }
     }
 
     if (!found) {
-      updated.add(SalesCartLine(product: product, quantity: nextQuantity));
+      if (product.stockQuantity < 1) {
+        return false;
+      }
+      updated.add(SalesCartLine(product: product, quantity: 1));
+      added = true;
     }
 
     state = updated;
-    return true;
+    return added;
   }
 
   void increase(String productId) {
@@ -78,10 +100,27 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
     ];
   }
 
+  void decreaseProduct(LocalSalesProduct product) {
+    state = [
+      for (final line in state)
+        if (_sameSalesProduct(line.product, product) && line.quantity > 1)
+          line.copyWith(quantity: line.quantity - 1)
+        else
+          line,
+    ];
+  }
+
   void remove(String productId) {
     state = [
       for (final line in state)
         if (line.product.id != productId) line,
+    ];
+  }
+
+  void removeProduct(LocalSalesProduct product) {
+    state = [
+      for (final line in state)
+        if (!_sameSalesProduct(line.product, product)) line,
     ];
   }
 
@@ -114,6 +153,10 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
     ];
   }
 
+  void replaceWith(List<SalesCartLine> lines) {
+    state = List.unmodifiable(lines);
+  }
+
   void clear() {
     state = const [];
   }
@@ -131,9 +174,83 @@ class SalesCheckoutController extends Notifier<SalesCheckoutState> {
     state = state.copyWith(vatPercent: percent, vatAmount: amount);
   }
 
+  void replaceWith(SalesCheckoutState checkout) {
+    state = checkout;
+  }
+
   void clear() {
     state = const SalesCheckoutState();
   }
+}
+
+class SalesEditSessionController extends Notifier<SalesEditSessionState> {
+  @override
+  SalesEditSessionState build() => const SalesEditSessionState();
+
+  bool get isEditing => state.saleId != null;
+
+  void start(LocalSaleEditDraft draft) {
+    final subtotal = draft.lines.fold<double>(
+      0,
+      (total, line) => total + (line.unitPrice * line.quantity),
+    );
+    final discountPercent = subtotal <= 0
+        ? 0.0
+        : (draft.sale.discount / subtotal) * 100;
+    final vatPercent = subtotal <= 0 ? 0.0 : (draft.sale.vat / subtotal) * 100;
+
+    ref.read(salesCartProvider.notifier).replaceWith([
+      for (final line in draft.lines)
+        SalesCartLine(
+          product: line.product,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+        ),
+    ]);
+    ref
+        .read(salesCheckoutProvider.notifier)
+        .replaceWith(
+          SalesCheckoutState(
+            discountPercent: discountPercent,
+            discountAmount: draft.sale.discount,
+            vatPercent: vatPercent,
+            vatAmount: draft.sale.vat,
+          ),
+        );
+
+    state = SalesEditSessionState(
+      saleId: draft.sale.id,
+      customerName: draft.customer?.name ?? '',
+      customerMobile: draft.customer?.phone ?? '',
+      saleDate: draft.sale.createdAt.toLocal(),
+      paymentMethod: draft.sale.paymentMethod ?? 'cash',
+      paidAmount: draft.paidAmount,
+    );
+  }
+
+  void clear() {
+    state = const SalesEditSessionState();
+  }
+}
+
+class SalesEditSessionState {
+  const SalesEditSessionState({
+    this.saleId,
+    this.customerName = '',
+    this.customerMobile = '',
+    this.saleDate,
+    this.paymentMethod = 'cash',
+    this.paidAmount = 0,
+  });
+
+  final String? saleId;
+  final String customerName;
+  final String customerMobile;
+  final DateTime? saleDate;
+  final String paymentMethod;
+  final double paidAmount;
+
+  bool get isEditing => saleId != null;
 }
 
 class SalesCheckoutState {
@@ -190,4 +307,12 @@ class SalesCartLine {
       unitPrice: unitPrice ?? this.unitPrice,
     );
   }
+}
+
+bool _sameSalesProduct(LocalSalesProduct left, LocalSalesProduct right) {
+  return _salesProductKey(left) == _salesProductKey(right);
+}
+
+String _salesProductKey(LocalSalesProduct product) {
+  return '${product.categoryId ?? ''}\u001F${product.name.trim().toLowerCase()}';
 }

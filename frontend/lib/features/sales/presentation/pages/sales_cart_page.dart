@@ -38,6 +38,7 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     _discountAmountController.addListener(_onDiscountAmountChanged);
     _vatPercentController.addListener(_onVatPercentChanged);
     _vatAmountController.addListener(_onVatAmountChanged);
+    _loadCheckoutState();
   }
 
   @override
@@ -54,6 +55,7 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
     final cartLines = ref.watch(salesCartProvider);
     final cartController = ref.read(salesCartProvider.notifier);
     final checkout = ref.watch(salesCheckoutProvider);
+    final editSession = ref.watch(salesEditSessionProvider);
     final subtotal = cartController.total;
     _syncSubtotal(subtotal);
     final grandTotal = checkout.grandTotal(subtotal);
@@ -134,11 +136,28 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
                       ],
                     ),
             ),
-            _CartBottomAction(enabled: cartLines.isNotEmpty),
+            _CartBottomAction(
+              enabled: cartLines.isNotEmpty,
+              isEditing: editSession.isEditing,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _loadCheckoutState() {
+    final checkout = ref.read(salesCheckoutProvider);
+    final subtotal = ref.read(salesCartProvider.notifier).total;
+    _subtotal = subtotal;
+    _discountEnabled = checkout.discountAmount > 0;
+    _vatEnabled = checkout.vatAmount > 0;
+    _discount = checkout.discountAmount;
+    _vat = checkout.vatAmount;
+    _setText(_discountPercentController, _numberText(checkout.discountPercent));
+    _setText(_discountAmountController, _numberText(checkout.discountAmount));
+    _setText(_vatPercentController, _numberText(checkout.vatPercent));
+    _setText(_vatAmountController, _numberText(checkout.vatAmount));
   }
 
   void _syncSubtotal(double subtotal) {
@@ -612,11 +631,10 @@ class _QuantityCardState extends State<_QuantityCard> {
                   child: TextFormField(
                     controller: _controller,
                     focusNode: _focusNode,
-                    onChanged: (value) => widget.onChanged(_readIntInput(value)),
+                    onChanged: (value) =>
+                        widget.onChanged(_readIntInput(value)),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     textAlign: TextAlign.center,
                     textAlignVertical: TextAlignVertical.center,
                     style: textTheme.titleMedium?.copyWith(
@@ -635,11 +653,7 @@ class _QuantityCardState extends State<_QuantityCard> {
                 borderRadius: BorderRadius.circular(99),
                 child: const Padding(
                   padding: EdgeInsets.all(6.0),
-                  child: Icon(
-                    Icons.add,
-                    color: AppColors.primary,
-                    size: 22,
-                  ),
+                  child: Icon(Icons.add, color: AppColors.primary, size: 22),
                 ),
               ),
             ],
@@ -1001,9 +1015,10 @@ class _PercentAmountInputRow extends StatelessWidget {
 }
 
 class _CartBottomAction extends StatelessWidget {
-  const _CartBottomAction({required this.enabled});
+  const _CartBottomAction({required this.enabled, required this.isEditing});
 
   final bool enabled;
+  final bool isEditing;
 
   @override
   Widget build(BuildContext context) {
@@ -1042,8 +1057,12 @@ class _CartBottomAction extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  if (isEditing) ...[
+                    const Icon(Icons.edit_rounded),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
                   Text(
-                    'এগিয়ে যান',
+                    isEditing ? 'এডিট চালিয়ে যান' : 'এগিয়ে যান',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,

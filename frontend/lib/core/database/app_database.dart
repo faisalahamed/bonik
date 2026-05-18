@@ -4713,6 +4713,7 @@ final class AppDatabase extends _$AppDatabase {
     required String shopId,
     required String productName,
     required String? categoryId,
+    String? excludingSaleId,
   }) {
     return customSelect(
       '''
@@ -4729,6 +4730,7 @@ final class AppDatabase extends _$AppDatabase {
           FROM local_sale_items si
           WHERE si.product_id = pi.id
             AND si.deleted_at IS NULL
+            AND (? = '' OR si.order_id != ?)
         ), 0) + COALESCE((
           SELECT SUM(sri.quantity)
           FROM local_sale_return_items sri
@@ -4750,6 +4752,7 @@ final class AppDatabase extends _$AppDatabase {
             FROM local_sale_items si
             WHERE si.product_id = pi.id
               AND si.deleted_at IS NULL
+              AND (? = '' OR si.order_id != ?)
           ), 0) + COALESCE((
             SELECT SUM(sri.quantity)
             FROM local_sale_return_items sri
@@ -4760,10 +4763,14 @@ final class AppDatabase extends _$AppDatabase {
       ORDER BY pi.created_at ASC
       ''',
       variables: [
+        Variable<String>(excludingSaleId ?? ''),
+        Variable<String>(excludingSaleId ?? ''),
         Variable<String>(shopId),
         Variable<String>(productName),
         Variable<int>(categoryId == null ? 1 : 0),
         Variable<String>(categoryId ?? ''),
+        Variable<String>(excludingSaleId ?? ''),
+        Variable<String>(excludingSaleId ?? ''),
       ],
       readsFrom: {localPurchaseItems, localSaleItems, localSaleReturnItems},
     ).get().then(
@@ -4782,6 +4789,120 @@ final class AppDatabase extends _$AppDatabase {
             ),
           )
           .toList(),
+    );
+  }
+
+  Future<LocalSaleEditDraft> getSaleEditDraft(String saleId) async {
+    final currentUser = await getCurrentUser();
+    if (currentUser == null) {
+      throw StateError('No current user found.');
+    }
+
+    final sale =
+        await (select(localSales)..where(
+              (row) =>
+                  row.id.equals(saleId) &
+                  row.shopId.equals(currentUser.shopId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (sale == null) {
+      throw StateError('Sale was not found.');
+    }
+
+    final returnCountRow = await customSelect(
+      '''
+      SELECT COUNT(*) AS return_count
+      FROM local_sale_returns
+      WHERE sale_id = ?
+        AND deleted_at IS NULL
+      ''',
+      variables: [Variable<String>(saleId)],
+      readsFrom: {localSaleReturns},
+    ).getSingle();
+    if (returnCountRow.read<int>('return_count') > 0) {
+      throw StateError(
+        'Returned sales cannot be edited. Reverse the return first.',
+      );
+    }
+
+    final customer = await (select(
+      localCustomers,
+    )..where((row) => row.id.equals(sale.customerId))).getSingleOrNull();
+    final payments =
+        await (select(localCustomerPayments)
+              ..where(
+                (row) => row.orderId.equals(saleId) & row.deletedAt.isNull(),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.createdAt)]))
+            .get();
+    final itemRows = await customSelect(
+      '''
+      SELECT
+        COALESCE(pi.product_name, 'à¦ªà¦£à§à¦¯') AS product_name,
+        pi.category_id,
+        MAX(NULLIF(pi.description, '')) AS description,
+        MIN(pi.id) AS product_id,
+        COALESCE(MAX(pi.buying_price), 0.0) AS buying_price,
+        COALESCE(MAX(pi.est_selling_price), MAX(pi.buying_price), 0.0) AS selling_price,
+        si.sale_price,
+        SUM(si.quantity) AS quantity,
+        SUM(si.price) AS line_total
+      FROM local_sale_items si
+      LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
+      WHERE si.order_id = ?
+        AND si.deleted_at IS NULL
+      GROUP BY COALESCE(pi.product_name, 'à¦ªà¦£à§à¦¯'), pi.category_id, si.sale_price
+      ORDER BY MIN(si.created_at) ASC
+      ''',
+      variables: [Variable<String>(saleId)],
+      readsFrom: {localSaleItems, localPurchaseItems},
+    ).get();
+
+    final lines = <LocalSaleEditLine>[];
+    for (final row in itemRows) {
+      final productName = row.read<String>('product_name');
+      final categoryId = row.readNullable<String>('category_id');
+      final quantity = row.read<int>('quantity');
+      final batches = await getAvailablePurchaseBatches(
+        shopId: currentUser.shopId,
+        productName: productName,
+        categoryId: categoryId,
+        excludingSaleId: saleId,
+      );
+      final availableQuantity = batches.fold<int>(
+        0,
+        (sum, batch) => sum + batch.availableQuantity,
+      );
+      final stockQuantity = quantity + availableQuantity;
+
+      lines.add(
+        LocalSaleEditLine(
+          product: LocalSalesProduct(
+            id: row.read<String>('product_id'),
+            categoryId: categoryId,
+            name: productName,
+            description: row.readNullable<String>('description'),
+            stockQuantity: stockQuantity,
+            buyingPrice: row.read<double>('buying_price'),
+            sellingPrice: row.read<double>('selling_price'),
+            stockValue: stockQuantity * row.read<double>('buying_price'),
+            expectedProfit:
+                stockQuantity *
+                (row.read<double>('selling_price') -
+                    row.read<double>('buying_price')),
+          ),
+          quantity: quantity,
+          unitPrice: row.read<double>('sale_price'),
+        ),
+      );
+    }
+
+    return LocalSaleEditDraft(
+      sale: sale,
+      customer: customer,
+      payments: payments,
+      lines: lines,
     );
   }
 
@@ -4995,6 +5116,94 @@ final class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       await into(localCustomers).insertOnConflictUpdate(customer);
       await into(localSales).insertOnConflictUpdate(sale);
+      for (final item in items) {
+        await into(localSaleItems).insertOnConflictUpdate(item);
+      }
+      if (payment != null) {
+        await into(localCustomerPayments).insertOnConflictUpdate(payment);
+      }
+      if (cashTransaction != null) {
+        await into(
+          localCashTransactions,
+        ).insertOnConflictUpdate(cashTransaction);
+      }
+    });
+  }
+
+  Future<void> updateSaleBundle({
+    required String saleId,
+    required LocalSalesCompanion sale,
+    required LocalCustomersCompanion customer,
+    required List<LocalSaleItemsCompanion> items,
+    required LocalCustomerPaymentsCompanion? payment,
+    required LocalCashTransactionsCompanion? cashTransaction,
+  }) async {
+    final existing = await (select(
+      localSales,
+    )..where((row) => row.id.equals(saleId))).getSingleOrNull();
+    final currentUser = await getCurrentUser();
+    if (existing == null ||
+        currentUser == null ||
+        existing.shopId != currentUser.shopId ||
+        existing.deletedAt != null) {
+      throw StateError('Sale was not found.');
+    }
+
+    final returnCountRow = await customSelect(
+      '''
+      SELECT COUNT(*) AS return_count
+      FROM local_sale_returns
+      WHERE sale_id = ?
+        AND deleted_at IS NULL
+      ''',
+      variables: [Variable<String>(saleId)],
+      readsFrom: {localSaleReturns},
+    ).getSingle();
+    if (returnCountRow.read<int>('return_count') > 0) {
+      throw StateError(
+        'Returned sales cannot be edited. Reverse the return first.',
+      );
+    }
+
+    final now = AppTime.nowUtc();
+    await transaction(() async {
+      await into(localCustomers).insertOnConflictUpdate(customer);
+      await (update(
+        localSales,
+      )..where((row) => row.id.equals(saleId))).write(sale);
+      await (update(localSaleItems)..where(
+            (row) => row.orderId.equals(saleId) & row.deletedAt.isNull(),
+          ))
+          .write(
+            LocalSaleItemsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+      await (update(localCustomerPayments)..where(
+            (row) => row.orderId.equals(saleId) & row.deletedAt.isNull(),
+          ))
+          .write(
+            LocalCustomerPaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+      await (update(localCashTransactions)..where(
+            (row) =>
+                row.referenceId.equals(saleId) &
+                row.referenceType.equals('sale') &
+                row.deletedAt.isNull(),
+          ))
+          .write(
+            LocalCashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
       for (final item in items) {
         await into(localSaleItems).insertOnConflictUpdate(item);
       }
@@ -6191,6 +6400,35 @@ class LocalSaleItemDetail {
     final quantityLeft = quantity - returnedQuantity;
     return quantityLeft < 0 ? 0 : quantityLeft;
   }
+}
+
+class LocalSaleEditDraft {
+  const LocalSaleEditDraft({
+    required this.sale,
+    required this.customer,
+    required this.payments,
+    required this.lines,
+  });
+
+  final LocalSale sale;
+  final LocalCustomer? customer;
+  final List<LocalCustomerPayment> payments;
+  final List<LocalSaleEditLine> lines;
+
+  double get paidAmount =>
+      payments.fold(0, (total, payment) => total + payment.payments);
+}
+
+class LocalSaleEditLine {
+  const LocalSaleEditLine({
+    required this.product,
+    required this.quantity,
+    required this.unitPrice,
+  });
+
+  final LocalSalesProduct product;
+  final int quantity;
+  final double unitPrice;
 }
 
 class LocalAvailablePurchaseBatch {

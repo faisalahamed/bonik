@@ -1,4 +1,4 @@
-1. 
+1. delivery charge will be discout given from estimated seling price on loss/profit report page
 2. returning a product should (added back to stock and removed from all calculations)
 3. 
 4.
