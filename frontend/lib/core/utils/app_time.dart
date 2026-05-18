@@ -1,6 +1,8 @@
 class AppTime {
   const AppTime._();
 
+  static const syncCursorOverlap = Duration(minutes: 10);
+
   static DateTime nowUtc() => DateTime.now().toUtc();
 
   static DateTime toUtc(DateTime value) => value.isUtc ? value : value.toUtc();
@@ -9,6 +11,9 @@ class AppTime {
       value.isUtc ? value.toLocal() : value;
 
   static String isoUtc(DateTime value) => toUtc(value).toIso8601String();
+
+  static String syncCursorIso(DateTime value) =>
+      isoUtc(toUtc(value).subtract(syncCursorOverlap));
 
   static String? nullableIsoUtc(DateTime? value) =>
       value == null ? null : isoUtc(value);

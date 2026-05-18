@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -46,16 +45,22 @@ abstract class Controller
         }
     }
 
-    protected function applyUpdatedAfter(Builder $query, ?string $updatedAfter): Builder
+    protected function applyUpdatedAfter(mixed $query, ?string $updatedAfter): mixed
     {
         return $query->when(
             $updatedAfter,
-            fn (Builder $builder) => $builder->where('updated_at', '>', $updatedAfter),
+            fn ($builder) => $builder->where('updated_at', '>', $updatedAfter),
         );
     }
 
-    protected function syncServerTime(): string
+    protected function applySyncWindow(mixed $query, ?string $updatedAfter, mixed $syncStartedAt): mixed
     {
-        return now()->toISOString();
+        return $this->applyUpdatedAfter($query, $updatedAfter)
+            ->where('updated_at', '<=', $syncStartedAt);
+    }
+
+    protected function syncServerTime(mixed $syncStartedAt = null): string
+    {
+        return ($syncStartedAt ?? now())->toISOString();
     }
 }

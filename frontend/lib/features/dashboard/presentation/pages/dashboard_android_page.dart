@@ -12,115 +12,141 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/sync/app_sync_service.dart';
 import '../../../auth/application/auth_controller.dart';
 
-class DashboardAndroidPage extends StatelessWidget {
+Future<void> _refreshDashboard(WidgetRef ref, BuildContext context) async {
+  try {
+    await ref.read(appSyncServiceProvider).syncAll();
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Sync completed')));
+  } catch (error) {
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.toString())));
+  }
+}
+
+class DashboardAndroidPage extends ConsumerWidget {
   const DashboardAndroidPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
           const _DashboardTopBar(),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.xxl,
-              ),
-              children: [
-                _SummaryCard(),
-                SizedBox(height: AppSpacing.lg),
-                _PrimaryActionsRow(),
-                SizedBox(height: AppSpacing.lg),
-                _TertiaryActionsRow(),
-                SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'আপনার প্রতিষ্ঠান',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'পণ্য ক্রয়',
-                      icon: Icons.add_box_rounded,
-                      iconBackground: Color(0xFFFFF0E6),
-                      iconColor: Color(0xFFCE6D1D),
-                      route: AppRoutes.cashPurchase,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'স্টক ব্যবস্থাপনা',
-                      icon: Icons.inventory_2_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.inventory,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'রিপোর্ট',
-
-                      icon: Icons.bar_chart_rounded,
-                      iconBackground: Color(0xFFEAF7F2),
-                      iconColor: AppColors.primaryContainer,
-                      route: AppRoutes.reports,
-                    ),
-
-                    _DashboardMenuItemData(
-                      label: 'অন্যান্য',
-                      icon: Icons.more_horiz_rounded,
-                      iconBackground: AppColors.surfaceContainerHigh,
-                      iconColor: AppColors.textSecondary,
-                      route: AppRoutes.others,
-                    ),
-                  ],
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => _refreshDashboard(ref, context),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.xxl,
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    'বিজ্ঞাপন',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
+                children: [
+                  _SummaryCard(),
+                  SizedBox(height: AppSpacing.lg),
+                  _PrimaryActionsRow(),
+                  SizedBox(height: AppSpacing.lg),
+                  _TertiaryActionsRow(),
+                  SizedBox(height: AppSpacing.xl),
+                  _DashboardSection(
+                    title: 'আপনার প্রতিষ্ঠান',
+                    items: [
+                      _DashboardMenuItemData(
+                        label: 'পণ্য ক্রয়',
+                        icon: Icons.add_box_rounded,
+                        iconBackground: Color(0xFFFFF0E6),
+                        iconColor: Color(0xFFCE6D1D),
+                        route: AppRoutes.cashPurchase,
+                      ),
+                      _DashboardMenuItemData(
+                        label: 'স্টক ব্যবস্থাপনা',
+                        icon: Icons.inventory_2_rounded,
+                        iconBackground: Color(0xFFEAF7F2),
+                        iconColor: AppColors.primaryContainer,
+                        route: AppRoutes.inventory,
+                      ),
+                      _DashboardMenuItemData(
+                        label: 'রিপোর্ট',
+
+                        icon: Icons.bar_chart_rounded,
+                        iconBackground: Color(0xFFEAF7F2),
+                        iconColor: AppColors.primaryContainer,
+                        route: AppRoutes.reports,
+                      ),
+
+                      _DashboardMenuItemData(
+                        label: 'অন্যান্য',
+                        icon: Icons.more_horiz_rounded,
+                        iconBackground: AppColors.surfaceContainerHigh,
+                        iconColor: AppColors.textSecondary,
+                        route: AppRoutes.others,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'বিজ্ঞাপন',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-                const _DummyBanner(),
-                const SizedBox(height: AppSpacing.xl),
-                _DashboardSection(
-                  title: 'হিসাব খাতা',
-                  items: [
-                    _DashboardMenuItemData(
-                      label: 'কেনার খাতা',
-                      icon: Icons.shopping_cart_rounded,
-                      iconBackground: Color(0xFFE8F6EF),
-                      iconColor: AppColors.primary,
-                      route: AppRoutes.purchaseHistory,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'বিক্রয় খাতা',
-                      icon: Icons.receipt_long_rounded,
-                      iconBackground: Color(0xFFEAF1FF),
-                      iconColor: Color(0xFF4169C8),
-                      route: AppRoutes.salesHistory,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'বাকির খাতা',
-                      icon: Icons.account_balance_wallet_rounded,
-                      iconBackground: Color(0xFFFFF0E6),
-                      iconColor: Color(0xFFCE6D1D),
-                      route: AppRoutes.duesLedger,
-                    ),
-                    _DashboardMenuItemData(
-                      label: 'খরচের খাতা',
-                      icon: Icons.payments_rounded,
-                      iconBackground: Color(0xFFFFEBEB),
-                      iconColor: Color(0xFFD54D4D),
-                      route: AppRoutes.expenseHistory,
-                    ),
-                  ],
-                ),
+                  const _DummyBanner(),
+                  const SizedBox(height: AppSpacing.xl),
+                  _DashboardSection(
+                    title: 'হিসাব খাতা',
+                    items: [
+                      _DashboardMenuItemData(
+                        label: 'কেনার খাতা',
+                        icon: Icons.shopping_cart_rounded,
+                        iconBackground: Color(0xFFE8F6EF),
+                        iconColor: AppColors.primary,
+                        route: AppRoutes.purchaseHistory,
+                      ),
+                      _DashboardMenuItemData(
+                        label: 'বিক্রয় খাতা',
+                        icon: Icons.receipt_long_rounded,
+                        iconBackground: Color(0xFFEAF1FF),
+                        iconColor: Color(0xFF4169C8),
+                        route: AppRoutes.salesHistory,
+                      ),
+                      _DashboardMenuItemData(
+                        label: 'বাকির খাতা',
+                        icon: Icons.account_balance_wallet_rounded,
+                        iconBackground: Color(0xFFFFF0E6),
+                        iconColor: Color(0xFFCE6D1D),
+                        route: AppRoutes.duesLedger,
+                      ),
+                      _DashboardMenuItemData(
+                        label: 'খরচের খাতা',
+                        icon: Icons.payments_rounded,
+                        iconBackground: Color(0xFFFFEBEB),
+                        iconColor: Color(0xFFD54D4D),
+                        route: AppRoutes.expenseHistory,
+                      ),
+                    ],
+                  ),
 
-                SizedBox(height: AppSpacing.xl),
-              ],
+                  SizedBox(height: AppSpacing.xl),
+                ],
+              ),
             ),
           ),
         ],

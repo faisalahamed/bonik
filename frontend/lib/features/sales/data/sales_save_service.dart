@@ -32,7 +32,8 @@ class SalesSaveService {
       throw StateError('কার্টে কোনো পণ্য নেই।');
     }
 
-    final now = AppTime.toUtc(saleDate ?? DateTime.now());
+    final saleCreatedAt = AppTime.toUtc(saleDate ?? DateTime.now());
+    final now = AppTime.nowUtc();
     final customer = await database.getOrCreateCustomer(
       shopId: currentUser.shopId,
       name: customerName.trim().isEmpty ? 'Walk-in Customer' : customerName,
@@ -73,7 +74,7 @@ class SalesSaveService {
             salePrice: Value(line.unitPrice),
             quantity: Value(quantity),
             price: Value(line.unitPrice * quantity),
-            createdAt: Value(now),
+            createdAt: Value(saleCreatedAt),
             updatedAt: Value(now),
             syncStatus: const Value('pending'),
           ),
@@ -99,7 +100,7 @@ class SalesSaveService {
         total: Value(total),
         status: Value(status),
         paymentMethod: Value(paymentMethod),
-        createdAt: Value(now),
+        createdAt: Value(saleCreatedAt),
         updatedAt: Value(now),
         syncStatus: const Value('pending'),
       ),
@@ -112,7 +113,7 @@ class SalesSaveService {
               orderId: Value(saleId),
               payments: Value(paidAmount),
               description: Value(_paymentDescription(paymentMethod)),
-              createdAt: Value(now),
+              createdAt: Value(saleCreatedAt),
               updatedAt: Value(now),
               syncStatus: const Value('pending'),
             )
@@ -128,7 +129,7 @@ class SalesSaveService {
               referenceType: const Value('sale'),
               method: Value(paymentMethod),
               note: Value(_paymentDescription(paymentMethod)),
-              createdAt: Value(now),
+              createdAt: Value(saleCreatedAt),
               updatedAt: Value(now),
               syncStatus: const Value('pending'),
             )

@@ -71,7 +71,7 @@ class CategorySyncService {
       queryParameters: {
         'shop_id': shopId,
         'user_id': userId,
-        if (cursor != null) 'updated_after': AppTime.isoUtc(cursor),
+        if (cursor != null) 'updated_after': AppTime.syncCursorIso(cursor),
       },
     );
 

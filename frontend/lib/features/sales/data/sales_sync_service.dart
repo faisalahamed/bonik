@@ -90,7 +90,7 @@ class SalesSyncService {
         'shop_id': shopId,
         'user_id': userId,
         if (customersCursor != null)
-          'updated_after': AppTime.isoUtc(customersCursor),
+          'updated_after': AppTime.syncCursorIso(customersCursor),
       },
     );
     final rawCustomers = customerResponse['customers'];
@@ -118,7 +118,8 @@ class SalesSyncService {
       queryParameters: {
         'shop_id': shopId,
         'user_id': userId,
-        if (salesCursor != null) 'updated_after': AppTime.isoUtc(salesCursor),
+        if (salesCursor != null)
+          'updated_after': AppTime.syncCursorIso(salesCursor),
       },
     );
     final rawSales = saleResponse['sales'];
