@@ -1268,7 +1268,9 @@ final class AppDatabase extends _$AppDatabase {
     final now = AppTime.nowUtc();
 
     await transaction(() async {
-      final restoredRows = tableName == 'local_categories'
+      final restoredRows = tableName == 'local_sales'
+          ? await _restoreSaleBundleFromRecycleEntry(entry, now)
+          : tableName == 'local_categories'
           ? await (update(
               localCategories,
             )..where((category) => category.id.equals(entry.recordId))).write(
@@ -1339,7 +1341,9 @@ final class AppDatabase extends _$AppDatabase {
     final now = AppTime.nowUtc();
 
     await transaction(() async {
-      if (tableName == 'local_purchase_items') {
+      if (tableName == 'local_sales') {
+        await _permanentlyDeleteSaleBundle(entry.recordId);
+      } else if (tableName == 'local_purchase_items') {
         await (delete(
           localPurchaseItems,
         )..where((item) => item.id.equals(entry.recordId))).go();
@@ -1368,6 +1372,140 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
     });
+  }
+
+  Future<int> _restoreSaleBundleFromRecycleEntry(
+    LocalRecycleBinEntry entry,
+    DateTime now,
+  ) async {
+    final restoredRows =
+        await (update(
+          localSales,
+        )..where((sale) => sale.id.equals(entry.recordId))).write(
+          LocalSalesCompanion(
+            deletedAt: const Value(null),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+    if (restoredRows == 0) {
+      return 0;
+    }
+
+    await (update(
+      localSaleItems,
+    )..where((item) => item.orderId.equals(entry.recordId))).write(
+      LocalSaleItemsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+    await (update(
+      localCustomerPayments,
+    )..where((payment) => payment.orderId.equals(entry.recordId))).write(
+      LocalCustomerPaymentsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+    await (update(localCashTransactions)..where(
+          (transaction) =>
+              transaction.referenceId.equals(entry.recordId) &
+              transaction.referenceType.equals('sale') &
+              transaction.type.isIn(['sale', 'customer_payment']),
+        ))
+        .write(
+          LocalCashTransactionsCompanion(
+            deletedAt: const Value(null),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+
+    final returnIds =
+        await (selectOnly(localSaleReturns)
+              ..addColumns([localSaleReturns.id])
+              ..where(localSaleReturns.saleId.equals(entry.recordId)))
+            .map((row) => row.read(localSaleReturns.id)!)
+            .get();
+    await (update(
+      localSaleReturns,
+    )..where((saleReturn) => saleReturn.saleId.equals(entry.recordId))).write(
+      LocalSaleReturnsCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+
+    if (returnIds.isNotEmpty) {
+      await (update(
+        localSaleReturnItems,
+      )..where((item) => item.returnId.isIn(returnIds))).write(
+        LocalSaleReturnItemsCompanion(
+          deletedAt: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+      await (update(localCashTransactions)..where(
+            (transaction) =>
+                transaction.referenceId.isIn(returnIds) &
+                transaction.referenceType.equals('sales_return') &
+                transaction.type.equals('sales_return'),
+          ))
+          .write(
+            LocalCashTransactionsCompanion(
+              deletedAt: const Value(null),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+    }
+
+    return restoredRows;
+  }
+
+  Future<void> _permanentlyDeleteSaleBundle(String saleId) async {
+    final returnIds =
+        await (selectOnly(localSaleReturns)
+              ..addColumns([localSaleReturns.id])
+              ..where(localSaleReturns.saleId.equals(saleId)))
+            .map((row) => row.read(localSaleReturns.id)!)
+            .get();
+
+    if (returnIds.isNotEmpty) {
+      await (delete(
+        localSaleReturnItems,
+      )..where((item) => item.returnId.isIn(returnIds))).go();
+      await (delete(localCashTransactions)..where(
+            (transaction) =>
+                transaction.referenceId.isIn(returnIds) &
+                transaction.referenceType.equals('sales_return') &
+                transaction.type.equals('sales_return'),
+          ))
+          .go();
+      await (delete(
+        localSaleReturns,
+      )..where((saleReturn) => saleReturn.id.isIn(returnIds))).go();
+    }
+
+    await (delete(localCashTransactions)..where(
+          (transaction) =>
+              transaction.referenceId.equals(saleId) &
+              transaction.referenceType.equals('sale') &
+              transaction.type.isIn(['sale', 'customer_payment']),
+        ))
+        .go();
+    await (delete(
+      localCustomerPayments,
+    )..where((payment) => payment.orderId.equals(saleId))).go();
+    await (delete(
+      localSaleItems,
+    )..where((item) => item.orderId.equals(saleId))).go();
+    await (delete(localSales)..where((sale) => sale.id.equals(saleId))).go();
   }
 
   Future<void> _restoreNoteFromRecycleEntry(
@@ -1967,11 +2105,13 @@ final class AppDatabase extends _$AppDatabase {
               SELECT SUM(sr.refund_total)
               FROM local_sale_returns sr
               WHERE sr.sale_id = s.id
+                AND sr.deleted_at IS NULL
             ), 0.0)
             - COALESCE((
               SELECT SUM(cp.payments)
               FROM local_customer_payments cp
               WHERE cp.order_id = s.id
+                AND cp.deleted_at IS NULL
             ), 0.0)
           ) > 0
           THEN (
@@ -1980,11 +2120,13 @@ final class AppDatabase extends _$AppDatabase {
               SELECT SUM(sr.refund_total)
               FROM local_sale_returns sr
               WHERE sr.sale_id = s.id
+                AND sr.deleted_at IS NULL
             ), 0.0)
             - COALESCE((
               SELECT SUM(cp.payments)
               FROM local_customer_payments cp
               WHERE cp.order_id = s.id
+                AND cp.deleted_at IS NULL
             ), 0.0)
           )
           ELSE 0.0
@@ -2030,6 +2172,7 @@ final class AppDatabase extends _$AppDatabase {
               SELECT SUM(sr.refund_total)
               FROM local_sale_returns sr
               WHERE sr.sale_id = s.id
+                AND sr.deleted_at IS NULL
             ), 0.0),
             0.0
           )
@@ -2049,11 +2192,13 @@ final class AppDatabase extends _$AppDatabase {
                 SELECT SUM(sr.refund_total)
                 FROM local_sale_returns sr
                 WHERE sr.sale_id = s.id
+                  AND sr.deleted_at IS NULL
               ), 0.0)
               - COALESCE((
                 SELECT SUM(cp.payments)
                 FROM local_customer_payments cp
                 WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
               ), 0.0)
             ) > 0
             THEN (
@@ -2062,11 +2207,13 @@ final class AppDatabase extends _$AppDatabase {
                 SELECT SUM(sr.refund_total)
                 FROM local_sale_returns sr
                 WHERE sr.sale_id = s.id
+                  AND sr.deleted_at IS NULL
               ), 0.0)
               - COALESCE((
                 SELECT SUM(cp.payments)
                 FROM local_customer_payments cp
                 WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
               ), 0.0)
             )
             ELSE 0.0
@@ -3263,6 +3410,7 @@ final class AppDatabase extends _$AppDatabase {
               SELECT 1
               FROM local_sale_returns sr_sync
               WHERE sr_sync.sale_id = s.id
+                AND sr_sync.deleted_at IS NULL
                 AND sr_sync.sync_status != 'synced'
             )
             OR EXISTS (
@@ -3271,6 +3419,8 @@ final class AppDatabase extends _$AppDatabase {
               INNER JOIN local_sale_returns sr_sync_items
                 ON sr_sync_items.id = sri_sync.return_id
               WHERE sr_sync_items.sale_id = s.id
+                AND sr_sync_items.deleted_at IS NULL
+                AND sri_sync.deleted_at IS NULL
                 AND sri_sync.sync_status != 'synced'
             )
             OR EXISTS (
@@ -3280,6 +3430,8 @@ final class AppDatabase extends _$AppDatabase {
                 ON sr_sync_cash.id = ct_sync.reference_id
               WHERE sr_sync_cash.sale_id = s.id
                 AND ct_sync.type = 'sales_return'
+                AND sr_sync_cash.deleted_at IS NULL
+                AND ct_sync.deleted_at IS NULL
                 AND ct_sync.sync_status != 'synced'
             )
           THEN 'pending'
@@ -3289,22 +3441,27 @@ final class AppDatabase extends _$AppDatabase {
           SELECT SUM(payments)
           FROM local_customer_payments
           WHERE order_id = s.id
+            AND deleted_at IS NULL
         ), 0.0) AS paid_amount,
         COALESCE((
           SELECT COUNT(*)
           FROM local_sale_items
           WHERE order_id = s.id
+            AND deleted_at IS NULL
         ), 0) AS item_count,
         COALESCE((
           SELECT SUM(sr.refund_total)
           FROM local_sale_returns sr
           WHERE sr.sale_id = s.id
+            AND sr.deleted_at IS NULL
         ), 0.0) AS return_refund_total,
         COALESCE((
           SELECT SUM(sri.quantity)
           FROM local_sale_return_items sri
           INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
           WHERE sr.sale_id = s.id
+            AND sr.deleted_at IS NULL
+            AND sri.deleted_at IS NULL
         ), 0) AS returned_item_count
       FROM local_sales s
       LEFT JOIN local_customers c ON c.id = s.customer_id
@@ -3314,6 +3471,7 @@ final class AppDatabase extends _$AppDatabase {
         WHERE id = 'singleton'
           AND is_authenticated = 1
       )
+        AND s.deleted_at IS NULL
       ORDER BY s.created_at DESC
       ''',
       readsFrom: {
@@ -3363,11 +3521,13 @@ final class AppDatabase extends _$AppDatabase {
                 SELECT SUM(cp.payments)
                 FROM local_customer_payments cp
                 WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
               ), 0.0)) > 0
               THEN (s.total - COALESCE((
                 SELECT SUM(cp.payments)
                 FROM local_customer_payments cp
                 WHERE cp.order_id = s.id
+                  AND cp.deleted_at IS NULL
               ), 0.0))
               ELSE 0
             END
@@ -3379,6 +3539,7 @@ final class AppDatabase extends _$AppDatabase {
             WHERE id = 'singleton'
               AND is_authenticated = 1
           )
+            AND s.deleted_at IS NULL
         ), 0.0) AS receivable,
         COALESCE((
           SELECT SUM(
@@ -4071,10 +4232,12 @@ final class AppDatabase extends _$AppDatabase {
           SELECT SUM(sri.quantity)
           FROM local_sale_return_items sri
           WHERE sri.sale_item_id = si.id
+            AND sri.deleted_at IS NULL
         ), 0) AS returned_quantity
       FROM local_sale_items si
       LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
       WHERE si.order_id = ?
+        AND si.deleted_at IS NULL
       ORDER BY si.created_at ASC
       ''',
       variables: [Variable<String>(saleId)],
@@ -4105,7 +4268,10 @@ final class AppDatabase extends _$AppDatabase {
 
   Stream<List<LocalCustomerPayment>> watchCustomerPayments(String saleId) {
     return (select(localCustomerPayments)
-          ..where((payment) => payment.orderId.equals(saleId))
+          ..where(
+            (payment) =>
+                payment.orderId.equals(saleId) & payment.deletedAt.isNull(),
+          )
           ..orderBy([(payment) => OrderingTerm.asc(payment.createdAt)]))
         .watch();
   }
@@ -4136,10 +4302,12 @@ final class AppDatabase extends _$AppDatabase {
             SELECT SUM(si.quantity)
             FROM local_sale_items si
             WHERE si.product_id = pi.id
+              AND si.deleted_at IS NULL
           ), 0) + COALESCE((
             SELECT SUM(sri.quantity)
             FROM local_sale_return_items sri
             WHERE sri.product_id = pi.id
+              AND sri.deleted_at IS NULL
           ), 0) AS available_quantity
         FROM local_purchase_items pi
         WHERE pi.shop_id IN (
@@ -4560,10 +4728,12 @@ final class AppDatabase extends _$AppDatabase {
           SELECT SUM(si.quantity)
           FROM local_sale_items si
           WHERE si.product_id = pi.id
+            AND si.deleted_at IS NULL
         ), 0) + COALESCE((
           SELECT SUM(sri.quantity)
           FROM local_sale_return_items sri
           WHERE sri.product_id = pi.id
+            AND sri.deleted_at IS NULL
         ), 0) AS available_quantity,
         pi.created_at
       FROM local_purchase_items pi
@@ -4579,10 +4749,12 @@ final class AppDatabase extends _$AppDatabase {
             SELECT SUM(si.quantity)
             FROM local_sale_items si
             WHERE si.product_id = pi.id
+              AND si.deleted_at IS NULL
           ), 0) + COALESCE((
             SELECT SUM(sri.quantity)
             FROM local_sale_return_items sri
             WHERE sri.product_id = pi.id
+              AND sri.deleted_at IS NULL
           ), 0)
         ) > 0
       ORDER BY pi.created_at ASC
@@ -4632,10 +4804,12 @@ final class AppDatabase extends _$AppDatabase {
           SELECT SUM(si.quantity)
           FROM local_sale_items si
           WHERE si.product_id = pi.id
+            AND si.deleted_at IS NULL
         ), 0) + COALESCE((
           SELECT SUM(sri.quantity)
           FROM local_sale_return_items sri
           WHERE sri.product_id = pi.id
+            AND sri.deleted_at IS NULL
         ), 0) AS available_quantity,
         pi.created_at
       FROM local_purchase_items pi
@@ -4656,10 +4830,12 @@ final class AppDatabase extends _$AppDatabase {
             SELECT SUM(si.quantity)
             FROM local_sale_items si
             WHERE si.product_id = pi.id
+              AND si.deleted_at IS NULL
           ), 0) + COALESCE((
             SELECT SUM(sri.quantity)
             FROM local_sale_return_items sri
             WHERE sri.product_id = pi.id
+              AND sri.deleted_at IS NULL
           ), 0)
         ) > 0
       ORDER BY pi.created_at DESC
@@ -4793,10 +4969,12 @@ final class AppDatabase extends _$AppDatabase {
               SELECT SUM(si.quantity)
               FROM local_sale_items si
               WHERE si.product_id = ?
+                AND si.deleted_at IS NULL
             ), 0) - COALESCE((
               SELECT SUM(sri.quantity)
               FROM local_sale_return_items sri
               WHERE sri.product_id = ?
+                AND sri.deleted_at IS NULL
             ), 0) AS used_quantity
           ''',
       variables: [Variable<String>(id), Variable<String>(id)],
@@ -4828,6 +5006,180 @@ final class AppDatabase extends _$AppDatabase {
           localCashTransactions,
         ).insertOnConflictUpdate(cashTransaction);
       }
+    });
+  }
+
+  Future<void> deleteSaleLocally(String saleId) async {
+    final sale = await (select(
+      localSales,
+    )..where((row) => row.id.equals(saleId))).getSingleOrNull();
+    if (sale == null) {
+      throw StateError('Sale was not found.');
+    }
+
+    final currentUser = await getCurrentUser();
+    final now = AppTime.nowUtc();
+    final customer = await (select(
+      localCustomers,
+    )..where((row) => row.id.equals(sale.customerId))).getSingleOrNull();
+    final itemCountRow = await customSelect(
+      '''
+      SELECT COUNT(*) AS item_count
+      FROM local_sale_items
+      WHERE order_id = ?
+        AND deleted_at IS NULL
+      ''',
+      variables: [Variable<String>(saleId)],
+      readsFrom: {localSaleItems},
+    ).getSingle();
+    final paidAmountRow = await customSelect(
+      '''
+      SELECT COALESCE(SUM(payments), 0.0) AS paid_amount
+      FROM local_customer_payments
+      WHERE order_id = ?
+        AND deleted_at IS NULL
+      ''',
+      variables: [Variable<String>(saleId)],
+      readsFrom: {localCustomerPayments},
+    ).getSingle();
+    final returnIds =
+        await (selectOnly(localSaleReturns)
+              ..addColumns([localSaleReturns.id])
+              ..where(localSaleReturns.saleId.equals(saleId)))
+            .map((row) => row.read(localSaleReturns.id)!)
+            .get();
+    final itemCount = itemCountRow.read<int>('item_count');
+    final paidAmount = paidAmountRow.read<double>('paid_amount');
+    final customerName = customer?.name ?? 'Walk-in Customer';
+    final deletedData = jsonEncode({
+      'id': sale.id,
+      'shop_id': sale.shopId,
+      'customer_id': sale.customerId,
+      'customer_name': customerName,
+      'subtotal': sale.subtotal,
+      'discount': sale.discount,
+      'vat': sale.vat,
+      'total': sale.total,
+      'paid_amount': paidAmount,
+      'item_count': itemCount,
+      'status': sale.status,
+      'payment_method': sale.paymentMethod,
+      'created_at': AppTime.isoUtc(sale.createdAt),
+      'updated_at': AppTime.isoUtc(now),
+      'deleted_at': AppTime.isoUtc(now),
+    });
+    final relatedData = jsonEncode({
+      'sale_return_ids': returnIds,
+      'restores': [
+        'local_sale_items',
+        'local_customer_payments',
+        'local_cash_transactions',
+        'local_sale_returns',
+        'local_sale_return_items',
+      ],
+    });
+
+    await transaction(() async {
+      await (update(localSales)..where((row) => row.id.equals(saleId))).write(
+        LocalSalesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+
+      await (update(
+        localSaleItems,
+      )..where((row) => row.orderId.equals(saleId))).write(
+        LocalSaleItemsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+
+      await (update(
+        localCustomerPayments,
+      )..where((row) => row.orderId.equals(saleId))).write(
+        LocalCustomerPaymentsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+
+      await (update(localCashTransactions)..where(
+            (row) =>
+                row.referenceId.equals(saleId) &
+                row.referenceType.equals('sale') &
+                row.type.isIn(['sale', 'customer_payment']),
+          ))
+          .write(
+            LocalCashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+
+      await (update(
+        localSaleReturns,
+      )..where((row) => row.saleId.equals(saleId))).write(
+        LocalSaleReturnsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
+
+      if (returnIds.isNotEmpty) {
+        await (update(
+          localSaleReturnItems,
+        )..where((row) => row.returnId.isIn(returnIds))).write(
+          LocalSaleReturnItemsCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+
+        await (update(localCashTransactions)..where(
+              (row) =>
+                  row.referenceId.isIn(returnIds) &
+                  row.referenceType.equals('sales_return') &
+                  row.type.equals('sales_return'),
+            ))
+            .write(
+              LocalCashTransactionsCompanion(
+                deletedAt: Value(now),
+                updatedAt: Value(now),
+                syncStatus: const Value('pending'),
+              ),
+            );
+      }
+
+      await into(localRecycleBinEntries).insertOnConflictUpdate(
+        LocalRecycleBinEntriesCompanion(
+          id: Value(const Uuid().v4()),
+          shopId: Value(sale.shopId),
+          sourceTableName: const Value('local_sales'),
+          recordId: Value(sale.id),
+          displayTitle: Value('Sale #${sale.id.substring(0, 8).toUpperCase()}'),
+          displaySubtitle: Value(
+            '$customerName - $itemCount item${itemCount == 1 ? '' : 's'} - Total ${sale.total}',
+          ),
+          deletedData: Value(deletedData),
+          relatedData: Value(relatedData),
+          deletedByUserId: Value(currentUser?.id),
+          deletedAt: Value(now),
+          restoredAt: const Value(null),
+          restoreStatus: const Value('deleted'),
+          restoreBlockReason: const Value(null),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('pending'),
+        ),
+      );
     });
   }
 

@@ -214,6 +214,24 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
     required List<SalesCartLine> cartLines,
     required SalesCheckoutState checkout,
   }) async {
+    final subtotal = cartLines.fold<double>(
+      0,
+      (total, line) => total + line.lineTotal,
+    );
+    final grandTotal = checkout.grandTotal(subtotal);
+    final paidAmount = _cashReceived.clamp(0, grandTotal).toDouble();
+    final isDueSale = paidAmount < grandTotal;
+    final isWalkInCustomer = _customerNameController.text.trim().isEmpty;
+
+    if (isDueSale && isWalkInCustomer) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('বাকিতে বিক্রি করতে কাস্টমার সিলেক্ট/যোগ করুন'),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _submitting = true;
     });
@@ -1448,10 +1466,7 @@ class _PaymentMethodCard extends StatelessWidget {
 }
 
 class _SalesReceiptCard extends StatelessWidget {
-  const _SalesReceiptCard({
-    required this.lines,
-    required this.total,
-  });
+  const _SalesReceiptCard({required this.lines, required this.total});
 
   final List<SalesCartLine> lines;
   final double total;

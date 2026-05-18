@@ -78,6 +78,7 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
+                    onDeleteSale: _deleteSale,
                   ),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
@@ -96,6 +97,7 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
                     onCustomRangeSelected: _selectCustomDateRange,
                     onPreviousRange: () => _moveRange(-1),
                     onNextRange: () => _moveRange(1),
+                    onDeleteSale: _deleteSale,
                     message: 'বিক্রির ডাটা পাওয়া যায়নি',
                   ),
                 ),
@@ -142,6 +144,52 @@ class _SalesHistoryPageState extends ConsumerState<SalesHistoryPage> {
       _customDateRange = selected;
       _rangeAnchorDate = selected.start;
     });
+  }
+
+  Future<void> _deleteSale(LocalSalesHistoryEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete sale?'),
+        content: const Text(
+          'This will remove the sale, payment, and cash records. Product stock will be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Color(0xFFD9534F)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await ref.read(appDatabaseProvider).deleteSaleLocally(entry.id);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sale moved to recycle bin and stock restored.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 }
 
@@ -199,6 +247,7 @@ class _SalesHistoryList extends StatelessWidget {
     required this.onCustomRangeSelected,
     required this.onPreviousRange,
     required this.onNextRange,
+    required this.onDeleteSale,
     this.message,
   });
 
@@ -210,6 +259,7 @@ class _SalesHistoryList extends StatelessWidget {
   final VoidCallback onCustomRangeSelected;
   final VoidCallback onPreviousRange;
   final VoidCallback onNextRange;
+  final ValueChanged<LocalSalesHistoryEntry> onDeleteSale;
   final String? message;
 
   @override
@@ -237,7 +287,7 @@ class _SalesHistoryList extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.lg,
       ),
-      itemCount: filteredEntries.isEmpty ? 5 : filteredEntries.length + 4,
+      itemCount: filteredEntries.isEmpty ? 4 : filteredEntries.length + 3,
       separatorBuilder: (context, index) =>
           const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
@@ -265,12 +315,9 @@ class _SalesHistoryList extends StatelessWidget {
           );
         }
         if (index == 2) {
-          return const _SalesSearchBox();
-        }
-        if (index == 3) {
           return const _SectionTitle(title: 'সাম্প্রতিক লেনদেন');
         }
-        if (index == 4 && filteredEntries.isEmpty) {
+        if (index == 3 && filteredEntries.isEmpty) {
           return _EmptySalesHistoryCard(
             message:
                 message ??
@@ -278,7 +325,10 @@ class _SalesHistoryList extends StatelessWidget {
           );
         }
 
-        return _SalesHistoryItemCard(entry: filteredEntries[index - 4]);
+        return _SalesHistoryItemCard(
+          entry: filteredEntries[index - 3],
+          onDelete: onDeleteSale,
+        );
       },
     );
   }
@@ -550,34 +600,6 @@ class _SortChip extends StatelessWidget {
   }
 }
 
-class _SalesSearchBox extends StatelessWidget {
-  const _SalesSearchBox();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'অনুসন্ধান করুন (নাম, মোবাইল, রিসিপ্ট)',
-          prefixIcon: Icon(Icons.search_rounded),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          fillColor: Colors.transparent,
-        ),
-      ),
-    );
-  }
-}
-
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
 
@@ -622,9 +644,10 @@ class _EmptySalesHistoryCard extends StatelessWidget {
 }
 
 class _SalesHistoryItemCard extends StatelessWidget {
-  const _SalesHistoryItemCard({required this.entry});
+  const _SalesHistoryItemCard({required this.entry, required this.onDelete});
 
   final LocalSalesHistoryEntry entry;
+  final ValueChanged<LocalSalesHistoryEntry> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -739,14 +762,34 @@ class _SalesHistoryItemCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    entry.syncStatus == 'pending'
-                        ? 'সিঙ্ক বাকি'
-                        : 'সার্ভারে সিঙ্কড',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SalesIconButton(
+                        icon: Icons.visibility_rounded,
+                        color: AppColors.textSecondary,
+                        onPressed: () {
+                          context.push(
+                            AppRoutes.salesHistoryDetails,
+                            extra: entry.id,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      _SalesIconButton(
+                        icon: Icons.edit_rounded,
+                        color: AppColors.primary,
+                        onPressed: () {
+                          // TODO: edit functionality
+                        },
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      _SalesIconButton(
+                        icon: Icons.delete_outline_rounded,
+                        color: const Color(0xFFD9534F),
+                        onPressed: () => onDelete(entry),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1044,4 +1087,29 @@ String _bnNumber(Object value) {
     RegExp(r'\d'),
     (match) => digits[int.parse(match.group(0)!)],
   );
+}
+
+class _SalesIconButton extends StatelessWidget {
+  const _SalesIconButton({
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 38,
+      height: 38,
+      child: IconButton(
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: color, size: 21),
+      ),
+    );
+  }
 }

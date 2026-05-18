@@ -166,6 +166,7 @@ class SalesSyncService {
         'payment_method': bundle.sale.paymentMethod,
         'created_at': AppTime.isoUtc(bundle.sale.createdAt),
         'updated_at': AppTime.isoUtc(bundle.sale.updatedAt),
+        'deleted_at': AppTime.nullableIsoUtc(bundle.sale.deletedAt),
       },
       'items': [
         for (final item in bundle.items)
@@ -180,6 +181,7 @@ class SalesSyncService {
             'price': item.price,
             'created_at': AppTime.isoUtc(item.createdAt),
             'updated_at': AppTime.isoUtc(item.updatedAt),
+            'deleted_at': AppTime.nullableIsoUtc(item.deletedAt),
           },
       ],
       'payments': [
@@ -193,6 +195,7 @@ class SalesSyncService {
             'description': payment.description,
             'created_at': AppTime.isoUtc(payment.createdAt),
             'updated_at': AppTime.isoUtc(payment.updatedAt),
+            'deleted_at': AppTime.nullableIsoUtc(payment.deletedAt),
           },
       ],
       'cash_transactions': [
@@ -209,6 +212,7 @@ class SalesSyncService {
             'note': transaction.note,
             'created_at': AppTime.isoUtc(transaction.createdAt),
             'updated_at': AppTime.isoUtc(transaction.updatedAt),
+            'deleted_at': AppTime.nullableIsoUtc(transaction.deletedAt),
           },
       ],
     };
@@ -250,6 +254,7 @@ class SalesSyncService {
         paymentMethod: Value(_nullableString(json['payment_method'])),
         createdAt: Value(_dateTime(json['created_at'])),
         updatedAt: Value(_dateTime(json['updated_at'])),
+        deletedAt: Value(_nullableDateTime(json['deleted_at'])),
         syncStatus: const Value('synced'),
       ),
       items: [
@@ -266,6 +271,7 @@ class SalesSyncService {
               price: Value(_double(item['price'])),
               createdAt: Value(_dateTime(item['created_at'])),
               updatedAt: Value(_dateTime(item['updated_at'])),
+              deletedAt: Value(_nullableDateTime(item['deleted_at'])),
               syncStatus: const Value('synced'),
             ),
       ],
@@ -281,6 +287,7 @@ class SalesSyncService {
               description: Value(_nullableString(payment['description'])),
               createdAt: Value(_dateTime(payment['created_at'])),
               updatedAt: Value(_dateTime(payment['updated_at'])),
+              deletedAt: Value(_nullableDateTime(payment['deleted_at'])),
               syncStatus: const Value('synced'),
             ),
       ],
@@ -304,6 +311,7 @@ class SalesSyncService {
               note: Value(_nullableString(transaction['note'])),
               createdAt: Value(_dateTime(transaction['created_at'])),
               updatedAt: Value(_dateTime(transaction['updated_at'])),
+              deletedAt: Value(_nullableDateTime(transaction['deleted_at'])),
               syncStatus: const Value('synced'),
             ),
       ],

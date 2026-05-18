@@ -92,6 +92,7 @@ class SalesReturnSyncService {
         'note': bundle.saleReturn.note,
         'created_at': AppTime.isoUtc(bundle.saleReturn.createdAt),
         'updated_at': AppTime.isoUtc(bundle.saleReturn.updatedAt),
+        'deleted_at': AppTime.nullableIsoUtc(bundle.saleReturn.deletedAt),
       },
       'items': [
         for (final item in bundle.items)
@@ -107,6 +108,7 @@ class SalesReturnSyncService {
             'reason': item.reason,
             'created_at': AppTime.isoUtc(item.createdAt),
             'updated_at': AppTime.isoUtc(item.updatedAt),
+            'deleted_at': AppTime.nullableIsoUtc(item.deletedAt),
           },
       ],
       'cash_transactions': [
@@ -123,6 +125,7 @@ class SalesReturnSyncService {
             'note': transaction.note,
             'created_at': AppTime.isoUtc(transaction.createdAt),
             'updated_at': AppTime.isoUtc(transaction.updatedAt),
+            'deleted_at': AppTime.nullableIsoUtc(transaction.deletedAt),
           },
       ],
     };

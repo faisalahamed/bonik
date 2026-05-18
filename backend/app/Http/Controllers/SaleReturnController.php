@@ -62,6 +62,7 @@ class SaleReturnController extends Controller
             'sale_return.note' => ['nullable', 'string'],
             'sale_return.created_at' => ['nullable', 'date'],
             'sale_return.updated_at' => ['nullable', 'date'],
+            'sale_return.deleted_at' => ['nullable', 'date'],
 
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'uuid'],
@@ -75,6 +76,7 @@ class SaleReturnController extends Controller
             'items.*.reason' => ['nullable', 'string'],
             'items.*.created_at' => ['nullable', 'date'],
             'items.*.updated_at' => ['nullable', 'date'],
+            'items.*.deleted_at' => ['nullable', 'date'],
 
             'cash_transactions' => ['nullable', 'array'],
             'cash_transactions.*.id' => ['required', 'uuid'],
@@ -88,6 +90,7 @@ class SaleReturnController extends Controller
             'cash_transactions.*.note' => ['nullable', 'string'],
             'cash_transactions.*.created_at' => ['nullable', 'date'],
             'cash_transactions.*.updated_at' => ['nullable', 'date'],
+            'cash_transactions.*.deleted_at' => ['nullable', 'date'],
         ]);
 
         if ($validator->fails()) {
@@ -114,6 +117,7 @@ class SaleReturnController extends Controller
                     'note' => $returnData['note'] ?? null,
                     'created_at' => $returnData['created_at'] ?? now(),
                     'updated_at' => now(),
+                    'deleted_at' => $returnData['deleted_at'] ?? null,
                 ],
             );
 
@@ -132,6 +136,7 @@ class SaleReturnController extends Controller
                         'reason' => $item['reason'] ?? null,
                         'created_at' => $item['created_at'] ?? now(),
                         'updated_at' => now(),
+                        'deleted_at' => $item['deleted_at'] ?? null,
                     ],
                 );
             }
@@ -151,6 +156,7 @@ class SaleReturnController extends Controller
                         'note' => $cashTransaction['note'] ?? null,
                         'created_at' => $cashTransaction['created_at'] ?? now(),
                         'updated_at' => now(),
+                        'deleted_at' => $cashTransaction['deleted_at'] ?? null,
                     ],
                 );
             }
@@ -158,7 +164,11 @@ class SaleReturnController extends Controller
 
         return response()->json([
             'sale_return' => SaleReturn::query()
-                ->with(['items', 'cashTransactions'])
+                ->withTrashed()
+                ->with([
+                    'items' => fn ($query) => $query->withTrashed(),
+                    'cashTransactions' => fn ($query) => $query->withTrashed(),
+                ])
                 ->find($returnData['id']),
         ], 201);
     }

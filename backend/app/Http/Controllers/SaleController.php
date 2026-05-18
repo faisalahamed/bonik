@@ -69,6 +69,7 @@ class SaleController extends Controller
             'sale.payment_method' => ['nullable', 'string', 'max:255'],
             'sale.created_at' => ['nullable', 'date'],
             'sale.updated_at' => ['nullable', 'date'],
+            'sale.deleted_at' => ['nullable', 'date'],
 
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'uuid'],
@@ -81,6 +82,7 @@ class SaleController extends Controller
             'items.*.price' => ['required', 'numeric', 'min:0'],
             'items.*.created_at' => ['nullable', 'date'],
             'items.*.updated_at' => ['nullable', 'date'],
+            'items.*.deleted_at' => ['nullable', 'date'],
 
             'payments' => ['nullable', 'array'],
             'payments.*.id' => ['required', 'uuid'],
@@ -91,6 +93,7 @@ class SaleController extends Controller
             'payments.*.description' => ['nullable', 'string'],
             'payments.*.created_at' => ['nullable', 'date'],
             'payments.*.updated_at' => ['nullable', 'date'],
+            'payments.*.deleted_at' => ['nullable', 'date'],
 
             'cash_transactions' => ['nullable', 'array'],
             'cash_transactions.*.id' => ['required', 'uuid'],
@@ -104,6 +107,7 @@ class SaleController extends Controller
             'cash_transactions.*.note' => ['nullable', 'string'],
             'cash_transactions.*.created_at' => ['nullable', 'date'],
             'cash_transactions.*.updated_at' => ['nullable', 'date'],
+            'cash_transactions.*.deleted_at' => ['nullable', 'date'],
         ]);
 
         if ($validator->fails()) {
@@ -133,6 +137,7 @@ class SaleController extends Controller
                     'payment_method' => $saleData['payment_method'] ?? null,
                     'created_at' => $saleData['created_at'] ?? now(),
                     'updated_at' => now(),
+                    'deleted_at' => $saleData['deleted_at'] ?? null,
                 ],
             );
 
@@ -150,6 +155,7 @@ class SaleController extends Controller
                         'price' => $item['price'],
                         'created_at' => $item['created_at'] ?? now(),
                         'updated_at' => now(),
+                        'deleted_at' => $item['deleted_at'] ?? null,
                     ],
                 );
             }
@@ -166,6 +172,7 @@ class SaleController extends Controller
                         'description' => $payment['description'] ?? null,
                         'created_at' => $payment['created_at'] ?? now(),
                         'updated_at' => now(),
+                        'deleted_at' => $payment['deleted_at'] ?? null,
                     ],
                 );
             }
@@ -185,6 +192,7 @@ class SaleController extends Controller
                         'note' => $cashTransaction['note'] ?? null,
                         'created_at' => $cashTransaction['created_at'] ?? now(),
                         'updated_at' => now(),
+                        'deleted_at' => $cashTransaction['deleted_at'] ?? null,
                     ],
                 );
             }
@@ -192,7 +200,13 @@ class SaleController extends Controller
 
         return response()->json([
             'sale' => Sale::query()
-                ->with(['customer', 'items', 'payments', 'cashTransactions'])
+                ->withTrashed()
+                ->with([
+                    'customer',
+                    'items' => fn ($query) => $query->withTrashed(),
+                    'payments' => fn ($query) => $query->withTrashed(),
+                    'cashTransactions' => fn ($query) => $query->withTrashed(),
+                ])
                 ->find($saleData['id']),
         ], 201);
     }
