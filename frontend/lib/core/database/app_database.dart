@@ -2964,6 +2964,42 @@ final class AppDatabase extends _$AppDatabase {
     )..where((supplier) => supplier.id.equals(id))).getSingle();
   }
 
+  Future<void> updateSupplier({
+    required String id,
+    required String name,
+    String? mobile,
+    String? address,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Supplier name is required.');
+    }
+
+    await (update(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).write(
+      LocalSuppliersCompanion(
+        name: Value(trimmedName),
+        mobile: Value(_nullableTrimmed(mobile)),
+        address: Value(_nullableTrimmed(address)),
+        updatedAt: Value(AppTime.nowUtc()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> deleteSupplier(String id) async {
+    await (update(
+      localSuppliers,
+    )..where((supplier) => supplier.id.equals(id))).write(
+      LocalSuppliersCompanion(
+        deletedAt: Value(AppTime.nowUtc()),
+        updatedAt: Value(AppTime.nowUtc()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
   Future<LocalSupplier> getOrCreateDefaultSupplier() async {
     final currentUser = await getCurrentUser();
     if (currentUser == null) {
@@ -4144,6 +4180,42 @@ final class AppDatabase extends _$AppDatabase {
     return (select(
       localCustomers,
     )..where((customer) => customer.id.equals(id))).getSingle();
+  }
+
+  Future<void> updateCustomer({
+    required String id,
+    required String name,
+    String? phone,
+    String? address,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Customer name is required.');
+    }
+
+    await (update(
+      localCustomers,
+    )..where((customer) => customer.id.equals(id))).write(
+      LocalCustomersCompanion(
+        name: Value(trimmedName),
+        phone: Value(_nullableTrimmed(phone)),
+        address: Value(_nullableTrimmed(address)),
+        updatedAt: Value(AppTime.nowUtc()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    await (update(
+      localCustomers,
+    )..where((customer) => customer.id.equals(id))).write(
+      LocalCustomersCompanion(
+        deletedAt: Value(AppTime.nowUtc()),
+        updatedAt: Value(AppTime.nowUtc()),
+        syncStatus: const Value('pending'),
+      ),
+    );
   }
 
   Future<List<LocalAvailablePurchaseBatch>> getAvailablePurchaseBatches({
