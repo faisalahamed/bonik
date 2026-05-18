@@ -89,6 +89,7 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                         products: filteredProducts,
                         cartLines: cartLines,
                         onProductTap: _addToCart,
+                        onProductDecrease: _decreaseFromCart,
                       ),
                     ],
                   );
@@ -141,6 +142,16 @@ class _SalesPageState extends ConsumerState<SalesPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('স্টকের চেয়ে বেশি যোগ করা যাবে না')),
       );
+    }
+  }
+
+  void _decreaseFromCart(LocalSalesProduct product) {
+    final cartController = ref.read(salesCartProvider.notifier);
+    final quantity = cartController.quantityFor(product.id);
+    if (quantity <= 1) {
+      cartController.remove(product.id);
+    } else {
+      cartController.decrease(product.id);
     }
   }
 }
@@ -266,11 +277,13 @@ class _SalesProductList extends StatelessWidget {
     required this.products,
     required this.cartLines,
     required this.onProductTap,
+    required this.onProductDecrease,
   });
 
   final List<LocalSalesProduct> products;
   final List<SalesCartLine> cartLines;
   final ValueChanged<LocalSalesProduct> onProductTap;
+  final ValueChanged<LocalSalesProduct> onProductDecrease;
 
   @override
   Widget build(BuildContext context) {
@@ -287,6 +300,7 @@ class _SalesProductList extends StatelessWidget {
             product: product,
             selectedQuantity: _quantityFor(product.id),
             onTap: () => onProductTap(product),
+            onDecrease: () => onProductDecrease(product),
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -335,11 +349,13 @@ class _SalesProductCard extends StatelessWidget {
     required this.product,
     required this.selectedQuantity,
     required this.onTap,
+    required this.onDecrease,
   });
 
   final LocalSalesProduct product;
   final int selectedQuantity;
   final VoidCallback onTap;
+  final VoidCallback onDecrease;
 
   @override
   Widget build(BuildContext context) {
@@ -439,6 +455,28 @@ class _SalesProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(width: AppSpacing.sm),
+            if (isSelected)
+              Container(
+                width: 44,
+                height: 44,
+                margin: const EdgeInsets.only(right: AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEAEA),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onDecrease,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                    child: const Icon(
+                      Icons.remove_rounded,
+                      color: Color(0xFFC15151),
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
             Container(
               width: 44,
               height: 44,
@@ -447,7 +485,7 @@ class _SalesProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.md),
               ),
               child: Icon(
-                Icons.add_shopping_cart_rounded,
+                isSelected ? Icons.add_rounded : Icons.add_shopping_cart_rounded,
                 color: isSelected ? Colors.white : AppColors.primary,
                 size: 22,
               ),

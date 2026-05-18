@@ -416,7 +416,7 @@ class _PurchaseActionRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         _SmallActionIconButton(
-          icon: Icons.add_box_outlined,
+          icon: Icons.archive_outlined,
           onPressed: onNavigate,
         ),
       ],
@@ -568,7 +568,7 @@ class _CategoryCard extends StatelessWidget {
                 isSelected
                     ? Icons.check_circle_rounded
                     : Icons.chevron_right_rounded,
-                color: isSelected ? AppColors.textMuted : AppColors.primary,
+                color: AppColors.primary,
                 size: 28,
               ),
             ],

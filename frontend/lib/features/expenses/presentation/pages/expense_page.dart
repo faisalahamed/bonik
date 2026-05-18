@@ -239,11 +239,6 @@ class _ExpenseTopBar extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const Spacer(),
-              const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Colors.white,
-              ),
             ],
           ),
         ),
@@ -315,7 +310,7 @@ class _ExpenseSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'ব্যয়ের তালিকা',
+                    'খরচের খাতা',
                     style: textTheme.labelMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -422,7 +417,7 @@ class _ExpenseActionRow extends StatelessWidget {
 
         const SizedBox(width: AppSpacing.sm),
         _SmallActionIconButton(
-          icon: Icons.add_box_outlined,
+          icon: Icons.archive_outlined,
           onPressed: () => context.push(AppRoutes.expenseCategories),
         ),
       ],
@@ -531,11 +526,6 @@ class _ExpenseCategoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.primary.withValues(alpha: 0.5),
-                size: 28,
-              ),
             ],
           ),
         ),
@@ -689,8 +679,8 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               controller: _nameController,
               autofocus: true,
               decoration: InputDecoration(
-                labelText: 'ক্যাটাগরির নাম',
-                hintText: 'উদা: ইলেকট্রনিক্স',
+                labelText: 'খরচের নাম',
+                hintText: 'উদাঃ  বেতন, ভাড়া, বিদ্যুৎ বিল ইত্যাদি',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
@@ -702,8 +692,9 @@ class _AddCategoryDialogState extends State<_AddCategoryDialog> {
               controller: _detailsController,
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: 'বিস্তারিত (ঐচ্ছিক)',
-                hintText: 'ক্যাটাগরি সম্পর্কে কিছু লিখুন...',
+                labelText: 'নোট (ঐচ্ছিক)',
+                hintText:
+                    'এখানে আপনি খরচের খাত সম্পর্কে অতিরিক্ত তথ্য দিতে পারেন',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),

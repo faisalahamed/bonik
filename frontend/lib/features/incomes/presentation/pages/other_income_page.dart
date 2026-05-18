@@ -52,22 +52,20 @@ class _OtherIncomePageState extends ConsumerState<OtherIncomePage> {
     if (draft == null || draft.name.trim().isEmpty) return;
 
     try {
-      await ref.read(appDatabaseProvider).createIncomeCategory(
-            draft.name,
-            details: draft.details,
-          );
+      await ref
+          .read(appDatabaseProvider)
+          .createIncomeCategory(draft.name, details: draft.details);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('নতুন আয়ের খাত যোগ করা হয়েছে')),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('এরর: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('এরর: $error')));
     }
   }
-
 
   String get _sortModeLabel {
     switch (_sortMode) {
@@ -86,10 +84,8 @@ class _OtherIncomePageState extends ConsumerState<OtherIncomePage> {
     final filtered = _query.isEmpty
         ? List<LocalCategory>.of(categories)
         : categories
-            .where(
-              (item) => item.name.toLowerCase().contains(_query),
-            )
-            .toList();
+              .where((item) => item.name.toLowerCase().contains(_query))
+              .toList();
 
     filtered.sort((a, b) {
       switch (_sortMode) {
@@ -187,7 +183,8 @@ class _OtherIncomePageState extends ConsumerState<OtherIncomePage> {
                       ],
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (error, stackTrace) => ListView(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     children: [
@@ -222,28 +219,32 @@ class _OtherIncomeTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppGradients.primaryButton,
+        boxShadow: AppShadows.soft,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: () => context.pop(),
                 icon: const Icon(
                   Icons.arrow_back_rounded,
-                  color: AppColors.primary,
+                  color: Colors.white,
+                  size: 28,
                 ),
               ),
-              Expanded(
-                child: Text(
-                  'আয় যোগ করুন',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'আয় যোগ করুন',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -277,17 +278,17 @@ class _IncomeSummaryCard extends StatelessWidget {
                 Text(
                   'আজকের মোট আয়',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   '${total.toStringAsFixed(0)}৳',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -317,9 +318,9 @@ class _IncomeSummaryCard extends StatelessWidget {
                   Text(
                     'আয়ের তালিকা',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -410,9 +411,9 @@ class _OtherIncomeActionRow extends StatelessWidget {
                   Text(
                     'নতুন আয়ের খাত',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -421,7 +422,7 @@ class _OtherIncomeActionRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         _SmallActionIconButton(
-          icon: Icons.add_box_outlined,
+          icon: Icons.archive_outlined,
           onPressed: () => context.push(AppRoutes.otherIncomeCategories),
         ),
       ],
@@ -441,9 +442,9 @@ class _SortStatusLabel extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textMuted,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -490,19 +491,16 @@ class _EmptyIncomeCategoryCard extends StatelessWidget {
         message,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 }
 
 class _IncomeCategoryCard extends StatelessWidget {
-  const _IncomeCategoryCard({
-    required this.name,
-    required this.onTap,
-  });
+  const _IncomeCategoryCard({required this.name, required this.onTap});
 
   final String name;
   final VoidCallback onTap;
