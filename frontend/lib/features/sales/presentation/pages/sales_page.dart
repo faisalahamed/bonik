@@ -51,7 +51,70 @@ class _SalesPageState extends ConsumerState<SalesPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const AuthTopBar(title: 'বিক্রি করুন'),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: AppGradients.primaryButton,
+          ),
+        ),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            IconButton(
+              onPressed: () => context.pop(),
+              color: AppColors.onPrimary,
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            Expanded(
+              child: Text(
+                'বিক্রি করুন',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.onPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => context.push(AppRoutes.salesCart),
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.shopping_cart_rounded,
+                  color: Colors.white,
+                ),
+                if (cartController.itemCount > 0)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFC15151),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _bnNumber(cartController.itemCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+      ),
       body: SafeArea(
         top: false,
         child: Stack(
@@ -603,45 +666,7 @@ class _SalesBottomBar extends StatelessWidget {
                   ],
                 ),
               ),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    margin: const EdgeInsets.only(right: AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                    ),
-                    child: const Icon(
-                      Icons.shopping_cart_rounded,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Positioned(
-                    right: 4,
-                    top: -2,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0B5F52),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _bnNumber(itemCount),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+
               InkWell(
                 onTap: () => context.push(AppRoutes.salesCart),
                 borderRadius: BorderRadius.circular(AppRadii.md),

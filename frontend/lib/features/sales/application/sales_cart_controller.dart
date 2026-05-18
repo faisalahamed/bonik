@@ -85,6 +85,24 @@ class SalesCartController extends Notifier<List<SalesCartLine>> {
     ];
   }
 
+  void updateQuantity(String productId, int quantity) {
+    if (quantity < 1) {
+      remove(productId);
+      return;
+    }
+    state = [
+      for (final line in state)
+        if (line.product.id == productId)
+          line.copyWith(
+            quantity: quantity > line.product.stockQuantity
+                ? line.product.stockQuantity
+                : quantity,
+          )
+        else
+          line,
+    ];
+  }
+
   void updateUnitPrice(String productId, double unitPrice) {
     final normalizedPrice = unitPrice < 0 ? 0.0 : unitPrice;
     state = [

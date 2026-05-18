@@ -107,6 +107,8 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
                                 cartController.increase(line.product.id),
                             onDecrease: () =>
                                 cartController.decrease(line.product.id),
+                            onQuantityChanged: (quantity) => cartController
+                                .updateQuantity(line.product.id, quantity),
                             onUnitPriceChanged: (unitPrice) => cartController
                                 .updateUnitPrice(line.product.id, unitPrice),
                             onRemove: () =>
@@ -350,6 +352,7 @@ class _CartReviewItem extends StatelessWidget {
     required this.line,
     required this.onIncrease,
     required this.onDecrease,
+    required this.onQuantityChanged,
     required this.onUnitPriceChanged,
     required this.onRemove,
   });
@@ -357,6 +360,7 @@ class _CartReviewItem extends StatelessWidget {
   final SalesCartLine line;
   final VoidCallback onIncrease;
   final VoidCallback onDecrease;
+  final ValueChanged<int> onQuantityChanged;
   final ValueChanged<double> onUnitPriceChanged;
   final VoidCallback onRemove;
 
@@ -456,6 +460,7 @@ class _CartReviewItem extends StatelessWidget {
                         quantity: line.quantity,
                         onIncrease: onIncrease,
                         onDecrease: onDecrease,
+                        onChanged: onQuantityChanged,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -518,16 +523,49 @@ class _CartReviewItem extends StatelessWidget {
   }
 }
 
-class _QuantityCard extends StatelessWidget {
+class _QuantityCard extends StatefulWidget {
   const _QuantityCard({
     required this.quantity,
     required this.onIncrease,
     required this.onDecrease,
+    required this.onChanged,
   });
 
   final int quantity;
   final VoidCallback onIncrease;
   final VoidCallback onDecrease;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_QuantityCard> createState() => _QuantityCardState();
+}
+
+class _QuantityCardState extends State<_QuantityCard> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.quantity.toString());
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _QuantityCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_focusNode.hasFocus || oldWidget.quantity == widget.quantity) {
+      return;
+    }
+    _controller.text = widget.quantity.toString();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -557,27 +595,51 @@ class _QuantityCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               InkWell(
-                onTap: onDecrease,
+                onTap: widget.onDecrease,
                 borderRadius: BorderRadius.circular(99),
-                child: const Icon(
-                  Icons.remove,
-                  color: AppColors.textSecondary,
-                  size: 20,
+                child: const Padding(
+                  padding: EdgeInsets.all(6.0),
+                  child: Icon(
+                    Icons.remove,
+                    color: AppColors.textSecondary,
+                    size: 22,
+                  ),
                 ),
               ),
-              Text(
-                _bnNumber(quantity),
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: TextFormField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    onChanged: (value) => widget.onChanged(_readIntInput(value)),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    textAlign: TextAlign.center,
+                    textAlignVertical: TextAlignVertical.center,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                    ),
+                  ),
                 ),
               ),
               InkWell(
-                onTap: onIncrease,
+                onTap: widget.onIncrease,
                 borderRadius: BorderRadius.circular(99),
-                child: const Icon(
-                  Icons.add,
-                  color: AppColors.primary,
-                  size: 20,
+                child: const Padding(
+                  padding: EdgeInsets.all(6.0),
+                  child: Icon(
+                    Icons.add,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
                 ),
               ),
             ],
@@ -650,7 +712,7 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
           ),
           const SizedBox(height: AppSpacing.xs),
           SizedBox(
-            height: 28,
+            height: 36,
             child: TextFormField(
               controller: _controller,
               focusNode: _focusNode,
@@ -681,6 +743,10 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
 
 double _readMoneyInput(String value) {
   return double.tryParse(value.replaceAll(',', '').trim()) ?? 0;
+}
+
+int _readIntInput(String value) {
+  return int.tryParse(value.trim()) ?? 0;
 }
 
 class _CartSummaryCard extends StatelessWidget {

@@ -134,16 +134,10 @@ class _SalesPaymentPageState extends ConsumerState<SalesPaymentPage> {
                               onDateTap: _selectSaleDate,
                             ),
                             const SizedBox(height: AppSpacing.xl),
-                            _CustomerInfoCard(
-                              nameController: _customerNameController,
-                              mobileController: _customerMobileController,
-                            ),
 
-                            const SizedBox(height: AppSpacing.xl),
                             _SalesReceiptCard(
                               lines: cartLines,
                               total: grandTotal,
-                              onAddTap: () => context.pop(),
                             ),
                             const SizedBox(height: AppSpacing.md),
                             _SalesTransactionAccountCard(
@@ -1457,12 +1451,10 @@ class _SalesReceiptCard extends StatelessWidget {
   const _SalesReceiptCard({
     required this.lines,
     required this.total,
-    required this.onAddTap,
   });
 
   final List<SalesCartLine> lines;
   final double total;
-  final VoidCallback onAddTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1485,22 +1477,6 @@ class _SalesReceiptCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: onAddTap,
-                  icon: const Icon(
-                    Icons.add_circle_outline,
-                    size: 18,
-                    color: Color(0xFF00695C),
-                  ),
-                  label: const Text(
-                    'যোগ করুন',
-                    style: TextStyle(
-                      color: Color(0xFF00695C),
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                 ),
               ],
@@ -1693,69 +1669,6 @@ class CartItemsCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CustomerInfoCard extends StatelessWidget {
-  const _CustomerInfoCard({
-    required this.nameController,
-    required this.mobileController,
-  });
-
-  final TextEditingController nameController;
-  final TextEditingController mobileController;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        children: [
-          // Padding(
-          //   padding: const EdgeInsets.all(AppSpacing.lg),
-          //   child: Row(
-          //     children: [
-          //       const Icon(Icons.person_rounded, color: AppColors.primary),
-          //       const SizedBox(width: AppSpacing.sm),
-          //       Expanded(
-          //         child: Text(
-          //           'কাস্টমার তথ্য',
-          //           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          //             color: AppColors.textPrimary,
-          //             fontWeight: FontWeight.w800,
-          //           ),
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              children: [
-                _CustomerField(
-                  label: 'কাস্টমারের নাম',
-                  hintText: 'নাম লিখুন',
-                  controller: nameController,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _CustomerField(
-                  label: 'মোবাইল নম্বর',
-                  hintText: '01XXXXXXXXX',
-                  controller: mobileController,
-                  keyboardType: TextInputType.phone,
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
