@@ -3905,6 +3905,126 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Stream<List<LocalStockReportEntry>> watchStockReportForCurrentShop({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final hasDateRange = start != null && end != null;
+    final purchaseDateFilter = hasDateRange
+        ? 'AND pi.created_at >= ? AND pi.created_at < ?'
+        : '';
+    final salesDateFilter = hasDateRange
+        ? 'AND s.created_at >= ? AND s.created_at < ?'
+        : '';
+
+    return customSelect(
+      '''
+      WITH current_shop AS (
+        SELECT selected_shop_id AS shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
+      ),
+      purchase_rows AS (
+        SELECT
+          COALESCE(pi.category_id, pi.product_name) AS product_key,
+          pi.product_name,
+          COALESCE(c.name, 'পণ্য') AS category_name,
+          SUM(pi.quantity) AS stock_in_quantity,
+          SUM((pi.quantity * pi.buying_price) + pi.other_charge) AS purchase_total,
+          0 AS stock_out_quantity,
+          0.0 AS sales_total
+        FROM local_purchase_items pi
+        LEFT JOIN local_categories c ON c.id = pi.category_id
+        WHERE pi.shop_id IN (SELECT shop_id FROM current_shop)
+          AND pi.deleted_at IS NULL
+          $purchaseDateFilter
+        GROUP BY COALESCE(pi.category_id, pi.product_name), pi.product_name, c.name
+      ),
+      sale_rows AS (
+        SELECT
+          COALESCE(pi.category_id, si.product_id) AS product_key,
+          COALESCE(pi.product_name, 'পণ্য') AS product_name,
+          COALESCE(c.name, 'পণ্য') AS category_name,
+          0 AS stock_in_quantity,
+          0.0 AS purchase_total,
+          SUM(MAX(si.quantity - COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
+            WHERE sri.sale_item_id = si.id
+              AND sri.deleted_at IS NULL
+              AND sr.deleted_at IS NULL
+          ), 0), 0)) AS stock_out_quantity,
+          SUM(si.sale_price * MAX(si.quantity - COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
+            WHERE sri.sale_item_id = si.id
+              AND sri.deleted_at IS NULL
+              AND sr.deleted_at IS NULL
+          ), 0), 0)) AS sales_total
+        FROM local_sale_items si
+        INNER JOIN local_sales s ON s.id = si.order_id
+        LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
+        LEFT JOIN local_categories c ON c.id = pi.category_id
+        WHERE si.shop_id IN (SELECT shop_id FROM current_shop)
+          AND si.deleted_at IS NULL
+          AND s.deleted_at IS NULL
+          $salesDateFilter
+        GROUP BY COALESCE(pi.category_id, si.product_id), COALESCE(pi.product_name, 'পণ্য'), c.name
+      ),
+      combined AS (
+        SELECT * FROM purchase_rows
+        UNION ALL
+        SELECT * FROM sale_rows
+      )
+      SELECT
+        product_key,
+        product_name,
+        category_name,
+        COALESCE(SUM(stock_in_quantity), 0) AS stock_in_quantity,
+        COALESCE(SUM(stock_out_quantity), 0) AS stock_out_quantity,
+        COALESCE(SUM(purchase_total), 0.0) AS purchase_total,
+        COALESCE(SUM(sales_total), 0.0) AS sales_total
+      FROM combined
+      GROUP BY product_key, product_name, category_name
+      HAVING stock_in_quantity > 0 OR stock_out_quantity > 0
+      ORDER BY purchase_total DESC, sales_total DESC, product_name ASC
+      ''',
+      variables: hasDateRange
+          ? [
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+              Variable<DateTime>(start),
+              Variable<DateTime>(end),
+            ]
+          : const [],
+      readsFrom: {
+        localPurchaseItems,
+        localSaleItems,
+        localSales,
+        localSaleReturns,
+        localSaleReturnItems,
+        localCategories,
+        localSessions,
+      },
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalStockReportEntry(
+            productKey: row.read<String>('product_key'),
+            productName: row.read<String>('product_name'),
+            categoryName: row.read<String>('category_name'),
+            stockInQuantity: row.read<int>('stock_in_quantity'),
+            stockOutQuantity: row.read<int>('stock_out_quantity'),
+            purchaseTotal: row.read<double>('purchase_total'),
+            salesTotal: row.read<double>('sales_total'),
+          ),
+      ],
+    );
+  }
+
   Future<LocalCustomer> getOrCreateCustomer({
     required String shopId,
     required String name,
@@ -5531,4 +5651,24 @@ class LocalProductReportEntry {
   final int soldQuantity;
   final double salesTotal;
   final double profit;
+}
+
+class LocalStockReportEntry {
+  const LocalStockReportEntry({
+    required this.productKey,
+    required this.productName,
+    required this.categoryName,
+    required this.stockInQuantity,
+    required this.stockOutQuantity,
+    required this.purchaseTotal,
+    required this.salesTotal,
+  });
+
+  final String productKey;
+  final String productName;
+  final String categoryName;
+  final int stockInQuantity;
+  final int stockOutQuantity;
+  final double purchaseTotal;
+  final double salesTotal;
 }

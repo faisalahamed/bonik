@@ -1,16 +1,101 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_gradients.dart';
 import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_shadows.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/utils/app_time.dart';
 
-class StockReportPage extends StatelessWidget {
+enum _StockReportPeriod { day, month, year, allTime, custom }
+
+class _StockReportDateRange {
+  const _StockReportDateRange({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+}
+
+final _stockReportPeriodProvider = StateProvider<_StockReportPeriod>(
+  (ref) => _StockReportPeriod.month,
+);
+
+final _stockReportAnchorDateProvider = StateProvider<DateTime>(
+  (ref) => DateTime.now(),
+);
+
+final _stockReportCustomDateRangeProvider = StateProvider<DateTimeRange?>(
+  (ref) => null,
+);
+
+final _stockReportSearchProvider = StateProvider<String>((ref) => '');
+
+final _stockReportDateRangeProvider = Provider<_StockReportDateRange?>((ref) {
+  final period = ref.watch(_stockReportPeriodProvider);
+  final anchor = ref.watch(_stockReportAnchorDateProvider).toLocal();
+  final customRange = ref.watch(_stockReportCustomDateRangeProvider);
+
+  switch (period) {
+    case _StockReportPeriod.day:
+      final start = DateTime(anchor.year, anchor.month, anchor.day);
+      return _StockReportDateRange(
+        start: start.toUtc(),
+        end: start.add(const Duration(days: 1)).toUtc(),
+      );
+    case _StockReportPeriod.month:
+      final start = DateTime(anchor.year, anchor.month);
+      final end = DateTime(anchor.year, anchor.month + 1);
+      return _StockReportDateRange(start: start.toUtc(), end: end.toUtc());
+    case _StockReportPeriod.year:
+      final start = DateTime(anchor.year);
+      final end = DateTime(anchor.year + 1);
+      return _StockReportDateRange(start: start.toUtc(), end: end.toUtc());
+    case _StockReportPeriod.allTime:
+      return null;
+    case _StockReportPeriod.custom:
+      if (customRange == null) {
+        return null;
+      }
+      final start = DateTime(
+        customRange.start.year,
+        customRange.start.month,
+        customRange.start.day,
+      );
+      final end = DateTime(
+        customRange.end.year,
+        customRange.end.month,
+        customRange.end.day,
+      ).add(const Duration(days: 1));
+      return _StockReportDateRange(start: start.toUtc(), end: end.toUtc());
+  }
+});
+
+final _stockReportProvider = StreamProvider<List<LocalStockReportEntry>>((ref) {
+  final range = ref.watch(_stockReportDateRangeProvider);
+  return ref
+      .watch(appDatabaseProvider)
+      .watchStockReportForCurrentShop(start: range?.start, end: range?.end);
+});
+
+class StockReportPage extends ConsumerWidget {
   const StockReportPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entries = ref.watch(_stockReportProvider).valueOrNull ?? const [];
+    final searchText = ref.watch(_stockReportSearchProvider).trim();
+    final visibleEntries = _filterEntries(entries, searchText);
+    final totalPurchase = entries.fold<double>(
+      0,
+      (sum, entry) => sum + entry.purchaseTotal,
+    );
+    final totalStockIn = entries.fold<int>(
+      0,
+      (sum, entry) => sum + entry.stockInQuantity,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -50,48 +135,35 @@ class StockReportPage extends StatelessWidget {
                     AppSpacing.md,
                     AppSpacing.xxl,
                   ),
-                  children: const [
-                    _StockReportHeroCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportDateCard(),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportFilters(),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportSearchBox(),
-                    SizedBox(height: AppSpacing.lg),
-                    _StockReportSectionHeader(),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportItemCard(
-                      indexLabel: '০১',
-                      title: 'ম্যাঙ্গোসুম (৫ পিস)',
-                      subtitle: 'ক্যাটাগরি: ফলমূল',
-                      stockInText: '৫৫০ টি',
-                      stockOutText: '১২০ টি',
-                      purchaseText: '৳ ৪৪,৯৯৯',
-                      salesText: '৳ ৮৮,২৯৯',
-                      expanded: true,
-                      highlightLeft: true,
+                  children: [
+                    _StockReportHeroCard(
+                      totalPurchase: totalPurchase,
+                      totalStockIn: totalStockIn,
                     ),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportItemCard(
-                      indexLabel: '০২',
-                      title: 'টেস্ট প্রজেক্ট ১',
-                      subtitle: 'ক্যাটাগরি: সেরামিক',
-                      stockInText: '৩০০ টি',
-                      stockOutText: '৮৫ টি',
-                      purchaseText: '৳ ১০,০০০.০০',
-                      salesText: '৳ ২৫,০০০.০০',
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _StockReportItemCard(
-                      indexLabel: '০৩',
-                      title: 'প্রিমিয়াম হার্ডওয়্যার',
-                      subtitle: 'ক্যাটাগরি: স্যানিটারি',
-                      stockInText: '১৫০ টি',
-                      stockOutText: '৪৫ টি',
-                      purchaseText: '৳ ১৮,৪০০.০০',
-                      salesText: '৳ ৩২,৭০০.০০',
-                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const _StockReportDateCard(),
+                    const SizedBox(height: AppSpacing.md),
+                    const _StockReportFilters(),
+                    const SizedBox(height: AppSpacing.md),
+                    const _StockReportSearchBox(),
+                    const SizedBox(height: AppSpacing.lg),
+                    const _StockReportSectionHeader(),
+                    const SizedBox(height: AppSpacing.md),
+                    if (visibleEntries.isEmpty)
+                      const _StockReportEmptyCard()
+                    else
+                      for (var i = 0; i < visibleEntries.length; i++) ...[
+                        _StockReportItemCard(
+                          indexLabel: _bnNumber(
+                            (i + 1).toString().padLeft(2, '0'),
+                          ),
+                          entry: visibleEntries[i],
+                          expanded: i == 0,
+                          highlightLeft: i == 0,
+                        ),
+                        if (i != visibleEntries.length - 1)
+                          const SizedBox(height: AppSpacing.md),
+                      ],
                   ],
                 ),
               ],
@@ -129,9 +201,9 @@ class _StockReportTopBar extends StatelessWidget {
                   child: Text(
                     'স্টক রিপোর্ট',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -150,11 +222,19 @@ class _StockReportTopBar extends StatelessWidget {
   }
 }
 
-class _StockReportDateCard extends StatelessWidget {
+class _StockReportDateCard extends ConsumerWidget {
   const _StockReportDateCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(_stockReportPeriodProvider);
+    final anchorDate = ref.watch(_stockReportAnchorDateProvider);
+    final customRange = ref.watch(_stockReportCustomDateRangeProvider);
+    final label = _rangeLabel(period, anchorDate, customRange);
+    final canNavigate =
+        period != _StockReportPeriod.allTime &&
+        period != _StockReportPeriod.custom;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -167,22 +247,37 @@ class _StockReportDateCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.chevron_left_rounded,
-            color: Colors.white,
+          GestureDetector(
+            onTap: canNavigate ? () => _moveRange(ref, -1) : null,
+            child: SizedBox(
+              width: 36,
+              height: 48,
+              child: Icon(
+                Icons.chevron_left_rounded,
+                color: canNavigate ? Colors.white : Colors.white38,
+              ),
+            ),
           ),
-          const Spacer(),
-          Text(
-            '০১ জানুয়ারি, ২০ - ০৫ এপ্রিল, ২৪',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+          Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const Spacer(),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: Colors.white,
+          GestureDetector(
+            onTap: canNavigate ? () => _moveRange(ref, 1) : null,
+            child: SizedBox(
+              width: 36,
+              height: 48,
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: canNavigate ? Colors.white : Colors.white38,
+              ),
+            ),
           ),
         ],
       ),
@@ -191,7 +286,13 @@ class _StockReportDateCard extends StatelessWidget {
 }
 
 class _StockReportHeroCard extends StatelessWidget {
-  const _StockReportHeroCard();
+  const _StockReportHeroCard({
+    required this.totalPurchase,
+    required this.totalStockIn,
+  });
+
+  final double totalPurchase;
+  final int totalStockIn;
 
   @override
   Widget build(BuildContext context) {
@@ -208,17 +309,17 @@ class _StockReportHeroCard extends StatelessWidget {
           Text(
             'স্টক সামারি (মোট কেনা)',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.white.withOpacity(0.8),
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Colors.white.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '৳ ১,৪৫,৬১৭.০০',
+            _money(totalPurchase),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
@@ -227,15 +328,15 @@ class _StockReportHeroCard extends StatelessWidget {
               vertical: 6,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              '২২৪টি পণ্য',
+              '${_bnNumber(totalStockIn)}টি পণ্য',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -244,22 +345,51 @@ class _StockReportHeroCard extends StatelessWidget {
   }
 }
 
-class _StockReportFilters extends StatelessWidget {
+class _StockReportFilters extends ConsumerWidget {
   const _StockReportFilters();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedPeriod = ref.watch(_stockReportPeriodProvider);
+
     return Row(
-      children: const [
-        Expanded(child: _StockReportChip(label: 'দিন', active: true)),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _StockReportChip(label: 'মাস')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _StockReportChip(label: 'বছর')),
-        SizedBox(width: AppSpacing.sm),
-        Expanded(child: _StockReportChip(label: 'সব সময়')),
-        SizedBox(width: AppSpacing.sm),
-        _StockReportFilterAction(),
+      children: [
+        Expanded(
+          child: _StockReportChip(
+            label: 'দিন',
+            active: selectedPeriod == _StockReportPeriod.day,
+            onTap: () => _selectPeriod(ref, _StockReportPeriod.day),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _StockReportChip(
+            label: 'মাস',
+            active: selectedPeriod == _StockReportPeriod.month,
+            onTap: () => _selectPeriod(ref, _StockReportPeriod.month),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _StockReportChip(
+            label: 'বছর',
+            active: selectedPeriod == _StockReportPeriod.year,
+            onTap: () => _selectPeriod(ref, _StockReportPeriod.year),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _StockReportChip(
+            label: 'সব সময়',
+            active: selectedPeriod == _StockReportPeriod.allTime,
+            onTap: () => _selectPeriod(ref, _StockReportPeriod.allTime),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _StockReportFilterAction(
+          active: selectedPeriod == _StockReportPeriod.custom,
+          onTap: () => _pickCustomDateRange(context, ref),
+        ),
       ],
     );
   }
@@ -269,71 +399,86 @@ class _StockReportChip extends StatelessWidget {
   const _StockReportChip({
     required this.label,
     this.active = false,
+    this.onTap,
   });
 
   final String label;
   final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: active ? AppGradients.primaryButton : null,
-        color: active ? null : AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: active ? AppGradients.primaryButton : null,
+          color: active ? null : AppColors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: active ? Colors.white : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
       ),
     );
   }
 }
 
 class _StockReportFilterAction extends StatelessWidget {
-  const _StockReportFilterAction();
+  const _StockReportFilterAction({required this.active, required this.onTap});
+
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 62,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.tune_rounded,
-            size: 18,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(width: 2),
-          Text(
-            'ক্যা',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 62,
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: active ? AppGradients.primaryButton : null,
+          color: active ? null : AppColors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_month_rounded,
+              size: 18,
+              color: active ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              'কাস্টম',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: active ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StockReportSearchBox extends StatelessWidget {
+class _StockReportSearchBox extends ConsumerWidget {
   const _StockReportSearchBox();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -343,8 +488,10 @@ class _StockReportSearchBox extends StatelessWidget {
         color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadii.lg),
       ),
-      child: const TextField(
-        decoration: InputDecoration(
+      child: TextField(
+        onChanged: (value) =>
+            ref.read(_stockReportSearchProvider.notifier).state = value,
+        decoration: const InputDecoration(
           hintText: 'পণ্য খুঁজুন...',
           prefixIcon: Icon(Icons.search_rounded),
           border: InputBorder.none,
@@ -376,9 +523,9 @@ class _StockReportSectionHeader extends StatelessWidget {
           child: Text(
             'পণ্যের তালিকা',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -389,23 +536,13 @@ class _StockReportSectionHeader extends StatelessWidget {
 class _StockReportItemCard extends StatelessWidget {
   const _StockReportItemCard({
     required this.indexLabel,
-    required this.title,
-    required this.subtitle,
-    required this.stockInText,
-    required this.stockOutText,
-    required this.purchaseText,
-    required this.salesText,
+    required this.entry,
     this.expanded = false,
     this.highlightLeft = false,
   });
 
   final String indexLabel;
-  final String title;
-  final String subtitle;
-  final String stockInText;
-  final String stockOutText;
-  final String purchaseText;
-  final String salesText;
+  final LocalStockReportEntry entry;
   final bool expanded;
   final bool highlightLeft;
 
@@ -436,11 +573,11 @@ class _StockReportItemCard extends StatelessWidget {
                   child: Text(
                     indexLabel,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: highlightLeft
-                              ? AppColors.primaryContainer
-                              : AppColors.textMuted,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: highlightLeft
+                          ? AppColors.primaryContainer
+                          : AppColors.textMuted,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -449,16 +586,18 @@ class _StockReportItemCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        entry.productName,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        'ক্যাটাগরি: ${entry.categoryName}',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
                               color: AppColors.textMuted,
                               fontWeight: FontWeight.w600,
                             ),
@@ -496,21 +635,17 @@ class _StockReportItemCard extends StatelessWidget {
                   Expanded(
                     child: _StockSummaryCell(
                       label: 'স্টকড',
-                      quantity: '৮৫০ টি',
-                      value: '৳ ৮৪,২৯৯',
+                      quantity: '${_bnNumber(entry.stockInQuantity)} টি',
+                      value: _money(entry.purchaseTotal),
                       valueColor: Colors.white70,
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 56,
-                    color: Colors.white12,
-                  ),
+                  Container(width: 1, height: 56, color: Colors.white12),
                   Expanded(
                     child: _StockSummaryCell(
                       label: 'বেচাকৃত',
-                      quantity: '২০৫ টি',
-                      value: '৳ ৩৪,৯১৯',
+                      quantity: '${_bnNumber(entry.stockOutQuantity)} টি',
+                      value: _money(entry.salesTotal),
                       valueColor: Colors.white70,
                       alignEnd: true,
                     ),
@@ -530,8 +665,8 @@ class _StockReportItemCard extends StatelessWidget {
                 Expanded(
                   child: _StockMetricText(
                     label: 'স্টক হয়েছে',
-                    quantity: stockInText,
-                    value: purchaseText,
+                    quantity: '${_bnNumber(entry.stockInQuantity)} টি',
+                    value: _money(entry.purchaseTotal),
                     quantityColor: AppColors.primary,
                     valueColor: AppColors.primary,
                   ),
@@ -540,8 +675,8 @@ class _StockReportItemCard extends StatelessWidget {
                 Expanded(
                   child: _StockMetricText(
                     label: 'স্টক বের হয়েছে',
-                    quantity: stockOutText,
-                    value: salesText,
+                    quantity: '${_bnNumber(entry.stockOutQuantity)} টি',
+                    value: _money(entry.salesTotal),
                     quantityColor: const Color(0xFFD9534F),
                     valueColor: const Color(0xFFD9534F),
                     alignEnd: true,
@@ -576,31 +711,32 @@ class _StockMetricText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           quantity,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: quantityColor,
-                fontWeight: FontWeight.w800,
-              ),
+            color: quantityColor,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: valueColor,
-                fontWeight: FontWeight.w700,
-              ),
+            color: valueColor,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -625,33 +761,189 @@ class _StockSummaryCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: const Color(0xFF7FE4C2),
-                fontWeight: FontWeight.w700,
-              ),
+            color: const Color(0xFF7FE4C2),
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           quantity,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: valueColor,
-                fontWeight: FontWeight.w600,
-              ),
+            color: valueColor,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
   }
 }
+
+class _StockReportEmptyCard extends StatelessWidget {
+  const _StockReportEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Text(
+        'এই সময়সীমায় কোনো স্টক তথ্য নেই',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+List<LocalStockReportEntry> _filterEntries(
+  List<LocalStockReportEntry> entries,
+  String searchText,
+) {
+  final query = searchText.toLowerCase();
+  final filtered = query.isEmpty
+      ? [...entries]
+      : entries
+            .where(
+              (entry) =>
+                  entry.productName.toLowerCase().contains(query) ||
+                  entry.categoryName.toLowerCase().contains(query),
+            )
+            .toList();
+  filtered.sort((a, b) {
+    final purchaseCompare = b.purchaseTotal.compareTo(a.purchaseTotal);
+    if (purchaseCompare != 0) {
+      return purchaseCompare;
+    }
+    return b.salesTotal.compareTo(a.salesTotal);
+  });
+  return filtered;
+}
+
+void _selectPeriod(WidgetRef ref, _StockReportPeriod period) {
+  ref.read(_stockReportPeriodProvider.notifier).state = period;
+  if (period != _StockReportPeriod.custom) {
+    ref.read(_stockReportCustomDateRangeProvider.notifier).state = null;
+  }
+}
+
+void _moveRange(WidgetRef ref, int direction) {
+  final period = ref.read(_stockReportPeriodProvider);
+  final anchor = ref.read(_stockReportAnchorDateProvider).toLocal();
+
+  final next = switch (period) {
+    _StockReportPeriod.day => anchor.add(Duration(days: direction)),
+    _StockReportPeriod.month => DateTime(anchor.year, anchor.month + direction),
+    _StockReportPeriod.year => DateTime(anchor.year + direction, anchor.month),
+    _StockReportPeriod.allTime => anchor,
+    _StockReportPeriod.custom => anchor,
+  };
+
+  ref.read(_stockReportAnchorDateProvider.notifier).state = next;
+}
+
+Future<void> _pickCustomDateRange(BuildContext context, WidgetRef ref) async {
+  final now = DateTime.now();
+  final currentRange = ref.read(_stockReportCustomDateRangeProvider);
+  final anchorDate = AppTime.toLocal(ref.read(_stockReportAnchorDateProvider));
+  final initialRange =
+      currentRange ?? DateTimeRange(start: anchorDate, end: anchorDate);
+  final pickedRange = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2000),
+    lastDate: DateTime(now.year + 10, 12, 31),
+    initialDateRange: initialRange,
+  );
+
+  if (pickedRange == null) {
+    return;
+  }
+
+  ref.read(_stockReportAnchorDateProvider.notifier).state = pickedRange.start;
+  ref.read(_stockReportCustomDateRangeProvider.notifier).state = pickedRange;
+  ref.read(_stockReportPeriodProvider.notifier).state =
+      _StockReportPeriod.custom;
+}
+
+String _rangeLabel(
+  _StockReportPeriod period,
+  DateTime anchorDate,
+  DateTimeRange? customRange,
+) {
+  final anchor = AppTime.toLocal(anchorDate);
+
+  switch (period) {
+    case _StockReportPeriod.day:
+      return _formatBanglaDate(anchor);
+    case _StockReportPeriod.month:
+      final start = DateTime(anchor.year, anchor.month);
+      final end = DateTime(anchor.year, anchor.month + 1, 0);
+      return '${_formatBanglaDate(start)} - ${_formatBanglaDate(end)}';
+    case _StockReportPeriod.year:
+      return '${_bnNumber(anchor.year)} সাল';
+    case _StockReportPeriod.allTime:
+      return 'সব সময়';
+    case _StockReportPeriod.custom:
+      if (customRange == null) {
+        return 'কাস্টম রেঞ্জ';
+      }
+      return '${_formatBanglaDate(customRange.start)} - '
+          '${_formatBanglaDate(customRange.end)}';
+  }
+}
+
+String _formatBanglaDate(DateTime date) {
+  return '${_bnNumber(date.day.toString().padLeft(2, '0'))} '
+      '${_banglaMonths[date.month - 1]}, ${_bnNumber(date.year)}';
+}
+
+String _money(double value) {
+  final fixed = value % 1 == 0
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  return '৳ ${_bnNumber(fixed)}';
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
+}
+
+const _banglaMonths = [
+  'জানুয়ারি',
+  'ফেব্রুয়ারি',
+  'মার্চ',
+  'এপ্রিল',
+  'মে',
+  'জুন',
+  'জুলাই',
+  'আগস্ট',
+  'সেপ্টেম্বর',
+  'অক্টোবর',
+  'নভেম্বর',
+  'ডিসেম্বর',
+];
