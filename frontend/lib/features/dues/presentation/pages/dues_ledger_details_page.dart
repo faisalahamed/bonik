@@ -391,14 +391,17 @@ class _DueHistoryHeader extends StatelessWidget {
   }
 }
 
-class _DueHistoryRow extends StatelessWidget {
+class _DueHistoryRow extends ConsumerWidget {
   const _DueHistoryRow({
+    required this.historyEntry,
     required this.dateMonth,
     required this.dateDay,
     required this.refText,
     this.receiving,
     this.giving,
     required this.balance,
+    this.saleId,
+    this.purchaseId,
   });
 
   factory _DueHistoryRow.fromEntry(
@@ -412,24 +415,30 @@ class _DueHistoryRow extends StatelessWidget {
     final givesColumn = ledger.isReceivable ? isInvoice : !isInvoice;
 
     return _DueHistoryRow(
+      historyEntry: row,
       dateMonth: _monthShort(row.createdAt.month),
       dateDay: _banglaNumber(row.createdAt.day.toString().padLeft(2, '0')),
       refText: _historyRef(row),
       receiving: receivesColumn ? '+${_moneyPlain(row.amount)}' : null,
       giving: givesColumn ? '-${_moneyPlain(row.amount)}' : null,
       balance: _money(row.balance),
+      saleId: row.sourceType == 'sale' ? row.id : null,
+      purchaseId: row.sourceType == 'purchase' ? row.id : null,
     );
   }
 
+  final LocalDueHistoryEntry historyEntry;
   final String dateMonth;
   final String dateDay;
   final String refText;
   final String? receiving;
   final String? giving;
   final String balance;
+  final String? saleId;
+  final String? purchaseId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
@@ -558,15 +567,217 @@ class _DueHistoryRow extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
-            children: const [
-              Icon(Icons.edit_rounded, color: AppColors.primary, size: 20),
-              SizedBox(width: AppSpacing.md),
-              Icon(Icons.delete_rounded, color: Color(0xFFD9534F), size: 20),
+            children: [
+              if (saleId != null)
+                TextButton.icon(
+                  onPressed: () => context.push(
+                    AppRoutes.salesHistoryDetails,
+                    extra: saleId,
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                  label: const Text('Details'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle: textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              if (purchaseId != null)
+                TextButton.icon(
+                  onPressed: () => context.push(
+                    AppRoutes.purchaseHistoryDetails,
+                    extra: purchaseId,
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                  label: const Text('Details'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle: textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              IconButton(
+                tooltip: 'Edit',
+                onPressed: () => _editHistoryEntry(context, ref),
+                icon: const Icon(
+                  Icons.edit_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Delete',
+                onPressed: () => _deleteHistoryEntry(context, ref),
+                icon: const Icon(
+                  Icons.delete_rounded,
+                  color: Color(0xFFD9534F),
+                  size: 20,
+                ),
+              ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _editHistoryEntry(BuildContext context, WidgetRef ref) async {
+    if (saleId != null) {
+      context.push(AppRoutes.salesHistoryDetails, extra: saleId);
+      return;
+    }
+    if (purchaseId != null) {
+      context.push(AppRoutes.purchaseHistoryDetails, extra: purchaseId);
+      return;
+    }
+
+    final amountController = TextEditingController(
+      text: historyEntry.amount.toStringAsFixed(
+        historyEntry.amount.truncateToDouble() == historyEntry.amount ? 0 : 2,
+      ),
+    );
+    final noteController = TextEditingController(text: historyEntry.note ?? '');
+    var selectedDate = historyEntry.createdAt.toLocal();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit payment'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Amount'),
+                  ),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(labelText: 'Note'),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        initialDate: selectedDate,
+                      );
+                      if (picked == null) {
+                        return;
+                      }
+                      setState(() {
+                        selectedDate = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          selectedDate.hour,
+                          selectedDate.minute,
+                        );
+                      });
+                    },
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    label: Text(_dateOnly(selectedDate)),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    final amountText = amountController.text.trim();
+    final noteText = noteController.text.trim();
+    amountController.dispose();
+    noteController.dispose();
+    if (saved != true || !context.mounted) {
+      return;
+    }
+
+    final amount = double.tryParse(amountText) ?? 0;
+    try {
+      await ref
+          .read(appDatabaseProvider)
+          .updateDueHistoryPayment(
+            entry: historyEntry,
+            amount: amount,
+            paymentDate: selectedDate,
+            note: noteText,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Payment updated')));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
+  }
+
+  Future<void> _deleteHistoryEntry(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete entry?'),
+        content: const Text('This will remove the selected ledger entry.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD9534F),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      await ref.read(appDatabaseProvider).deleteDueHistoryEntry(historyEntry);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Entry deleted')));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 }
 
@@ -694,6 +905,13 @@ String _monthShort(int month) {
     'DEC',
   ];
   return months[month - 1];
+}
+
+String _dateOnly(DateTime date) {
+  final local = date.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-'
+      '${local.month.toString().padLeft(2, '0')}-'
+      '${local.day.toString().padLeft(2, '0')}';
 }
 
 String _initials(String name) {

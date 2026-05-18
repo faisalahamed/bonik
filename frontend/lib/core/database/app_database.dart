@@ -3426,18 +3426,23 @@ final class AppDatabase extends _$AppDatabase {
       SELECT *
       FROM (
         SELECT
-          s.id AS id,
+          s.customer_id AS id,
           'receivable' AS type,
           s.customer_id AS party_id,
           COALESCE(c.name, 'Walk-in Customer') AS name,
           COALESCE(c.phone, '') AS phone,
-          (s.total - COALESCE((
+          SUM(s.total - COALESCE((
             SELECT SUM(cp.payments)
             FROM local_customer_payments cp
             WHERE cp.order_id = s.id
+              AND cp.deleted_at IS NULL
           ), 0.0)) AS due_amount,
-          s.created_at AS created_at,
-          s.sync_status AS sync_status
+          MAX(s.created_at) AS created_at,
+          CASE
+            WHEN SUM(CASE WHEN s.sync_status != 'synced' THEN 1 ELSE 0 END) > 0
+              THEN 'pending'
+            ELSE 'synced'
+          END AS sync_status
         FROM local_sales s
         LEFT JOIN local_customers c ON c.id = s.customer_id
         WHERE s.shop_id IN (
@@ -3446,22 +3451,29 @@ final class AppDatabase extends _$AppDatabase {
           WHERE id = 'singleton'
             AND is_authenticated = 1
         )
+          AND s.deleted_at IS NULL
+        GROUP BY s.customer_id, c.name, c.phone
 
         UNION ALL
 
         SELECT
-          p.id AS id,
+          p.supplier_id AS id,
           'payable' AS type,
           p.supplier_id AS party_id,
           COALESCE(sup.name, 'সাপ্লায়ার') AS name,
           COALESCE(sup.mobile, '') AS phone,
-          (p.total - COALESCE((
+          SUM(p.total - COALESCE((
             SELECT SUM(pp.payments)
             FROM local_purchase_payments pp
             WHERE pp.purchase_id = p.id
+              AND pp.deleted_at IS NULL
           ), 0.0)) AS due_amount,
-          p.created_at AS created_at,
-          p.sync_status AS sync_status
+          MAX(p.created_at) AS created_at,
+          CASE
+            WHEN SUM(CASE WHEN p.sync_status != 'synced' THEN 1 ELSE 0 END) > 0
+              THEN 'pending'
+            ELSE 'synced'
+          END AS sync_status
         FROM local_purchases p
         LEFT JOIN local_suppliers sup ON sup.id = p.supplier_id
         WHERE p.shop_id IN (
@@ -3470,6 +3482,8 @@ final class AppDatabase extends _$AppDatabase {
           WHERE id = 'singleton'
             AND is_authenticated = 1
         )
+          AND p.deleted_at IS NULL
+        GROUP BY p.supplier_id, sup.name, sup.mobile
       ) ledger
       WHERE due_amount > 0
       ORDER BY created_at DESC
@@ -3505,31 +3519,42 @@ final class AppDatabase extends _$AppDatabase {
   ) {
     final query = entry.isReceivable
         ? '''
-      SELECT id, total AS amount, created_at, 'sale' AS source_type
+      SELECT id, id AS parent_id, total AS amount, created_at, NULL AS note, 'sale' AS source_type
       FROM local_sales
-      WHERE id = ?
+      WHERE customer_id = ?
+        AND deleted_at IS NULL
 
       UNION ALL
 
-      SELECT id, payments AS amount, created_at, 'customer_payment' AS source_type
+      SELECT id, order_id AS parent_id, payments AS amount, created_at, description AS note, 'customer_payment' AS source_type
       FROM local_customer_payments
-      WHERE order_id = ?
+      WHERE customer_id = ?
+        AND deleted_at IS NULL
       '''
         : '''
-      SELECT id, total AS amount, created_at, 'purchase' AS source_type
+      SELECT id, id AS parent_id, total AS amount, created_at, NULL AS note, 'purchase' AS source_type
       FROM local_purchases
-      WHERE id = ?
+      WHERE supplier_id = ?
+        AND deleted_at IS NULL
 
       UNION ALL
 
-      SELECT id, payments AS amount, created_at, 'purchase_payment' AS source_type
+      SELECT id, purchase_id AS parent_id, payments AS amount, created_at, description AS note, 'purchase_payment' AS source_type
       FROM local_purchase_payments
-      WHERE purchase_id = ?
+      WHERE purchase_id IN (
+        SELECT id
+        FROM local_purchases
+        WHERE supplier_id = ?
+      )
+        AND deleted_at IS NULL
       ''';
 
     return customSelect(
       query,
-      variables: [Variable<String>(entry.id), Variable<String>(entry.id)],
+      variables: [
+        Variable<String>(entry.partyId),
+        Variable<String>(entry.partyId),
+      ],
       readsFrom: entry.isReceivable
           ? {localSales, localCustomerPayments}
           : {localPurchases, localPurchasePayments},
@@ -3538,9 +3563,11 @@ final class AppDatabase extends _$AppDatabase {
         for (final row in rows)
           LocalDueHistoryEntry(
             id: row.read<String>('id'),
+            parentId: row.read<String>('parent_id'),
             sourceType: row.read<String>('source_type'),
             amount: row.read<double>('amount'),
             createdAt: row.read<DateTime>('created_at'),
+            note: row.readNullable<String>('note'),
           ),
       ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
@@ -3574,9 +3601,16 @@ final class AppDatabase extends _$AppDatabase {
       throw StateError('দেনার চেয়ে বেশি টাকা দেয়া যাবে না।');
     }
 
-    final purchase = await (select(
-      localPurchases,
-    )..where((table) => table.id.equals(entry.id))).getSingleOrNull();
+    final purchase =
+        await (select(localPurchases)
+              ..where(
+                (table) =>
+                    table.supplierId.equals(entry.partyId) &
+                    table.deletedAt.isNull(),
+              )
+              ..orderBy([(table) => OrderingTerm.asc(table.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
     if (purchase == null) {
       throw StateError('কেনার তথ্য পাওয়া যায়নি।');
     }
@@ -3617,7 +3651,7 @@ final class AppDatabase extends _$AppDatabase {
       );
       await (update(
         localPurchases,
-      )..where((table) => table.id.equals(entry.id))).write(
+      )..where((table) => table.id.equals(purchase.id))).write(
         LocalPurchasesCompanion(
           status: Value(
             amount >= entry.dueAmount ? 'completed' : purchase.status,
@@ -3645,9 +3679,16 @@ final class AppDatabase extends _$AppDatabase {
       throw StateError('পাওনার চেয়ে বেশি টাকা নেয়া যাবে না।');
     }
 
-    final sale = await (select(
-      localSales,
-    )..where((table) => table.id.equals(entry.id))).getSingleOrNull();
+    final sale =
+        await (select(localSales)
+              ..where(
+                (table) =>
+                    table.customerId.equals(entry.partyId) &
+                    table.deletedAt.isNull(),
+              )
+              ..orderBy([(table) => OrderingTerm.asc(table.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
     if (sale == null) {
       throw StateError('বিক্রির তথ্য পাওয়া যায়নি।');
     }
@@ -3689,7 +3730,7 @@ final class AppDatabase extends _$AppDatabase {
       );
       await (update(
         localSales,
-      )..where((table) => table.id.equals(entry.id))).write(
+      )..where((table) => table.id.equals(sale.id))).write(
         LocalSalesCompanion(
           status: Value(amount >= entry.dueAmount ? 'completed' : sale.status),
           updatedAt: Value(now),
@@ -3697,6 +3738,288 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
     });
+  }
+
+  Future<void> updateDueHistoryPayment({
+    required LocalDueHistoryEntry entry,
+    required double amount,
+    required DateTime paymentDate,
+    String? note,
+  }) async {
+    if (amount <= 0) {
+      throw StateError('Payment amount is required.');
+    }
+    final now = AppTime.nowUtc();
+    final createdAt = AppTime.toUtc(paymentDate);
+    final trimmedNote = _nullableTrimmed(note);
+
+    if (entry.sourceType == 'customer_payment') {
+      await transaction(() async {
+        await (update(
+          localCustomerPayments,
+        )..where((payment) => payment.id.equals(entry.id))).write(
+          LocalCustomerPaymentsCompanion(
+            payments: Value(amount),
+            description: Value(trimmedNote),
+            createdAt: Value(createdAt),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+        await _updateMatchingCashTransaction(
+          referenceId: entry.parentId,
+          type: 'customer_payment',
+          amount: amount,
+          note: trimmedNote,
+          createdAt: createdAt,
+          updatedAt: now,
+        );
+        await (update(
+          localSales,
+        )..where((sale) => sale.id.equals(entry.parentId))).write(
+          LocalSalesCompanion(
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+      });
+      return;
+    }
+
+    if (entry.sourceType == 'purchase_payment') {
+      await transaction(() async {
+        await (update(
+          localPurchasePayments,
+        )..where((payment) => payment.id.equals(entry.id))).write(
+          LocalPurchasePaymentsCompanion(
+            payments: Value(amount),
+            description: Value(trimmedNote),
+            createdAt: Value(createdAt),
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+        await _updateMatchingCashTransaction(
+          referenceId: entry.parentId,
+          type: 'purchase_payment',
+          amount: amount,
+          note: trimmedNote,
+          createdAt: createdAt,
+          updatedAt: now,
+        );
+        await (update(
+          localPurchases,
+        )..where((purchase) => purchase.id.equals(entry.parentId))).write(
+          LocalPurchasesCompanion(
+            updatedAt: Value(now),
+            syncStatus: const Value('pending'),
+          ),
+        );
+      });
+      return;
+    }
+
+    throw StateError('Only payment rows can be edited from this page.');
+  }
+
+  Future<void> deleteDueHistoryEntry(LocalDueHistoryEntry entry) async {
+    final now = AppTime.nowUtc();
+
+    await transaction(() async {
+      switch (entry.sourceType) {
+        case 'sale':
+          await (update(
+            localSales,
+          )..where((sale) => sale.id.equals(entry.id))).write(
+            LocalSalesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localSaleItems,
+          )..where((item) => item.orderId.equals(entry.id))).write(
+            LocalSaleItemsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localCustomerPayments,
+          )..where((payment) => payment.orderId.equals(entry.id))).write(
+            LocalCustomerPaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localCashTransactions,
+          )..where((tx) => tx.referenceId.equals(entry.id))).write(
+            LocalCashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          break;
+        case 'purchase':
+          await (update(
+            localPurchases,
+          )..where((purchase) => purchase.id.equals(entry.id))).write(
+            LocalPurchasesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localPurchaseItems,
+          )..where((item) => item.purchaseId.equals(entry.id))).write(
+            LocalPurchaseItemsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localPurchasePayments,
+          )..where((payment) => payment.purchaseId.equals(entry.id))).write(
+            LocalPurchasePaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await (update(
+            localCashTransactions,
+          )..where((tx) => tx.referenceId.equals(entry.id))).write(
+            LocalCashTransactionsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          break;
+        case 'customer_payment':
+          await (update(
+            localCustomerPayments,
+          )..where((payment) => payment.id.equals(entry.id))).write(
+            LocalCustomerPaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await _deleteMatchingCashTransaction(
+            referenceId: entry.parentId,
+            type: 'customer_payment',
+            now: now,
+          );
+          await (update(
+            localSales,
+          )..where((sale) => sale.id.equals(entry.parentId))).write(
+            LocalSalesCompanion(
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          break;
+        case 'purchase_payment':
+          await (update(
+            localPurchasePayments,
+          )..where((payment) => payment.id.equals(entry.id))).write(
+            LocalPurchasePaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          await _deleteMatchingCashTransaction(
+            referenceId: entry.parentId,
+            type: 'purchase_payment',
+            now: now,
+          );
+          await (update(
+            localPurchases,
+          )..where((purchase) => purchase.id.equals(entry.parentId))).write(
+            LocalPurchasesCompanion(
+              updatedAt: Value(now),
+              syncStatus: const Value('pending'),
+            ),
+          );
+          break;
+      }
+    });
+  }
+
+  Future<void> _updateMatchingCashTransaction({
+    required String referenceId,
+    required String type,
+    required double amount,
+    required String? note,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) async {
+    final existing =
+        await (select(localCashTransactions)
+              ..where(
+                (tx) =>
+                    tx.referenceId.equals(referenceId) &
+                    tx.type.equals(type) &
+                    tx.deletedAt.isNull(),
+              )
+              ..orderBy([(tx) => OrderingTerm.desc(tx.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
+
+    await (update(
+      localCashTransactions,
+    )..where((tx) => tx.id.equals(existing.id))).write(
+      LocalCashTransactionsCompanion(
+        amount: Value(amount),
+        note: Value(note),
+        createdAt: Value(createdAt),
+        updatedAt: Value(updatedAt),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  Future<void> _deleteMatchingCashTransaction({
+    required String referenceId,
+    required String type,
+    required DateTime now,
+  }) async {
+    final existing =
+        await (select(localCashTransactions)
+              ..where(
+                (tx) =>
+                    tx.referenceId.equals(referenceId) &
+                    tx.type.equals(type) &
+                    tx.deletedAt.isNull(),
+              )
+              ..orderBy([(tx) => OrderingTerm.desc(tx.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
+
+    await (update(
+      localCashTransactions,
+    )..where((tx) => tx.id.equals(existing.id))).write(
+      LocalCashTransactionsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
   }
 
   Stream<LocalSale?> watchSaleById(String id) {
@@ -5450,24 +5773,30 @@ class LocalDuesLedgerEntry {
 class LocalDueHistoryEntry {
   const LocalDueHistoryEntry({
     required this.id,
+    required this.parentId,
     required this.sourceType,
     required this.amount,
     required this.createdAt,
+    this.note,
     this.balance = 0,
   });
 
   final String id;
+  final String parentId;
   final String sourceType;
   final double amount;
   final DateTime createdAt;
+  final String? note;
   final double balance;
 
   LocalDueHistoryEntry copyWith({double? balance}) {
     return LocalDueHistoryEntry(
       id: id,
+      parentId: parentId,
       sourceType: sourceType,
       amount: amount,
       createdAt: createdAt,
+      note: note,
       balance: balance ?? this.balance,
     );
   }
