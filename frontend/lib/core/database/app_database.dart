@@ -1748,6 +1748,59 @@ final class AppDatabase extends _$AppDatabase {
     ).watchSingle().map((row) => row.read<double>('total'));
   }
 
+  Stream<List<LocalIncomeReportEntry>> watchIncomeReportForCurrentShop({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final hasDateRange = start != null && end != null;
+    final dateFilter = hasDateRange
+        ? 'AND i.created_at >= ? AND i.created_at < ?'
+        : '';
+
+    return customSelect(
+      '''
+      SELECT
+        i.id,
+        i.category_id,
+        COALESCE(c.name, 'আয়') AS category_name,
+        i.amount,
+        i.reason,
+        i.note,
+        i.created_at,
+        i.sync_status
+      FROM local_incomes i
+      LEFT JOIN local_categories c ON c.id = i.category_id
+      WHERE i.shop_id IN (
+        SELECT selected_shop_id
+        FROM local_sessions
+        WHERE id = 'singleton'
+          AND is_authenticated = 1
+      )
+        AND i.deleted_at IS NULL
+        $dateFilter
+      ORDER BY i.created_at DESC
+      ''',
+      variables: hasDateRange
+          ? [Variable<DateTime>(start), Variable<DateTime>(end)]
+          : const [],
+      readsFrom: {localIncomes, localCategories, localSessions},
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalIncomeReportEntry(
+            id: row.read<String>('id'),
+            categoryId: row.read<String>('category_id'),
+            categoryName: row.read<String>('category_name'),
+            amount: row.read<double>('amount'),
+            reason: row.readNullable<String>('reason'),
+            note: row.readNullable<String>('note'),
+            createdAt: row.read<DateTime>('created_at'),
+            syncStatus: row.read<String>('sync_status'),
+          ),
+      ],
+    );
+  }
+
   Stream<double> watchTodaySalesTotalForCurrentShop() {
     final start = AppTime.startOfLocalDayUtc();
     final end = AppTime.endOfLocalDayUtc();
@@ -3767,6 +3820,91 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Stream<List<LocalProductReportEntry>> watchProductReportForCurrentShop({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final hasDateRange = start != null && end != null;
+    final dateFilter = hasDateRange
+        ? 'AND s.created_at >= ? AND s.created_at < ?'
+        : '';
+
+    return customSelect(
+      '''
+      WITH sold_items AS (
+        SELECT
+          si.product_id,
+          COALESCE(pi.product_name, 'পণ্য') AS product_name,
+          si.quantity,
+          si.sale_price,
+          si.buy_price,
+          COALESCE((
+            SELECT SUM(sri.quantity)
+            FROM local_sale_return_items sri
+            INNER JOIN local_sale_returns sr ON sr.id = sri.return_id
+            WHERE sri.sale_item_id = si.id
+              AND sri.deleted_at IS NULL
+              AND sr.deleted_at IS NULL
+          ), 0) AS returned_quantity
+        FROM local_sale_items si
+        INNER JOIN local_sales s ON s.id = si.order_id
+        LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
+        WHERE si.shop_id IN (
+          SELECT selected_shop_id
+          FROM local_sessions
+          WHERE id = 'singleton'
+            AND is_authenticated = 1
+        )
+          AND si.deleted_at IS NULL
+          AND s.deleted_at IS NULL
+          $dateFilter
+      ),
+      report_rows AS (
+        SELECT
+          product_id,
+          product_name,
+          SUM(MAX(quantity - returned_quantity, 0)) AS sold_quantity,
+          SUM(sale_price * MAX(quantity - returned_quantity, 0)) AS sales_total,
+          SUM((sale_price - buy_price) * MAX(quantity - returned_quantity, 0))
+            AS profit
+        FROM sold_items
+        GROUP BY product_id, product_name
+      )
+      SELECT
+        product_id,
+        product_name,
+        COALESCE(sold_quantity, 0) AS sold_quantity,
+        COALESCE(sales_total, 0.0) AS sales_total,
+        COALESCE(profit, 0.0) AS profit
+      FROM report_rows
+      WHERE sold_quantity > 0
+      ORDER BY profit DESC, sold_quantity DESC, product_name ASC
+      ''',
+      variables: hasDateRange
+          ? [Variable<DateTime>(start), Variable<DateTime>(end)]
+          : const [],
+      readsFrom: {
+        localSaleItems,
+        localSales,
+        localSaleReturnItems,
+        localSaleReturns,
+        localPurchaseItems,
+        localSessions,
+      },
+    ).watch().map(
+      (rows) => [
+        for (final row in rows)
+          LocalProductReportEntry(
+            productId: row.read<String>('product_id'),
+            productName: row.read<String>('product_name'),
+            soldQuantity: row.read<int>('sold_quantity'),
+            salesTotal: row.read<double>('sales_total'),
+            profit: row.read<double>('profit'),
+          ),
+      ],
+    );
+  }
+
   Future<LocalCustomer> getOrCreateCustomer({
     required String shopId,
     required String name,
@@ -5304,6 +5442,28 @@ class LocalExpenseHistoryEntry {
   final String syncStatus;
 }
 
+class LocalIncomeReportEntry {
+  const LocalIncomeReportEntry({
+    required this.id,
+    required this.categoryId,
+    required this.categoryName,
+    required this.amount,
+    required this.reason,
+    required this.note,
+    required this.createdAt,
+    required this.syncStatus,
+  });
+
+  final String id;
+  final String categoryId;
+  final String categoryName;
+  final double amount;
+  final String? reason;
+  final String? note;
+  final DateTime createdAt;
+  final String syncStatus;
+}
+
 class LocalOwnerTransactionEntry {
   const LocalOwnerTransactionEntry({
     required this.id,
@@ -5355,4 +5515,20 @@ class LocalSalesProduct {
   final double sellingPrice;
   final double stockValue;
   final double expectedProfit;
+}
+
+class LocalProductReportEntry {
+  const LocalProductReportEntry({
+    required this.productId,
+    required this.productName,
+    required this.soldQuantity,
+    required this.salesTotal,
+    required this.profit,
+  });
+
+  final String productId;
+  final String productName;
+  final int soldQuantity;
+  final double salesTotal;
+  final double profit;
 }
