@@ -164,9 +164,6 @@ class _ProfileSummaryCard extends StatelessWidget {
         : entry!.phone;
     final receivable = entry?.isReceivable ?? true;
     final balance = entry?.dueAmount ?? 500.5;
-    final accentColor = receivable
-        ? AppColors.secondary
-        : const Color(0xFFD9534F);
     final balanceColor = receivable
         ? AppColors.primary
         : const Color(0xFFD9534F);
@@ -178,113 +175,98 @@ class _ProfileSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initials(name),
-                  style: textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      phone,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-              boxShadow: AppShadows.soft,
-            ),
+          // Left: Avatar and Name/Phone
+          Expanded(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 4,
-                  height: 66,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(999),
+                    color: AppColors.surfaceContainerLow,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initials(name),
+                    style: textTheme.headlineSmall?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Text(
-                      '${receivable ? 'বর্তমান পাওনা' : 'বর্তমান দেনা'}: ${_money(balance)}',
-                      style: textTheme.titleLarge?.copyWith(
-                        color: balanceColor,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.md),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: AppGradients.primaryButton,
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      boxShadow: AppShadows.button,
-                    ),
-                    child: SizedBox(
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.md),
-                          ),
-                        ),
-                        child: Text(
-                          'Reminder',
-                          style: textTheme.titleSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        style: textTheme.titleLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        phone,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Right: Balance and Reminder
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                receivable ? 'বর্তমান পাওনা' : 'বর্তমান দেনা',
+                style: textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _money(balance),
+                style: textTheme.headlineSmall?.copyWith(
+                  color: balanceColor,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.notifications_none_rounded, size: 18),
+                label: const Text('Reminder'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: BorderSide(
+                    color: AppColors.textSecondary.withOpacity(0.2),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -317,28 +299,23 @@ class _DueHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        children: [
-          const _DueHistoryHeader(),
-          const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-          if (errorMessage != null)
-            _DueHistoryEmptyRow(message: errorMessage!)
-          else if (rows.isEmpty)
-            const _DueHistoryEmptyRow(message: 'কোনো হিস্টোরি পাওয়া যায়নি')
-          else
-            for (var i = 0; i < rows.length; i++) ...[
-              _DueHistoryRow.fromEntry(rows[i], entry!),
-              if (i != rows.length - 1)
-                const Divider(height: 1, color: AppColors.surfaceContainerHigh),
-            ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _DueHistoryHeader(),
+        const SizedBox(height: AppSpacing.sm),
+        if (errorMessage != null)
+          _DueHistoryEmptyRow(message: errorMessage!)
+        else if (rows.isEmpty)
+          const _DueHistoryEmptyRow(message: 'কোনো হিস্টোরি পাওয়া যায়নি')
+        else
+          ...rows.map(
+            (row) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _DueHistoryRow.fromEntry(row, entry!),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -350,8 +327,14 @@ class _DueHistoryEmptyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
       child: Text(
         message,
         textAlign: TextAlign.center,
@@ -375,14 +358,20 @@ class _DueHistoryHeader extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
-          Expanded(flex: 4, child: Text('তারিখ ও বিবরণ', style: style)),
-          Expanded(flex: 2, child: Text('নিয়েছি', style: style)),
-          Expanded(flex: 2, child: Text('দিয়েছি', style: style)),
+          Expanded(flex: 3, child: Text('তারিখ ও বিবরণ', style: style)),
           Expanded(
-            flex: 2,
+            flex: 3,
+            child: Text('নিয়েছি', textAlign: TextAlign.center, style: style),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text('দিয়েছি', textAlign: TextAlign.center, style: style),
+          ),
+          Expanded(
+            flex: 3,
             child: Text('ব্যালেন্স', textAlign: TextAlign.right, style: style),
           ),
         ],
@@ -440,180 +429,143 @@ class _DueHistoryRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
+    final isReceiving = receiving != null;
+    final dateColor = isReceiving ? AppColors.primary : AppColors.textSecondary;
 
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.soft,
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 4,
+                flex: 3,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 56,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            dateMonth,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            dateDay,
-                            style: textTheme.titleLarge?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      '$dateMonth $dateDay',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: dateColor,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       refText,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
               Expanded(
-                flex: 2,
-                child: receiving == null
-                    ? const Text('-')
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE4FBF6),
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                        ),
-                        child: Text(
-                          receiving!,
-                          textAlign: TextAlign.center,
-                          style: textTheme.titleSmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 2,
-                child: giving == null
-                    ? const Text('-')
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFE3E3),
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                        ),
-                        child: Text(
-                          giving!,
-                          textAlign: TextAlign.center,
-                          style: textTheme.titleSmall?.copyWith(
-                            color: const Color(0xFFD9534F),
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.sm,
+                flex: 3,
+                child: Text(
+                  receiving ?? '-',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  giving ?? '-',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: const Color(0xFFD9534F),
+                    fontWeight: FontWeight.w800,
                   ),
-                  child: Text(
-                    balance,
-                    textAlign: TextAlign.center,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w800,
-                    ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  balance,
+                  textAlign: TextAlign.right,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (saleId != null)
+              if (saleId != null || purchaseId != null)
                 TextButton.icon(
-                  onPressed: () => context.push(
-                    AppRoutes.salesHistoryDetails,
-                    extra: saleId,
-                  ),
-                  icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                  onPressed: () {
+                    if (saleId != null) {
+                      context.push(
+                        AppRoutes.salesHistoryDetails,
+                        extra: saleId,
+                      );
+                    } else if (purchaseId != null) {
+                      context.push(
+                        AppRoutes.purchaseHistoryDetails,
+                        extra: purchaseId,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.receipt_long_rounded, size: 16),
                   label: const Text('Details'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     textStyle: textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              if (purchaseId != null)
-                TextButton.icon(
-                  onPressed: () => context.push(
-                    AppRoutes.purchaseHistoryDetails,
-                    extra: purchaseId,
-                  ),
-                  icon: const Icon(Icons.receipt_long_rounded, size: 18),
-                  label: const Text('Details'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    textStyle: textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                )
+              else
+                const SizedBox.shrink(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Edit',
+                    onPressed: () => _editHistoryEntry(context, ref),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.textSecondary,
+                      size: 20,
                     ),
                   ),
-                ),
-              IconButton(
-                tooltip: 'Edit',
-                onPressed: () => _editHistoryEntry(context, ref),
-                icon: const Icon(
-                  Icons.edit_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Delete',
-                onPressed: () => _deleteHistoryEntry(context, ref),
-                icon: const Icon(
-                  Icons.delete_rounded,
-                  color: Color(0xFFD9534F),
-                  size: 20,
-                ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    tooltip: 'Delete',
+                    onPressed: () => _deleteHistoryEntry(context, ref),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFFF8A80),
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -799,24 +751,25 @@ class _DueBottomActions extends StatelessWidget {
                 onTap: () => context.push(AppRoutes.duesGiving, extra: entry),
                 borderRadius: BorderRadius.circular(AppRadii.xl),
                 child: Container(
-                  height: 72,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE6E3),
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppRadii.xl),
+                    boxShadow: AppShadows.button,
                   ),
-                  child: Column(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(
                         Icons.arrow_upward_rounded,
-                        color: Color(0xFFD9534F),
+                        color: Colors.white,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(width: 8),
                       Text(
                         'দিচ্ছি (Giving)',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
-                              color: const Color(0xFFD9534F),
+                              color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -831,24 +784,25 @@ class _DueBottomActions extends StatelessWidget {
                 onTap: () => context.push(AppRoutes.duesTaking, extra: entry),
                 borderRadius: BorderRadius.circular(AppRadii.xl),
                 child: Container(
-                  height: 72,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDF6F8),
+                    color: AppColors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(AppRadii.xl),
+                    boxShadow: AppShadows.soft,
                   ),
-                  child: Column(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(
                         Icons.arrow_downward_rounded,
-                        color: AppColors.primary,
+                        color: AppColors.textPrimary,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(width: 8),
                       Text(
                         'নিচ্ছি (Taking)',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
-                              color: AppColors.primary,
+                              color: AppColors.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -865,28 +819,66 @@ class _DueBottomActions extends StatelessWidget {
 }
 
 String _money(double value) {
-  final fixed = value.toStringAsFixed(
-    value.truncateToDouble() == value ? 0 : 2,
-  );
-  return '৳ ${_banglaNumber(fixed)}';
+  return _formatMoney(value);
 }
 
 String _moneyPlain(double value) {
+  return _formatMoney(value);
+}
+
+String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(
     value.truncateToDouble() == value ? 0 : 2,
   );
-  return _banglaNumber(fixed);
+
+  final isNegative = fixed.startsWith('-');
+  final clean = isNegative ? fixed.substring(1) : fixed;
+
+  final parts = clean.split('.');
+  final integerPart = parts[0];
+  final decimalPart = parts.length > 1 ? '.${parts[1]}' : '';
+
+  String formattedInt;
+  if (integerPart.length <= 3) {
+    formattedInt = integerPart;
+  } else {
+    final lastThree = integerPart.substring(integerPart.length - 3);
+    var remaining = integerPart.substring(0, integerPart.length - 3);
+
+    final chunks = <String>[];
+    while (remaining.length > 2) {
+      chunks.insert(0, remaining.substring(remaining.length - 2));
+      remaining = remaining.substring(0, remaining.length - 2);
+    }
+    if (remaining.isNotEmpty) {
+      chunks.insert(0, remaining);
+    }
+    formattedInt = '${chunks.join(',')},$lastThree';
+  }
+
+  final result = '${isNegative ? '-' : ''}$formattedInt$decimalPart';
+  return _banglaNumber(result);
 }
 
 String _historyRef(LocalDueHistoryEntry row) {
   return switch (row.sourceType) {
-    'sale' => 'বিক্রি ইনভয়েস',
-    'customer_payment' => 'কাস্টমার পেমেন্ট',
-    'purchase' => 'কেনা ইনভয়েস',
-    'purchase_payment' => 'সাপ্লায়ার পেমেন্ট',
+    'sale' => 'ইনভয়েস',
+    'customer_payment' => 'পেমেন্ট',
+    'purchase' => 'ইনভয়েস',
+    'purchase_payment' => 'পেমেন্ট',
     _ => 'লেনদেন',
   };
 }
+
+// String _historyRef(LocalDueHistoryEntry row) {
+//   return switch (row.sourceType) {
+//     'sale' => 'বিক্রি ইনভয়েস',
+//     'customer_payment' => 'কাস্টমার পেমেন্ট',
+//     'purchase' => 'কেনা ইনভয়েস',
+//     'purchase_payment' => 'সাপ্লায়ার পেমেন্ট',
+//     _ => 'লেনদেন',
+//   };
+// }
 
 String _monthShort(int month) {
   const months = [

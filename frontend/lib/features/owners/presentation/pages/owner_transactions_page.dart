@@ -427,7 +427,7 @@ class _OwnerHistoryHeader extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Text(
                 'দিয়েছে',
                 textAlign: TextAlign.center,
@@ -438,7 +438,7 @@ class _OwnerHistoryHeader extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Text(
                 'নিয়েছে',
                 textAlign: TextAlign.center,
@@ -449,7 +449,7 @@ class _OwnerHistoryHeader extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Text(
                 'ব্যালেন্স',
                 textAlign: TextAlign.right,
@@ -500,198 +500,117 @@ class _OwnerHistoryEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final isGiven = credit != '-';
+    final dateColor = isGiven ? AppColors.primary : AppColors.textSecondary;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(AppRadii.md),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            dateMonth,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            day,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: Text(
-                          reference,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ),
-                    ),
-                  ],
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$dateMonth $day',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: dateColor,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: credit == '-'
-                      ? _DashText(text: credit)
-                      : _TxnBadge(
-                          text: credit,
-                          background: const Color(0xFFE4FBF6),
-                          color: AppColors.primary,
-                        ),
+                const SizedBox(height: 4),
+                Text(
+                  reference,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: debit == '-'
-                      ? _DashText(text: debit)
-                      : _TxnBadge(
-                          text: debit,
-                          background: const Color(0xFFFFE7E7),
-                          color: const Color(0xFFD9534F),
-                        ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  credit,
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      balance,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                const SizedBox(height: 8),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.edit_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  debit,
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: const Color(0xFFD9534F),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.delete_rounded,
+                    color: Color(0xFFD9534F),
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              balance,
+              textAlign: TextAlign.right,
+              style: textTheme.titleSmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.edit_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.delete_rounded,
-                  color: Color(0xFFD9534F),
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _DashText extends StatelessWidget {
-  const _DashText({required this.text});
 
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-        color: AppColors.textMuted,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-class _TxnBadge extends StatelessWidget {
-  const _TxnBadge({
-    required this.text,
-    required this.background,
-    required this.color,
-  });
-
-  final String text;
-  final Color background;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
 
 class _OwnerEmptyHistoryCard extends StatelessWidget {
   const _OwnerEmptyHistoryCard();
@@ -842,7 +761,34 @@ String _plainMoney(double value) {
   final fixed = value.toStringAsFixed(
     value.truncateToDouble() == value ? 0 : 2,
   );
-  return _banglaNumber(fixed);
+
+  final isNegative = fixed.startsWith('-');
+  final clean = isNegative ? fixed.substring(1) : fixed;
+
+  final parts = clean.split('.');
+  final integerPart = parts[0];
+  final decimalPart = parts.length > 1 ? '.${parts[1]}' : '';
+
+  String formattedInt;
+  if (integerPart.length <= 3) {
+    formattedInt = integerPart;
+  } else {
+    final lastThree = integerPart.substring(integerPart.length - 3);
+    var remaining = integerPart.substring(0, integerPart.length - 3);
+
+    final chunks = <String>[];
+    while (remaining.length > 2) {
+      chunks.insert(0, remaining.substring(remaining.length - 2));
+      remaining = remaining.substring(0, remaining.length - 2);
+    }
+    if (remaining.isNotEmpty) {
+      chunks.insert(0, remaining);
+    }
+    formattedInt = '${chunks.join(',')},$lastThree';
+  }
+
+  final result = '${isNegative ? '-' : ''}$formattedInt$decimalPart';
+  return _banglaNumber(result);
 }
 
 String _monthShort(int month) {

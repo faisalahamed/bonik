@@ -161,7 +161,7 @@ class _DuesTopBar extends StatelessWidget {
                 ),
                 Expanded(
                   child: Text(
-                    'বাকির খাতা',
+                    'বাকি ব্যবস্থাপনা',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
@@ -539,7 +539,7 @@ class _DuesPersonCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Container(
-                width: 98,
+                width: 130,
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
                   vertical: AppSpacing.sm,
@@ -605,10 +605,41 @@ class _DuesEmptyCard extends StatelessWidget {
 }
 
 String _money(double value) {
+  return '৳ ${_formatMoney(value)}';
+}
+
+String _formatMoney(double value) {
   final fixed = value.toStringAsFixed(
     value.truncateToDouble() == value ? 0 : 2,
   );
-  return '৳ ${_banglaNumber(fixed)}';
+
+  final isNegative = fixed.startsWith('-');
+  final clean = isNegative ? fixed.substring(1) : fixed;
+
+  final parts = clean.split('.');
+  final integerPart = parts[0];
+  final decimalPart = parts.length > 1 ? '.${parts[1]}' : '';
+
+  String formattedInt;
+  if (integerPart.length <= 3) {
+    formattedInt = integerPart;
+  } else {
+    final lastThree = integerPart.substring(integerPart.length - 3);
+    var remaining = integerPart.substring(0, integerPart.length - 3);
+
+    final chunks = <String>[];
+    while (remaining.length > 2) {
+      chunks.insert(0, remaining.substring(remaining.length - 2));
+      remaining = remaining.substring(0, remaining.length - 2);
+    }
+    if (remaining.isNotEmpty) {
+      chunks.insert(0, remaining);
+    }
+    formattedInt = '${chunks.join(',')},$lastThree';
+  }
+
+  final result = '${isNegative ? '-' : ''}$formattedInt$decimalPart';
+  return _banglaNumber(result);
 }
 
 String _initials(String name) {
