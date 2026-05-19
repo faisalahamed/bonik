@@ -10,9 +10,10 @@ import 'category_sync_service.dart';
 import 'supplier_sync_service.dart';
 
 final purchaseSyncServiceProvider = Provider<PurchaseSyncService>((ref) {
+  final database = ref.watch(appDatabaseProvider);
   return PurchaseSyncService(
-    database: ref.watch(appDatabaseProvider),
-    apiClient: const ApiClient(),
+    database: database,
+    apiClient: ApiClient(authTokenProvider: database.getCurrentApiToken),
     categorySyncService: ref.watch(categorySyncServiceProvider),
     supplierSyncService: ref.watch(supplierSyncServiceProvider),
   );

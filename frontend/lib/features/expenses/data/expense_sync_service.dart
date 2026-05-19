@@ -6,9 +6,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/utils/app_time.dart';
 
 final expenseSyncServiceProvider = Provider<ExpenseSyncService>((ref) {
+  final database = ref.watch(appDatabaseProvider);
   return ExpenseSyncService(
-    database: ref.watch(appDatabaseProvider),
-    apiClient: const ApiClient(),
+    database: database,
+    apiClient: ApiClient(authTokenProvider: database.getCurrentApiToken),
   );
 });
 

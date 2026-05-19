@@ -7,9 +7,10 @@ import '../../../core/utils/app_time.dart';
 
 final ownerTransactionSyncServiceProvider =
     Provider<OwnerTransactionSyncService>((ref) {
+      final database = ref.watch(appDatabaseProvider);
       return OwnerTransactionSyncService(
-        database: ref.watch(appDatabaseProvider),
-        apiClient: const ApiClient(),
+        database: database,
+        apiClient: ApiClient(authTokenProvider: database.getCurrentApiToken),
       );
     });
 

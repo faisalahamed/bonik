@@ -8,9 +8,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/utils/app_time.dart';
 
 final recycleBinSyncServiceProvider = Provider<RecycleBinSyncService>((ref) {
+  final database = ref.watch(appDatabaseProvider);
   return RecycleBinSyncService(
-    database: ref.watch(appDatabaseProvider),
-    apiClient: const ApiClient(),
+    database: database,
+    apiClient: ApiClient(authTokenProvider: database.getCurrentApiToken),
   );
 });
 

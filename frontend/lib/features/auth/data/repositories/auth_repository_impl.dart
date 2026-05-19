@@ -107,6 +107,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: Value(user['name'].toString()),
         email: Value(user['email'].toString()),
         passwordHash: Value(_passwordHash(password)),
+        apiToken: Value(_nullableString(response['api_token'])),
         role: Value(user['role'].toString()),
         emailVerifiedAt: Value(_nullableDateTime(user['email_verified_at'])),
         createdAt: Value(_dateTime(user['created_at'])),

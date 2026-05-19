@@ -680,6 +680,17 @@ class $LocalUsersTable extends LocalUsers
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _apiTokenMeta = const VerificationMeta(
+    'apiToken',
+  );
+  @override
+  late final GeneratedColumn<String> apiToken = GeneratedColumn<String>(
+    'api_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _roleMeta = const VerificationMeta('role');
   @override
   late final GeneratedColumn<String> role = GeneratedColumn<String>(
@@ -768,6 +779,7 @@ class $LocalUsersTable extends LocalUsers
     name,
     email,
     passwordHash,
+    apiToken,
     role,
     emailVerifiedAt,
     createdAt,
@@ -824,6 +836,12 @@ class $LocalUsersTable extends LocalUsers
           data['password_hash']!,
           _passwordHashMeta,
         ),
+      );
+    }
+    if (data.containsKey('api_token')) {
+      context.handle(
+        _apiTokenMeta,
+        apiToken.isAcceptableOrUnknown(data['api_token']!, _apiTokenMeta),
       );
     }
     if (data.containsKey('role')) {
@@ -906,6 +924,10 @@ class $LocalUsersTable extends LocalUsers
         DriftSqlType.string,
         data['${effectivePrefix}password_hash'],
       ),
+      apiToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}api_token'],
+      ),
       role: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}role'],
@@ -949,6 +971,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
   final String name;
   final String email;
   final String? passwordHash;
+  final String? apiToken;
   final String role;
   final DateTime? emailVerifiedAt;
   final DateTime createdAt;
@@ -962,6 +985,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
     required this.name,
     required this.email,
     this.passwordHash,
+    this.apiToken,
     required this.role,
     this.emailVerifiedAt,
     required this.createdAt,
@@ -979,6 +1003,9 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
     map['email'] = Variable<String>(email);
     if (!nullToAbsent || passwordHash != null) {
       map['password_hash'] = Variable<String>(passwordHash);
+    }
+    if (!nullToAbsent || apiToken != null) {
+      map['api_token'] = Variable<String>(apiToken);
     }
     map['role'] = Variable<String>(role);
     if (!nullToAbsent || emailVerifiedAt != null) {
@@ -1003,6 +1030,9 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
       passwordHash: passwordHash == null && nullToAbsent
           ? const Value.absent()
           : Value(passwordHash),
+      apiToken: apiToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(apiToken),
       role: Value(role),
       emailVerifiedAt: emailVerifiedAt == null && nullToAbsent
           ? const Value.absent()
@@ -1028,6 +1058,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
       name: serializer.fromJson<String>(json['name']),
       email: serializer.fromJson<String>(json['email']),
       passwordHash: serializer.fromJson<String?>(json['passwordHash']),
+      apiToken: serializer.fromJson<String?>(json['apiToken']),
       role: serializer.fromJson<String>(json['role']),
       emailVerifiedAt: serializer.fromJson<DateTime?>(json['emailVerifiedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1046,6 +1077,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
       'name': serializer.toJson<String>(name),
       'email': serializer.toJson<String>(email),
       'passwordHash': serializer.toJson<String?>(passwordHash),
+      'apiToken': serializer.toJson<String?>(apiToken),
       'role': serializer.toJson<String>(role),
       'emailVerifiedAt': serializer.toJson<DateTime?>(emailVerifiedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1062,6 +1094,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
     String? name,
     String? email,
     Value<String?> passwordHash = const Value.absent(),
+    Value<String?> apiToken = const Value.absent(),
     String? role,
     Value<DateTime?> emailVerifiedAt = const Value.absent(),
     DateTime? createdAt,
@@ -1075,6 +1108,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
     name: name ?? this.name,
     email: email ?? this.email,
     passwordHash: passwordHash.present ? passwordHash.value : this.passwordHash,
+    apiToken: apiToken.present ? apiToken.value : this.apiToken,
     role: role ?? this.role,
     emailVerifiedAt: emailVerifiedAt.present
         ? emailVerifiedAt.value
@@ -1094,6 +1128,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
       passwordHash: data.passwordHash.present
           ? data.passwordHash.value
           : this.passwordHash,
+      apiToken: data.apiToken.present ? data.apiToken.value : this.apiToken,
       role: data.role.present ? data.role.value : this.role,
       emailVerifiedAt: data.emailVerifiedAt.present
           ? data.emailVerifiedAt.value
@@ -1116,6 +1151,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
           ..write('name: $name, ')
           ..write('email: $email, ')
           ..write('passwordHash: $passwordHash, ')
+          ..write('apiToken: $apiToken, ')
           ..write('role: $role, ')
           ..write('emailVerifiedAt: $emailVerifiedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -1134,6 +1170,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
     name,
     email,
     passwordHash,
+    apiToken,
     role,
     emailVerifiedAt,
     createdAt,
@@ -1151,6 +1188,7 @@ class LocalUser extends DataClass implements Insertable<LocalUser> {
           other.name == this.name &&
           other.email == this.email &&
           other.passwordHash == this.passwordHash &&
+          other.apiToken == this.apiToken &&
           other.role == this.role &&
           other.emailVerifiedAt == this.emailVerifiedAt &&
           other.createdAt == this.createdAt &&
@@ -1166,6 +1204,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
   final Value<String> name;
   final Value<String> email;
   final Value<String?> passwordHash;
+  final Value<String?> apiToken;
   final Value<String> role;
   final Value<DateTime?> emailVerifiedAt;
   final Value<DateTime> createdAt;
@@ -1180,6 +1219,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
     this.name = const Value.absent(),
     this.email = const Value.absent(),
     this.passwordHash = const Value.absent(),
+    this.apiToken = const Value.absent(),
     this.role = const Value.absent(),
     this.emailVerifiedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1195,6 +1235,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
     required String name,
     required String email,
     this.passwordHash = const Value.absent(),
+    this.apiToken = const Value.absent(),
     required String role,
     this.emailVerifiedAt = const Value.absent(),
     required DateTime createdAt,
@@ -1216,6 +1257,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
     Expression<String>? name,
     Expression<String>? email,
     Expression<String>? passwordHash,
+    Expression<String>? apiToken,
     Expression<String>? role,
     Expression<DateTime>? emailVerifiedAt,
     Expression<DateTime>? createdAt,
@@ -1231,6 +1273,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
       if (name != null) 'name': name,
       if (email != null) 'email': email,
       if (passwordHash != null) 'password_hash': passwordHash,
+      if (apiToken != null) 'api_token': apiToken,
       if (role != null) 'role': role,
       if (emailVerifiedAt != null) 'email_verified_at': emailVerifiedAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -1248,6 +1291,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
     Value<String>? name,
     Value<String>? email,
     Value<String?>? passwordHash,
+    Value<String?>? apiToken,
     Value<String>? role,
     Value<DateTime?>? emailVerifiedAt,
     Value<DateTime>? createdAt,
@@ -1263,6 +1307,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
       name: name ?? this.name,
       email: email ?? this.email,
       passwordHash: passwordHash ?? this.passwordHash,
+      apiToken: apiToken ?? this.apiToken,
       role: role ?? this.role,
       emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -1291,6 +1336,9 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
     }
     if (passwordHash.present) {
       map['password_hash'] = Variable<String>(passwordHash.value);
+    }
+    if (apiToken.present) {
+      map['api_token'] = Variable<String>(apiToken.value);
     }
     if (role.present) {
       map['role'] = Variable<String>(role.value);
@@ -1327,6 +1375,7 @@ class LocalUsersCompanion extends UpdateCompanion<LocalUser> {
           ..write('name: $name, ')
           ..write('email: $email, ')
           ..write('passwordHash: $passwordHash, ')
+          ..write('apiToken: $apiToken, ')
           ..write('role: $role, ')
           ..write('emailVerifiedAt: $emailVerifiedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -16355,6 +16404,7 @@ typedef $$LocalUsersTableCreateCompanionBuilder =
       required String name,
       required String email,
       Value<String?> passwordHash,
+      Value<String?> apiToken,
       required String role,
       Value<DateTime?> emailVerifiedAt,
       required DateTime createdAt,
@@ -16371,6 +16421,7 @@ typedef $$LocalUsersTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> email,
       Value<String?> passwordHash,
+      Value<String?> apiToken,
       Value<String> role,
       Value<DateTime?> emailVerifiedAt,
       Value<DateTime> createdAt,
@@ -16501,6 +16552,11 @@ class $$LocalUsersTableFilterComposer
 
   ColumnFilters<String> get passwordHash => $composableBuilder(
     column: $table.passwordHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get apiToken => $composableBuilder(
+    column: $table.apiToken,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16668,6 +16724,11 @@ class $$LocalUsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get apiToken => $composableBuilder(
+    column: $table.apiToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get role => $composableBuilder(
     column: $table.role,
     builder: (column) => ColumnOrderings(column),
@@ -16749,6 +16810,9 @@ class $$LocalUsersTableAnnotationComposer
     column: $table.passwordHash,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get apiToken =>
+      $composableBuilder(column: $table.apiToken, builder: (column) => column);
 
   GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
@@ -16913,6 +16977,7 @@ class $$LocalUsersTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> email = const Value.absent(),
                 Value<String?> passwordHash = const Value.absent(),
+                Value<String?> apiToken = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<DateTime?> emailVerifiedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -16927,6 +16992,7 @@ class $$LocalUsersTableTableManager
                 name: name,
                 email: email,
                 passwordHash: passwordHash,
+                apiToken: apiToken,
                 role: role,
                 emailVerifiedAt: emailVerifiedAt,
                 createdAt: createdAt,
@@ -16943,6 +17009,7 @@ class $$LocalUsersTableTableManager
                 required String name,
                 required String email,
                 Value<String?> passwordHash = const Value.absent(),
+                Value<String?> apiToken = const Value.absent(),
                 required String role,
                 Value<DateTime?> emailVerifiedAt = const Value.absent(),
                 required DateTime createdAt,
@@ -16957,6 +17024,7 @@ class $$LocalUsersTableTableManager
                 name: name,
                 email: email,
                 passwordHash: passwordHash,
+                apiToken: apiToken,
                 role: role,
                 emailVerifiedAt: emailVerifiedAt,
                 createdAt: createdAt,

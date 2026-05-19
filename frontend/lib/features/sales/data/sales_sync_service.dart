@@ -6,9 +6,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/utils/app_time.dart';
 
 final salesSyncServiceProvider = Provider<SalesSyncService>((ref) {
+  final database = ref.watch(appDatabaseProvider);
   return SalesSyncService(
-    database: ref.watch(appDatabaseProvider),
-    apiClient: const ApiClient(),
+    database: database,
+    apiClient: ApiClient(authTokenProvider: database.getCurrentApiToken),
   );
 });
 

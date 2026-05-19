@@ -10,10 +10,12 @@ class ApiClient {
   const ApiClient({
     this.connectionTimeout = const Duration(seconds: 2),
     this.requestTimeout = const Duration(seconds: 6),
+    this.authTokenProvider,
   });
 
   final Duration connectionTimeout;
   final Duration requestTimeout;
+  final FutureOr<String?> Function()? authTokenProvider;
 
   String get baseUrl {
     if (!kIsWeb &&
@@ -39,7 +41,7 @@ class ApiClient {
 
     try {
       final response = await http
-          .post(uri, headers: _jsonHeaders, body: jsonEncode(body))
+          .post(uri, headers: await _jsonHeaders(), body: jsonEncode(body))
           .timeout(requestTimeout);
       final decoded = _decodeResponse(response.body);
 
@@ -71,7 +73,7 @@ class ApiClient {
 
     try {
       final response = await http
-          .get(uri, headers: _acceptJsonHeaders)
+          .get(uri, headers: await _acceptJsonHeaders())
           .timeout(requestTimeout);
       final decoded = _decodeResponse(response.body);
 
@@ -92,14 +94,23 @@ class ApiClient {
     }
   }
 
-  static const Map<String, String> _acceptJsonHeaders = {
-    'Accept': 'application/json',
-  };
+  Future<Map<String, String>> _acceptJsonHeaders() async {
+    return {
+      'Accept': 'application/json',
+      if (await _authToken() case final token?)
+        'Authorization': 'Bearer $token',
+    };
+  }
 
-  static const Map<String, String> _jsonHeaders = {
-    ..._acceptJsonHeaders,
-    'Content-Type': 'application/json',
-  };
+  Future<Map<String, String>> _jsonHeaders() async {
+    return {...await _acceptJsonHeaders(), 'Content-Type': 'application/json'};
+  }
+
+  Future<String?> _authToken() async {
+    final token = await authTokenProvider?.call();
+    final trimmed = token?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   Map<String, dynamic> _decodeResponse(String responseBody) {
     if (responseBody.isEmpty) {

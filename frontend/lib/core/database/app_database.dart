@@ -31,6 +31,7 @@ class LocalUsers extends Table {
   TextColumn get name => text()();
   TextColumn get email => text()();
   TextColumn get passwordHash => text().nullable()();
+  TextColumn get apiToken => text().nullable()();
   TextColumn get role => text()();
   DateTimeColumn get emailVerifiedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -412,7 +413,7 @@ final class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -616,6 +617,9 @@ final class AppDatabase extends _$AppDatabase {
           WHERE is_current = 1
           LIMIT 1
         ''');
+      }
+      if (from < 18) {
+        await migrator.addColumn(localUsers, localUsers.apiToken);
       }
     },
   );
@@ -920,6 +924,12 @@ final class AppDatabase extends _$AppDatabase {
     }
 
     return authUser;
+  }
+
+  Future<String?> getCurrentApiToken() async {
+    final currentUser = await getCurrentUser();
+    final token = currentUser?.apiToken?.trim();
+    return token == null || token.isEmpty ? null : token;
   }
 
   Stream<List<LocalNote>> watchNotesForCurrentShop({required bool archived}) {
