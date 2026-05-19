@@ -150,6 +150,7 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                         );
                         final filteredProducts = _filterProducts(
                           availableProducts,
+                          cartLines,
                         );
 
                         return ListView(
@@ -241,18 +242,42 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     }
   }
 
-  List<LocalSalesProduct> _filterProducts(List<LocalSalesProduct> products) {
+  List<LocalSalesProduct> _filterProducts(
+    List<LocalSalesProduct> products,
+    List<SalesCartLine> cartLines,
+  ) {
+    List<LocalSalesProduct> filtered;
     if (_query.isEmpty) {
-      return products;
+      filtered = List.of(products);
+    } else {
+      filtered = products
+          .where(
+            (product) {
+              final isSelected = cartLines.any(
+                (line) => _sameProductForSalesList(line.product, product),
+              );
+              if (isSelected) return true;
+
+              return product.name.toLowerCase().contains(_query) ||
+                  (product.description?.toLowerCase().contains(_query) ?? false);
+            },
+          )
+          .toList();
     }
 
-    return products
-        .where(
-          (product) =>
-              product.name.toLowerCase().contains(_query) ||
-              (product.description?.toLowerCase().contains(_query) ?? false),
-        )
-        .toList();
+    filtered.sort((a, b) {
+      final aSelected = cartLines.any(
+        (line) => _sameProductForSalesList(line.product, a),
+      );
+      final bSelected = cartLines.any(
+        (line) => _sameProductForSalesList(line.product, b),
+      );
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0;
+    });
+
+    return filtered;
   }
 
   List<LocalSalesProduct> _withSelectedCartProducts(
@@ -326,6 +351,15 @@ class _SalesSearchBar extends StatelessWidget {
               ),
             ),
           ),
+          if (controller.text.isNotEmpty)
+            IconButton(
+              onPressed: () => controller.clear(),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textMuted,
+                size: 24,
+              ),
+            ),
           Container(
             width: 44,
             height: 44,

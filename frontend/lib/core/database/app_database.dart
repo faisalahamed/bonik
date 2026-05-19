@@ -2630,8 +2630,9 @@ final class AppDatabase extends _$AppDatabase {
   }
 
   Future<LocalCategory?> findProductCategoryByNameForCurrentShop(
-    String name,
-  ) async {
+    String name, {
+    String? details,
+  }) async {
     final currentUser = await getCurrentUser();
     if (currentUser == null) {
       throw StateError('No current user found.');
@@ -2641,6 +2642,8 @@ final class AppDatabase extends _$AppDatabase {
       shopId: currentUser.shopId,
       type: 'product',
       name: name.trim(),
+      details: details,
+      checkDetails: true,
     );
   }
 
@@ -2662,6 +2665,8 @@ final class AppDatabase extends _$AppDatabase {
       shopId: currentUser.shopId,
       type: type,
       name: trimmedName,
+      details: details,
+      checkDetails: type == 'product',
     );
     if (existingCategory != null) {
       return existingCategory;
@@ -2715,6 +2720,8 @@ final class AppDatabase extends _$AppDatabase {
       shopId: category.shopId,
       type: category.type,
       name: trimmedName,
+      details: details,
+      checkDetails: category.type == 'product',
       excludedId: id,
     );
     if (existingCategory != null) {
@@ -6011,18 +6018,34 @@ final class AppDatabase extends _$AppDatabase {
     required String shopId,
     required String type,
     required String name,
+    String? details,
+    bool checkDetails = false,
     String? excludedId,
   }) {
+    final trimmedDetails = _nullableTrimmed(details)?.toLowerCase();
+
     return (select(localCategories)
           ..where(
-            (category) =>
-                category.shopId.equals(shopId) &
-                category.type.equals(type) &
-                category.deletedAt.isNull() &
-                (excludedId == null
-                    ? const Constant(true)
-                    : category.id.equals(excludedId).not()) &
-                category.name.lower().equals(name.toLowerCase()),
+            (category) {
+              var condition = category.shopId.equals(shopId) &
+                  category.type.equals(type) &
+                  category.deletedAt.isNull() &
+                  category.name.lower().equals(name.toLowerCase());
+
+              if (excludedId != null) {
+                condition = condition & category.id.equals(excludedId).not();
+              }
+
+              if (checkDetails) {
+                if (trimmedDetails == null) {
+                  condition = condition & category.details.isNull();
+                } else {
+                  condition = condition & category.details.lower().equals(trimmedDetails);
+                }
+              }
+
+              return condition;
+            }
           )
           ..limit(1))
         .getSingleOrNull();

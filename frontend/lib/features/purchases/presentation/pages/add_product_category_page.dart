@@ -25,6 +25,8 @@ class _AddProductCategoryPageState
   LocalCategory? _categoryPendingDelete;
   LocalCategory? _categoryPendingRestore;
   _CategoryListMode _listMode = _CategoryListMode.active;
+  final _searchController = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
@@ -35,11 +37,31 @@ class _AddProductCategoryPageState
     _deletedCategoriesStream = ref
         .read(appDatabaseProvider)
         .watchDeletedProductCategoriesForCurrentShop();
+
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<LocalCategory> _filterCategories(List<LocalCategory> categories) {
+    if (_query.isEmpty) {
+      return categories;
+    }
+    return categories
+        .where((category) {
+          final nameMatch = category.name.toLowerCase().contains(_query);
+          final detailsMatch = category.details?.toLowerCase().contains(_query) ?? false;
+          return nameMatch || detailsMatch;
+        })
+        .toList();
   }
 
   @override
@@ -88,6 +110,8 @@ class _AddProductCategoryPageState
                               },
                             ),
                             const SizedBox(height: AppSpacing.xl),
+                            _CategorySearchBar(controller: _searchController),
+                            const SizedBox(height: AppSpacing.xl),
                             if (_listMode == _CategoryListMode.active)
                               Text(
                                 'বিদ্যমান পণ্যের নাম সমূহ',
@@ -103,8 +127,9 @@ class _AddProductCategoryPageState
                               StreamBuilder<List<LocalCategory>>(
                                 stream: _categoriesStream,
                                 builder: (context, snapshot) {
+                                  final filtered = _filterCategories(snapshot.data ?? []);
                                   return _ExistingCategoryList(
-                                    categories: snapshot.data ?? const [],
+                                    categories: filtered,
                                     isLoading:
                                         snapshot.connectionState ==
                                             ConnectionState.waiting &&
@@ -130,8 +155,9 @@ class _AddProductCategoryPageState
                               StreamBuilder<List<LocalCategory>>(
                                 stream: _deletedCategoriesStream,
                                 builder: (context, snapshot) {
+                                  final filtered = _filterCategories(snapshot.data ?? []);
                                   return _DeletedCategoryList(
-                                    categories: snapshot.data ?? const [],
+                                    categories: filtered,
                                     isLoading:
                                         snapshot.connectionState ==
                                             ConnectionState.waiting &&
@@ -994,4 +1020,53 @@ class AddProductCategoryDraft {
 
   final String name;
   final String details;
+}
+
+class _CategorySearchBar extends StatelessWidget {
+  const _CategorySearchBar({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search_rounded,
+            color: AppColors.textMuted,
+            size: 28,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'পণ্যের নাম বা বিস্তারিত দিয়ে খুঁজুন...',
+                hintStyle: TextStyle(color: AppColors.textMuted),
+                fillColor: Colors.transparent,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          if (controller.text.isNotEmpty)
+            IconButton(
+              onPressed: () => controller.clear(),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textMuted,
+                size: 24,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

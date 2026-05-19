@@ -81,7 +81,10 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
                 StreamBuilder<List<LocalCategory>>(
                   stream: database.watchProductCategoriesForCurrentShop(),
                   builder: (context, snapshot) {
-                    final categories = _filterCategories(snapshot.data ?? []);
+                    final categories = _filterCategories(
+                      snapshot.data ?? [],
+                      purchaseDraft.lines.keys.toSet(),
+                    );
 
                     return ListView(
                       padding: const EdgeInsets.fromLTRB(
@@ -136,14 +139,26 @@ class _CashPurchasePageState extends ConsumerState<CashPurchasePage> {
     );
   }
 
-  List<LocalCategory> _filterCategories(List<LocalCategory> categories) {
+  List<LocalCategory> _filterCategories(
+      List<LocalCategory> categories, Set<String> selectedIds) {
     final filtered = _query.isEmpty
         ? List<LocalCategory>.of(categories)
         : categories
-              .where((category) => category.name.toLowerCase().contains(_query))
+              .where((category) {
+                if (selectedIds.contains(category.id)) return true;
+                final nameMatch = category.name.toLowerCase().contains(_query);
+                final detailsMatch = category.details?.toLowerCase().contains(_query) ?? false;
+                return nameMatch || detailsMatch;
+              })
               .toList();
 
     filtered.sort((a, b) {
+      final aSelected = selectedIds.contains(a.id);
+      final bSelected = selectedIds.contains(b.id);
+      
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
       switch (_sortMode) {
         case _CategorySortMode.nameAsc:
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
@@ -346,7 +361,7 @@ class _PurchaseSearchBar extends StatelessWidget {
             child: TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'Search product category...',
+                hintText: 'পণ্যের নাম বা বিস্তারিত দিয়ে খুঁজুন ...',
                 hintStyle: TextStyle(color: AppColors.textMuted),
                 fillColor: Colors.transparent,
                 enabledBorder: InputBorder.none,
@@ -355,14 +370,15 @@ class _PurchaseSearchBar extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.tune_rounded,
-              color: AppColors.primary,
-              size: 28,
+          if (controller.text.isNotEmpty)
+            IconButton(
+              onPressed: () => controller.clear(),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textMuted,
+                size: 24,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -812,7 +828,10 @@ class _AddCategoryDialogState extends ConsumerState<_AddCategoryDialog> {
     try {
       final database = ref.read(appDatabaseProvider);
       final existingCategory = await database
-          .findProductCategoryByNameForCurrentShop(name);
+          .findProductCategoryByNameForCurrentShop(
+        name,
+        details: _detailsController.text.trim(),
+      );
 
       if (!mounted) {
         return;
