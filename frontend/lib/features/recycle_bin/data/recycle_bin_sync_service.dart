@@ -23,13 +23,15 @@ class RecycleBinSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncRecycleBin() async {
+  Future<void> syncRecycleBin({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPending(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPending(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -39,6 +41,7 @@ class RecycleBinSyncService {
     );
 
     for (final entry in pendingEntries) {
+      _assertShop(entry.shopId, shopId, 'recycle bin entry');
       final response = await apiClient.postJson(
         '/recycle-bin',
         body: {..._entryToJson(entry), 'user_id': userId},
@@ -51,6 +54,14 @@ class RecycleBinSyncService {
         throw StateError('Recycle bin sync returned a different entry id.');
       }
       await database.markRecycleBinEntrySynced(entry.id);
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

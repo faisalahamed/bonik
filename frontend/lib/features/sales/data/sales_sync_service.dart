@@ -18,14 +18,16 @@ class SalesSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncSales() async {
+  Future<void> syncSales({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPendingCustomers(currentUser.shopId, currentUser.id);
-    await _pushPendingSales(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPendingCustomers(currentUser.shopId, currentUser.id);
+      await _pushPendingSales(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -33,6 +35,7 @@ class SalesSyncService {
     final pendingCustomers = await database.getPendingCustomers(shopId: shopId);
 
     for (final customer in pendingCustomers) {
+      _assertShop(customer.shopId, shopId, 'customer');
       final response = await apiClient.postJson(
         '/customers',
         body: {..._customerToJson(customer), 'user_id': userId},
@@ -63,6 +66,7 @@ class SalesSyncService {
     final bundles = await database.getPendingSaleBundles(shopId: shopId);
 
     for (final bundle in bundles) {
+      _assertBundleShop(bundle, shopId);
       final response = await apiClient.postJson(
         '/sales',
         body: {..._bundleToJson(bundle), 'user_id': userId},
@@ -75,6 +79,27 @@ class SalesSyncService {
         throw StateError('Sale sync returned a different sale id.');
       }
       await database.markSaleBundleSynced(bundle.sale.id);
+    }
+  }
+
+  void _assertBundleShop(LocalSaleBundle bundle, String activeShopId) {
+    _assertShop(bundle.sale.shopId, activeShopId, 'sale');
+    for (final item in bundle.items) {
+      _assertShop(item.shopId, activeShopId, 'sale item');
+    }
+    for (final payment in bundle.payments) {
+      _assertShop(payment.shopId, activeShopId, 'sale payment');
+    }
+    for (final transaction in bundle.cashTransactions) {
+      _assertShop(transaction.shopId, activeShopId, 'sale transaction');
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

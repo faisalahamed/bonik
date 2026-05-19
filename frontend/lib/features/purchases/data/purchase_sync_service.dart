@@ -31,16 +31,18 @@ class PurchaseSyncService {
   final CategorySyncService categorySyncService;
   final SupplierSyncService supplierSyncService;
 
-  Future<void> syncPurchases() async {
+  Future<void> syncPurchases({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await syncPendingPurchases(
-      shopId: currentUser.shopId,
-      userId: currentUser.id,
-    );
+    if (pushPending) {
+      await syncPendingPurchases(
+        shopId: currentUser.shopId,
+        userId: currentUser.id,
+      );
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -158,11 +160,36 @@ class PurchaseSyncService {
     await _ensurePendingPurchaseSuppliersAreSynced(bundles);
 
     for (final bundle in bundles) {
+      _assertBundleShop(bundle, shopId);
       await apiClient.postJson(
         '/purchases',
         body: {..._bundleToJson(bundle), 'user_id': userId},
       );
       await database.markPurchaseBundleSynced(bundle.purchase.id);
+    }
+  }
+
+  void _assertBundleShop(LocalPurchaseBundle bundle, String? activeShopId) {
+    if (activeShopId == null) {
+      return;
+    }
+    _assertShop(bundle.purchase.shopId, activeShopId, 'purchase');
+    for (final item in bundle.items) {
+      _assertShop(item.shopId, activeShopId, 'purchase item');
+    }
+    for (final payment in bundle.payments) {
+      _assertShop(payment.shopId, activeShopId, 'purchase payment');
+    }
+    for (final transaction in bundle.cashTransactions) {
+      _assertShop(transaction.shopId, activeShopId, 'purchase transaction');
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

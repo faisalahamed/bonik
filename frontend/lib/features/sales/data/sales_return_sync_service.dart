@@ -21,30 +21,51 @@ class SalesReturnSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncSalesReturns() async {
+  Future<void> syncSalesReturns({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    final bundles = await database.getPendingSaleReturnBundles(
-      shopId: currentUser.shopId,
-    );
-    for (final bundle in bundles) {
-      final response = await apiClient.postJson(
-        '/sales/returns',
-        body: {..._bundleToJson(bundle), 'user_id': currentUser.id},
+    if (pushPending) {
+      final bundles = await database.getPendingSaleReturnBundles(
+        shopId: currentUser.shopId,
       );
-      final syncedReturn = response['sale_return'];
-      final syncedId = syncedReturn is Map<String, dynamic>
-          ? syncedReturn['id']?.toString()
-          : null;
-      if (syncedId != bundle.saleReturn.id) {
-        throw StateError('Sales return sync returned a different return id.');
+      for (final bundle in bundles) {
+        _assertBundleShop(bundle, currentUser.shopId);
+        final response = await apiClient.postJson(
+          '/sales/returns',
+          body: {..._bundleToJson(bundle), 'user_id': currentUser.id},
+        );
+        final syncedReturn = response['sale_return'];
+        final syncedId = syncedReturn is Map<String, dynamic>
+            ? syncedReturn['id']?.toString()
+            : null;
+        if (syncedId != bundle.saleReturn.id) {
+          throw StateError('Sales return sync returned a different return id.');
+        }
+        await database.markSaleReturnBundleSynced(bundle.saleReturn.id);
       }
-      await database.markSaleReturnBundleSynced(bundle.saleReturn.id);
     }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
+  }
+
+  void _assertBundleShop(LocalSaleReturnBundle bundle, String activeShopId) {
+    _assertShop(bundle.saleReturn.shopId, activeShopId, 'sale return');
+    for (final item in bundle.items) {
+      _assertShop(item.shopId, activeShopId, 'sale return item');
+    }
+    for (final transaction in bundle.cashTransactions) {
+      _assertShop(transaction.shopId, activeShopId, 'sale return transaction');
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
+    }
   }
 
   Future<void> _pullCurrentShop(String shopId, String userId) async {

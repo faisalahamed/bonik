@@ -661,106 +661,6 @@ final class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<String?> _firstUserIdForShop(String shopId) async {
-    final user =
-        await (select(localUsers)
-              ..where(
-                (user) => user.shopId.equals(shopId) & user.deletedAt.isNull(),
-              )
-              ..limit(1))
-            .getSingleOrNull();
-    return user?.id;
-  }
-
-  Future<bool> _shopHasUnsyncedData(String shopId) async {
-    final row = await customSelect(
-      '''
-      SELECT EXISTS(
-        SELECT 1 FROM local_shops
-          WHERE id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_users
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_categories
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_suppliers
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_purchases
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_purchase_items
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_purchase_payments
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_customers
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_sales
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_sale_items
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_sale_returns
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_sale_return_items
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_customer_payments
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_cash_transactions
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_expenses
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_incomes
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_recycle_bin_entries
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM local_notes
-          WHERE shop_id = ?1 AND sync_status != 'synced'
-        UNION ALL
-        SELECT 1 FROM sync_outbox
-          WHERE shop_id = ?1 AND status != 'synced'
-      ) AS has_unsynced
-      ''',
-      variables: [Variable<String>(shopId)],
-      readsFrom: {
-        localShops,
-        localUsers,
-        localCategories,
-        localSuppliers,
-        localPurchases,
-        localPurchaseItems,
-        localPurchasePayments,
-        localCustomers,
-        localSales,
-        localSaleItems,
-        localSaleReturns,
-        localSaleReturnItems,
-        localCustomerPayments,
-        localCashTransactions,
-        localExpenses,
-        localIncomes,
-        localRecycleBinEntries,
-        localNotes,
-        syncOutbox,
-      },
-    ).getSingle();
-
-    return row.read<bool>('has_unsynced');
-  }
-
   Future<void> saveLoggedInSession({
     required LocalShopsCompanion shop,
     required LocalUsersCompanion user,
@@ -775,27 +675,13 @@ final class AppDatabase extends _$AppDatabase {
         localUsers,
       ).insertOnConflictUpdate(user.copyWith(isCurrent: const Value(true)));
 
-      final existingSession = await (select(
-        localSessions,
-      )..where((session) => session.id.equals('singleton'))).getSingleOrNull();
       final incomingShopId = user.shopId.value;
-      final previousSelectedShopId = existingSession?.selectedShopId;
-      final keepPreviousShop =
-          previousSelectedShopId != null &&
-          previousSelectedShopId != incomingShopId &&
-          await _shopHasUnsyncedData(previousSelectedShopId);
-      final selectedShopId = keepPreviousShop
-          ? previousSelectedShopId
-          : incomingShopId;
-      final authUserId = selectedShopId == incomingShopId
-          ? user.id.value
-          : await _firstUserIdForShop(selectedShopId) ?? user.id.value;
 
       await into(localSessions).insertOnConflictUpdate(
         LocalSessionsCompanion(
           id: const Value('singleton'),
-          authUserId: Value(authUserId),
-          selectedShopId: Value(selectedShopId),
+          authUserId: Value(user.id.value),
+          selectedShopId: Value(incomingShopId),
           isAuthenticated: const Value(true),
           lastLoginAt: Value(now),
           updatedAt: Value(now),
@@ -817,7 +703,7 @@ final class AppDatabase extends _$AppDatabase {
         LocalSessionsCompanion(
           id: const Value('singleton'),
           authUserId: const Value(null),
-          selectedShopId: Value(existingSession?.selectedShopId),
+          selectedShopId: const Value(null),
           isAuthenticated: const Value(false),
           lastLoginAt: Value(existingSession?.lastLoginAt),
           updatedAt: Value(now),
@@ -1019,30 +905,21 @@ final class AppDatabase extends _$AppDatabase {
       return null;
     }
 
-    if (session.authUserId != null) {
-      final authUser =
-          await (select(localUsers)
-                ..where((user) => user.id.equals(session.authUserId!)))
-              .getSingleOrNull();
-      if (authUser != null &&
-          (session.selectedShopId == null ||
-              authUser.shopId == session.selectedShopId)) {
-        return authUser;
-      }
-    }
-
-    if (session.selectedShopId == null) {
+    if (session.authUserId == null || session.selectedShopId == null) {
       return null;
     }
 
-    return (select(localUsers)
-          ..where(
-            (user) =>
-                user.shopId.equals(session.selectedShopId!) &
-                user.deletedAt.isNull(),
-          )
-          ..limit(1))
-        .getSingleOrNull();
+    final authUser = await (select(
+      localUsers,
+    )..where((user) => user.id.equals(session.authUserId!))).getSingleOrNull();
+
+    if (authUser == null ||
+        authUser.deletedAt != null ||
+        authUser.shopId != session.selectedShopId) {
+      return null;
+    }
+
+    return authUser;
   }
 
   Stream<List<LocalNote>> watchNotesForCurrentShop({required bool archived}) {

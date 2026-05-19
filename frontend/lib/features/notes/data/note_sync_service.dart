@@ -18,13 +18,15 @@ class NoteSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncNotes() async {
+  Future<void> syncNotes({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPending(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPending(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -32,6 +34,7 @@ class NoteSyncService {
     final pendingNotes = await database.getPendingNotes(shopId: shopId);
 
     for (final note in pendingNotes) {
+      _assertShop(note.shopId, shopId, 'note');
       final response = await apiClient.postJson(
         '/notes',
         body: {..._noteToJson(note), 'user_id': userId},
@@ -44,6 +47,14 @@ class NoteSyncService {
         throw StateError('Note sync returned a different note id.');
       }
       await database.markNoteSynced(note.id);
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

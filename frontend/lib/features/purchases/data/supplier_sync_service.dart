@@ -18,13 +18,15 @@ class SupplierSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncSuppliers() async {
+  Future<void> syncSuppliers({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPending(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPending(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -32,6 +34,7 @@ class SupplierSyncService {
     final pendingSuppliers = await database.getPendingSuppliers(shopId: shopId);
 
     for (final supplier in pendingSuppliers) {
+      _assertShop(supplier.shopId, shopId, 'supplier');
       final response = await apiClient.postJson(
         '/suppliers',
         body: {
@@ -55,6 +58,14 @@ class SupplierSyncService {
         throw StateError('Supplier sync returned a different supplier id.');
       }
       await database.markSupplierSynced(supplier.id);
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

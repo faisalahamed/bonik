@@ -22,13 +22,15 @@ class OwnerTransactionSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncOwnerTransactions() async {
+  Future<void> syncOwnerTransactions({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPending(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPending(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -38,6 +40,10 @@ class OwnerTransactionSyncService {
     );
     if (pendingTransactions.isEmpty) {
       return;
+    }
+
+    for (final transaction in pendingTransactions) {
+      _assertShop(transaction.shopId, shopId, 'owner transaction');
     }
 
     final response = await apiClient.postJson(
@@ -64,6 +70,14 @@ class OwnerTransactionSyncService {
         throw StateError('Owner transaction sync did not return every id.');
       }
       await database.markOwnerTransactionSynced(transaction.id);
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
     }
   }
 

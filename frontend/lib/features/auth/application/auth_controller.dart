@@ -45,7 +45,7 @@ class AuthController extends Notifier<AuthState> {
         );
 
         try {
-          await ref.read(appSyncServiceProvider).syncAll();
+          await ref.read(appSyncServiceProvider).syncCurrentSessionOnLogin();
         } catch (_) {
           warningMessage =
               'ডাটা পুরোপুরি লোড হয়নি, ড্যাশবোর্ডের সিঙ্ক বাটন চাপুন';

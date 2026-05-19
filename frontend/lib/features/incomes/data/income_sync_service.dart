@@ -18,13 +18,15 @@ class IncomeSyncService {
   final AppDatabase database;
   final ApiClient apiClient;
 
-  Future<void> syncIncomes() async {
+  Future<void> syncIncomes({bool pushPending = true}) async {
     final currentUser = await database.getCurrentUser();
     if (currentUser == null) {
       return;
     }
 
-    await _pushPending(currentUser.shopId, currentUser.id);
+    if (pushPending) {
+      await _pushPending(currentUser.shopId, currentUser.id);
+    }
     await _pullCurrentShop(currentUser.shopId, currentUser.id);
   }
 
@@ -33,12 +35,30 @@ class IncomeSyncService {
     if (bundle.isEmpty) {
       return;
     }
+    _assertBundleShop(bundle, shopId);
 
     await apiClient.postJson(
       '/incomes',
       body: {..._bundleToJson(bundle), 'user_id': userId},
     );
     await database.markIncomeSyncBundleSynced(bundle);
+  }
+
+  void _assertBundleShop(LocalIncomeSyncBundle bundle, String activeShopId) {
+    for (final income in bundle.incomes) {
+      _assertShop(income.shopId, activeShopId, 'income');
+    }
+    for (final transaction in bundle.cashTransactions) {
+      _assertShop(transaction.shopId, activeShopId, 'income transaction');
+    }
+  }
+
+  void _assertShop(String rowShopId, String activeShopId, String label) {
+    if (rowShopId != activeShopId) {
+      throw StateError(
+        'Blocked $label sync for a different shop. Expected $activeShopId, got $rowShopId.',
+      );
+    }
   }
 
   Future<void> _pullCurrentShop(String shopId, String userId) async {

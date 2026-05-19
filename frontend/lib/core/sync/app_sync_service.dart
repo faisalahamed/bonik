@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/app_database.dart';
 import '../../features/expenses/data/expense_sync_service.dart';
 import '../../features/incomes/data/income_sync_service.dart';
 import '../../features/notes/data/note_sync_service.dart';
@@ -20,18 +21,45 @@ class AppSyncService {
 
   final Ref _ref;
 
-  Future<void> syncAll() async {
-    await _ref.read(supplierSyncServiceProvider).syncSuppliers();
-    await _ref.read(categorySyncServiceProvider).syncProductCategories();
-    await _ref.read(recycleBinSyncServiceProvider).syncRecycleBin();
-    await _ref.read(purchaseSyncServiceProvider).syncPurchases();
-    await _ref.read(salesSyncServiceProvider).syncSales();
-    await _ref.read(salesReturnSyncServiceProvider).syncSalesReturns();
-    await _ref.read(expenseSyncServiceProvider).syncExpenses();
-    await _ref.read(incomeSyncServiceProvider).syncIncomes();
+  Future<void> syncCurrentSessionOnLogin() {
+    return syncAll(pushPending: true);
+  }
+
+  Future<void> syncAll({bool pushPending = true}) async {
+    final currentUser = await _ref.read(appDatabaseProvider).getCurrentUser();
+    if (currentUser == null) {
+      return;
+    }
+
+    await _ref
+        .read(supplierSyncServiceProvider)
+        .syncSuppliers(pushPending: pushPending);
+    await _ref
+        .read(categorySyncServiceProvider)
+        .syncProductCategories(pushPending: pushPending);
+    await _ref
+        .read(recycleBinSyncServiceProvider)
+        .syncRecycleBin(pushPending: pushPending);
+    await _ref
+        .read(purchaseSyncServiceProvider)
+        .syncPurchases(pushPending: pushPending);
+    await _ref
+        .read(salesSyncServiceProvider)
+        .syncSales(pushPending: pushPending);
+    await _ref
+        .read(salesReturnSyncServiceProvider)
+        .syncSalesReturns(pushPending: pushPending);
+    await _ref
+        .read(expenseSyncServiceProvider)
+        .syncExpenses(pushPending: pushPending);
+    await _ref
+        .read(incomeSyncServiceProvider)
+        .syncIncomes(pushPending: pushPending);
     await _ref
         .read(ownerTransactionSyncServiceProvider)
-        .syncOwnerTransactions();
-    await _ref.read(noteSyncServiceProvider).syncNotes();
+        .syncOwnerTransactions(pushPending: pushPending);
+    await _ref
+        .read(noteSyncServiceProvider)
+        .syncNotes(pushPending: pushPending);
   }
 }
