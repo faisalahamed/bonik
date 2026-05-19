@@ -360,9 +360,7 @@ class _OwnerTakingFormCard extends StatelessWidget {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
+              inputFormatters: [const _BanglaNumberInputFormatter()],
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w800,
@@ -401,7 +399,7 @@ class _OwnerTakingFormCard extends StatelessWidget {
                     controller: noteController,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      hintText: 'কিছু না বলা বাকি...',
+                      hintText: 'কি ক্যারন নিচ্ছেন নোট লিখতে পারেন',
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -492,7 +490,17 @@ class _OwnerTakingUpdateButton extends StatelessWidget {
 }
 
 double _parseAmount(String value) {
-  return double.tryParse(value.trim()) ?? 0;
+  return double.tryParse(_enNumber(value.trim())) ?? 0;
+}
+
+String _enNumber(String value) {
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  var output = value;
+  for (var i = 0; i < bengaliDigits.length; i++) {
+    output = output.replaceAll(bengaliDigits[i], englishDigits[i]);
+  }
+  return output;
 }
 
 String _money(double value) {
@@ -530,4 +538,68 @@ String _bnNumber(Object value) {
     RegExp(r'\d'),
     (match) => digits[int.parse(match.group(0)!)],
   );
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  const _BanglaNumberInputFormatter();
+
+  static const _englishDigits = [
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+  ];
+  static const _banglaDigits = [
+    '০',
+    '১',
+    '২',
+    '৩',
+    '৪',
+    '৫',
+    '৬',
+    '৭',
+    '৮',
+    '৯',
+  ];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final buffer = StringBuffer();
+    var decimalSeen = false;
+    var decimalPlaces = 0;
+
+    for (final rune in newValue.text.runes) {
+      final char = String.fromCharCode(rune);
+      final englishIndex = _englishDigits.indexOf(char);
+      final banglaIndex = _banglaDigits.indexOf(char);
+      final isDigit = englishIndex != -1 || banglaIndex != -1;
+
+      if (isDigit) {
+        if (decimalSeen && decimalPlaces >= 2) continue;
+        buffer.write(banglaIndex != -1 ? char : _banglaDigits[englishIndex]);
+        if (decimalSeen) decimalPlaces++;
+        continue;
+      }
+
+      if (char == '.' && !decimalSeen) {
+        buffer.write(char);
+        decimalSeen = true;
+      }
+    }
+
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
 }

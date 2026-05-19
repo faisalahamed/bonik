@@ -129,9 +129,9 @@ class _CashPurchaseReviewPageState
         .read(cashPurchaseDraftProvider.notifier)
         .updateLine(
           categoryId: draft.category.id,
-          quantity: draft.quantityController.text,
-          buyingPrice: draft.buyingPriceController.text,
-          sellingPrice: draft.sellingPriceController.text,
+          quantity: _enNumber(draft.quantityController.text.trim()),
+          buyingPrice: _enNumber(draft.buyingPriceController.text.trim()),
+          sellingPrice: _enNumber(draft.sellingPriceController.text.trim()),
           barcode: draft.barcodeController.text,
           note: draft.noteController.text,
         );
@@ -185,6 +185,10 @@ class _CashPurchaseReviewPageState
         const SnackBar(content: Text('সব বাধ্যতামূলক তথ্য পূরণ করুন।')),
       );
       return;
+    }
+
+    for (final draft in _drafts) {
+      _updateDraftLine(draft);
     }
 
     context.push(
@@ -372,9 +376,9 @@ class _PurchaseLineDraft {
     required this.onChanged,
     required this.onRefresh,
   }) : category = line.category {
-    quantityController.text = line.quantity;
-    buyingPriceController.text = line.buyingPrice;
-    sellingPriceController.text = line.sellingPrice;
+    quantityController.text = _bnNumber(line.quantity);
+    buyingPriceController.text = _bnNumber(line.buyingPrice);
+    sellingPriceController.text = _bnNumber(line.sellingPrice);
     if (line.buyingPriceValue > 0 && line.sellingPriceValue > 0) {
       profitController.text = _number(
         line.sellingPriceValue - line.buyingPriceValue,
@@ -502,7 +506,7 @@ class _PurchaseLineDraft {
   }
 
   double _parse(String text) {
-    return double.tryParse(text.trim()) ?? 0;
+    return double.tryParse(_enNumber(text.trim())) ?? 0;
   }
 }
 
@@ -649,8 +653,6 @@ class _PurchaseReviewItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                
-                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: _RequiredNumberField(
                         controller: draft.buyingPriceController,
@@ -659,7 +661,8 @@ class _PurchaseReviewItem extends StatelessWidget {
                         prefixText: '৳ ',
                       ),
                     ),
-                      Expanded(
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
                       child: _RequiredNumberField(
                         controller: draft.sellingPriceController,
                         label: 'বিক্রয় মূল্য / প্রতি আইটেম',
@@ -672,9 +675,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                  
-                    const SizedBox(width: AppSpacing.sm),
-                        Expanded(
+                    Expanded(
                       child: _RequiredNumberField(
                         controller: draft.quantityController,
                         label: 'পরিমাণ',
@@ -682,6 +683,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                         suffixText: 'টি',
                       ),
                     ),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: _RequiredNumberField(
                         controller: draft.profitController,
@@ -802,15 +804,11 @@ class _RequiredNumberField extends StatelessWidget {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
-        FilteringTextInputFormatter.allow(
-          allowNegative
-              ? RegExp(r'^-?\d*\.?\d{0,2}$')
-              : RegExp(r'^\d*\.?\d{0,2}$'),
-        ),
+        _BanglaNumberInputFormatter(allowNegative: allowNegative),
       ],
       validator: (value) {
         final text = value?.trim() ?? '';
-        final number = double.tryParse(text);
+        final number = double.tryParse(_enNumber(text));
         if (!isRequired && text.isEmpty) {
           return null;
         }
@@ -1172,7 +1170,7 @@ String _number(double value) {
   final text = normalized % 1 == 0
       ? normalized.toStringAsFixed(0)
       : normalized.toStringAsFixed(2);
-  return text;
+  return _bnNumber(text);
 }
 
 void _setSyncedText(TextEditingController controller, String text) {
@@ -1251,7 +1249,7 @@ class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _count.toString());
+    _controller = TextEditingController(text: _bnNumber(_count));
   }
 
   @override
@@ -1263,7 +1261,7 @@ class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
   void _increment() {
     setState(() {
       _count++;
-      _controller.text = _count.toString();
+      _controller.text = _bnNumber(_count);
     });
   }
 
@@ -1271,13 +1269,13 @@ class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
     if (_count > 1) {
       setState(() {
         _count--;
-        _controller.text = _count.toString();
+        _controller.text = _bnNumber(_count);
       });
     }
   }
 
   void _onChanged(String value) {
-    final newCount = int.tryParse(value) ?? 0;
+    final newCount = int.tryParse(_enNumber(value)) ?? 0;
     setState(() {
       _count = newCount;
     });
@@ -1389,7 +1387,9 @@ class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
                           textAlign: TextAlign.center,
                           onChanged: _onChanged,
                           inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
+                            const _BanglaNumberInputFormatter(
+                              allowDecimal: false,
+                            ),
                           ],
                           style: textTheme.titleLarge?.copyWith(
                             color: AppColors.primary,
@@ -1624,6 +1624,100 @@ class _ScanningLineState extends State<_ScanningLine>
           ),
         );
       },
+    );
+  }
+}
+
+String _enNumber(String value) {
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  var output = value;
+  for (var i = 0; i < bengaliDigits.length; i++) {
+    output = output.replaceAll(bengaliDigits[i], englishDigits[i]);
+  }
+  return output;
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  const _BanglaNumberInputFormatter({
+    this.allowNegative = false,
+    this.allowDecimal = true,
+  });
+
+  final bool allowNegative;
+  final bool allowDecimal;
+
+  static const _englishDigits = [
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+  ];
+  static const _banglaDigits = [
+    '০',
+    '১',
+    '২',
+    '৩',
+    '৪',
+    '৫',
+    '৬',
+    '৭',
+    '৮',
+    '৯',
+  ];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final buffer = StringBuffer();
+    var decimalSeen = false;
+    var decimalPlaces = 0;
+    final runes = newValue.text.runes.toList();
+
+    for (int i = 0; i < runes.length; i++) {
+      final char = String.fromCharCode(runes[i]);
+      if (allowNegative && i == 0 && char == '-') {
+        buffer.write('-');
+        continue;
+      }
+
+      final englishIndex = _englishDigits.indexOf(char);
+      final banglaIndex = _banglaDigits.indexOf(char);
+      final isDigit = englishIndex != -1 || banglaIndex != -1;
+
+      if (isDigit) {
+        if (decimalSeen && decimalPlaces >= 2) continue;
+        buffer.write(banglaIndex != -1 ? char : _banglaDigits[englishIndex]);
+        if (decimalSeen) decimalPlaces++;
+        continue;
+      }
+
+      if (allowDecimal && char == '.' && !decimalSeen) {
+        buffer.write(char);
+        decimalSeen = true;
+      }
+    }
+
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

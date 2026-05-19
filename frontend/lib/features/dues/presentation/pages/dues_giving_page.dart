@@ -129,7 +129,7 @@ class _DuesGivingPageState extends ConsumerState<DuesGivingPage> {
       return;
     }
 
-    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    final amount = double.tryParse(_enNumber(_amountController.text.trim())) ?? 0;
     setState(() => _saving = true);
     try {
       await ref
@@ -367,11 +367,7 @@ class _GivingFormCard extends StatelessWidget {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}'),
-                      ),
-                    ],
+                    inputFormatters: [_BanglaNumberInputFormatter()],
                     style: textTheme.headlineLarge?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -414,7 +410,7 @@ class _GivingFormCard extends StatelessWidget {
                     minLines: 3,
                     maxLines: 5,
                     decoration: InputDecoration(
-                      hintText: 'কিসের জন্য বাকি...',
+                      hintText: 'কিসের জন্য দিচ্ছেন ?',
                       border: InputBorder.none,
                       hintStyle: textTheme.titleMedium?.copyWith(
                         color: AppColors.textMuted.withValues(alpha: 0.65),
@@ -511,4 +507,40 @@ String _banglaNumber(String value) {
     result = result.replaceAll(english[i], bangla[i]);
   }
   return result;
+}
+
+String _enNumber(String value) {
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bangla = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  var result = value;
+  for (var i = 0; i < bangla.length; i++) {
+    result = result.replaceAll(bangla[i], english[i]);
+  }
+  return result;
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    String enText = _enNumber(newValue.text);
+    if (!RegExp(r'^\d*\.?\d*$').hasMatch(enText)) {
+      return oldValue;
+    }
+
+    String bnText = _banglaNumber(enText);
+    return TextEditingValue(
+      text: bnText,
+      selection: newValue.selection.copyWith(
+        baseOffset: newValue.selection.baseOffset,
+        extentOffset: newValue.selection.extentOffset,
+      ),
+    );
+  }
 }

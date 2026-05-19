@@ -102,7 +102,17 @@ class CashPurchaseDraftLine {
   }
 
   static double _parse(String text) {
-    return double.tryParse(text.trim()) ?? 0;
+    return double.tryParse(toEnglishDigits(text.trim())) ?? 0;
+  }
+
+  static String toEnglishDigits(String value) {
+    const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    var output = value;
+    for (var i = 0; i < bengaliDigits.length; i++) {
+      output = output.replaceAll(bengaliDigits[i], englishDigits[i]);
+    }
+    return output;
   }
 }
 
@@ -166,9 +176,15 @@ class CashPurchaseDraftController extends Notifier<CashPurchaseDraftState> {
 
     final lines = Map<String, CashPurchaseDraftLine>.from(state.lines);
     lines[categoryId] = line.copyWith(
-      quantity: quantity,
-      buyingPrice: buyingPrice,
-      sellingPrice: sellingPrice,
+      quantity: quantity == null
+          ? null
+          : CashPurchaseDraftLine.toEnglishDigits(quantity),
+      buyingPrice: buyingPrice == null
+          ? null
+          : CashPurchaseDraftLine.toEnglishDigits(buyingPrice),
+      sellingPrice: sellingPrice == null
+          ? null
+          : CashPurchaseDraftLine.toEnglishDigits(sellingPrice),
       barcode: barcode,
       note: note,
     );

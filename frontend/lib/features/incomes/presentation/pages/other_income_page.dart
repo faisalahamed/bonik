@@ -284,7 +284,7 @@ class _IncomeSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '${total.toStringAsFixed(0)}৳',
+                  '${_bnNumber(total.toStringAsFixed(0))}৳',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -583,4 +583,12 @@ class _IncomeCategoryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _bnNumber(Object value) {
+  const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return value.toString().replaceAllMapped(
+    RegExp(r'\d'),
+    (match) => digits[int.parse(match.group(0)!)],
+  );
 }

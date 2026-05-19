@@ -41,7 +41,7 @@ class _CashPurchasePaymentPageState
           : total.toStringAsFixed(2);
     }
 
-    _paidAmountController = TextEditingController(text: initialPaid)
+    _paidAmountController = TextEditingController(text: _bnNumber(initialPaid))
       ..addListener(_syncPaidAmount);
     _commentController = TextEditingController(text: draft.comment)
       ..addListener(_syncComment);
@@ -74,7 +74,7 @@ class _CashPurchasePaymentPageState
   void _syncPaidAmount() {
     ref
         .read(cashPurchaseDraftProvider.notifier)
-        .setPaidAmount(_paidAmountController.text);
+        .setPaidAmount(_enNumber(_paidAmountController.text));
   }
 
   void _syncComment() {
@@ -155,7 +155,7 @@ class _CashPurchasePaymentPageState
   }
 
   double _calculateRemaining(CashPurchaseDraftState draft) {
-    final paid = double.tryParse(_paidAmountController.text) ?? 0;
+    final paid = double.tryParse(_enNumber(_paidAmountController.text)) ?? 0;
     return (draft.purchaseTotal - paid)
         .clamp(0, draft.purchaseTotal)
         .toDouble();
@@ -691,7 +691,7 @@ class _TransactionAccountCard extends StatelessWidget {
                 child: Builder(
                   builder: (context) {
                     final paidStr = paidAmountController.text;
-                    final paidVal = double.tryParse(paidStr) ?? 0;
+                    final paidVal = double.tryParse(_enNumber(paidStr)) ?? 0;
                     final isOverpaid = paidVal > totalAmount;
                     return _CustomInputField(
                       label: 'পরিশোধিত (PAID)',
@@ -840,6 +840,7 @@ class _CustomInputField extends StatelessWidget {
                 (value != null ? TextEditingController(text: value) : null),
             readOnly: isReadOnly,
             keyboardType: TextInputType.number,
+            inputFormatters: [_BanglaNumberInputFormatter()],
             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
             decoration: InputDecoration(
               hintText: hint,
@@ -1126,6 +1127,52 @@ String _toBengaliNumber(String input) {
     output = output.replaceAll(englishDigits[i], bengaliDigits[i]);
   }
   return output;
+}
+
+String _bnNumber(String input) {
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  var output = input;
+  for (var i = 0; i < englishDigits.length; i++) {
+    output = output.replaceAll(englishDigits[i], bengaliDigits[i]);
+  }
+  return output;
+}
+
+String _enNumber(String input) {
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  var output = input;
+  for (var i = 0; i < bengaliDigits.length; i++) {
+    output = output.replaceAll(bengaliDigits[i], englishDigits[i]);
+  }
+  return output;
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    String enText = _enNumber(newValue.text);
+    if (!RegExp(r'^\d*\.?\d*$').hasMatch(enText)) {
+      return oldValue;
+    }
+
+    String bnText = _bnNumber(enText);
+    return TextEditingValue(
+      text: bnText,
+      selection: newValue.selection.copyWith(
+        baseOffset: newValue.selection.baseOffset,
+        extentOffset: newValue.selection.extentOffset,
+      ),
+    );
+  }
 }
 
 String _formatTaka(String value) => '৳ ${_toBengaliNumber(value)}';
