@@ -225,6 +225,21 @@ class _CashPurchasePaymentPageState
     try {
       final draft = ref.read(cashPurchaseDraftProvider);
       final hasSelectedSupplier = draft.supplierId?.trim().isNotEmpty ?? false;
+      final paidVal = double.tryParse(draft.paidAmount) ?? 0;
+      final hasDueAmount = paidVal < draft.purchaseTotal;
+
+      if (hasDueAmount && !hasSelectedSupplier) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('বাকিতে ক্রয় করতে সাপ্লায়ার সিলেক্ট/যোগ করুন'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       if (!hasSelectedSupplier) {
         final decision = await _confirmDefaultSupplier();
         if (decision == _DefaultSupplierDecision.selectSupplier) {
@@ -238,12 +253,11 @@ class _CashPurchasePaymentPageState
         }
       }
 
-      final paidVal = double.tryParse(draft.paidAmount) ?? 0;
       if (paidVal > draft.purchaseTotal) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('মোট বিলের চেয়ে বেশি টাকা পরিশোধ করা সম্ভব নয়'),
+              content: Text('বকেয়া টাকার চেয়ে বেশি পরিশোধ করা যাবে না'),
               backgroundColor: Colors.red,
             ),
           );
@@ -685,7 +699,9 @@ class _TransactionAccountCard extends StatelessWidget {
                       hint: '0.00',
                       showTakaPrefix: true,
                       hasError: isOverpaid,
-                      errorMessage: isOverpaid ? 'মোট বিলের চেয়ে বেশি টাকা পরিশোধ করছেন' : null,
+                      errorMessage: isOverpaid
+                          ? 'বকেয়া টাকার চেয়ে বেশি পরিশোধ করা যাবে না'
+                          : null,
                     );
                   },
                 ),

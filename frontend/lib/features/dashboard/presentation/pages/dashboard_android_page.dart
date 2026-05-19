@@ -80,14 +80,12 @@ class DashboardAndroidPage extends ConsumerWidget {
                         route: AppRoutes.inventory,
                       ),
                       _DashboardMenuItemData(
-                        label: 'রিপোর্ট',
-
-                        icon: Icons.bar_chart_rounded,
-                        iconBackground: Color(0xFFEAF7F2),
-                        iconColor: AppColors.primaryContainer,
-                        route: AppRoutes.reports,
+                        label: 'বাকি ব্যবস্থাপনা',
+                        icon: Icons.account_balance_wallet_rounded,
+                        iconBackground: Color(0xFFFFF0E6),
+                        iconColor: Color(0xFFCE6D1D),
+                        route: AppRoutes.duesLedger,
                       ),
-
                       _DashboardMenuItemData(
                         label: 'অন্যান্য',
                         icon: Icons.more_horiz_rounded,
@@ -114,7 +112,7 @@ class DashboardAndroidPage extends ConsumerWidget {
                     title: 'হিসাব খাতা',
                     items: [
                       _DashboardMenuItemData(
-                        label: 'কেনার খাতা',
+                        label: 'ক্রয় খাতা',
                         icon: Icons.shopping_cart_rounded,
                         iconBackground: Color(0xFFE8F6EF),
                         iconColor: AppColors.primary,
@@ -128,11 +126,11 @@ class DashboardAndroidPage extends ConsumerWidget {
                         route: AppRoutes.salesHistory,
                       ),
                       _DashboardMenuItemData(
-                        label: 'বাকির খাতা',
+                        label: 'অন্যান্য আয় খাতা',
                         icon: Icons.account_balance_wallet_rounded,
                         iconBackground: Color(0xFFFFF0E6),
                         iconColor: Color(0xFFCE6D1D),
-                        route: AppRoutes.duesLedger,
+                        route: AppRoutes.reportOtherIncome,
                       ),
                       _DashboardMenuItemData(
                         label: 'খরচের খাতা',

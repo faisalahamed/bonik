@@ -430,11 +430,8 @@ class PurchaseSyncService {
   }
 
   double _paidAmountForDraft(CashPurchaseDraftState draft) {
-    return switch (draft.paymentMethod) {
-      'due' => 0,
-      'partial' => double.tryParse(draft.paidAmount.trim()) ?? 0,
-      _ => draft.purchaseTotal,
-    };
+    final paidAmount = double.tryParse(draft.paidAmount.trim()) ?? 0;
+    return paidAmount.clamp(0, draft.purchaseTotal).toDouble();
   }
 
   String _paymentDescription(String paymentMethod) {
