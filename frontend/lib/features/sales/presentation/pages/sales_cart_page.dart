@@ -303,7 +303,7 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
   }
 
   double _readNumber(String value) {
-    final normalized = value.replaceAll(',', '').trim();
+    final normalized = _enNumber(value).replaceAll(',', '').trim();
     if (normalized.isEmpty) {
       return 0;
     }
@@ -312,9 +312,10 @@ class _SalesCartPageState extends ConsumerState<SalesCartPage> {
 
   void _setText(TextEditingController controller, String value) {
     _updatingFields = true;
+    final bnValue = _bnNumber(value);
     controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
+      text: bnValue,
+      selection: TextSelection.collapsed(offset: bnValue.length),
     );
     _updatingFields = false;
   }
@@ -566,7 +567,7 @@ class _QuantityCardState extends State<_QuantityCard> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.quantity.toString());
+    _controller = TextEditingController(text: _bnNumber(widget.quantity));
     _focusNode = FocusNode();
   }
 
@@ -576,7 +577,7 @@ class _QuantityCardState extends State<_QuantityCard> {
     if (_focusNode.hasFocus || oldWidget.quantity == widget.quantity) {
       return;
     }
-    _controller.text = widget.quantity.toString();
+    _controller.text = _bnNumber(widget.quantity);
   }
 
   @override
@@ -634,7 +635,7 @@ class _QuantityCardState extends State<_QuantityCard> {
                     onChanged: (value) =>
                         widget.onChanged(_readIntInput(value)),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [const _BanglaNumberInputFormatter()],
                     textAlign: TextAlign.center,
                     textAlignVertical: TextAlignVertical.center,
                     style: textTheme.titleMedium?.copyWith(
@@ -681,7 +682,7 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _numberText(widget.unitPrice));
+    _controller = TextEditingController(text: _bnNumber(_numberText(widget.unitPrice)));
     _focusNode = FocusNode();
   }
 
@@ -691,7 +692,7 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
     if (_focusNode.hasFocus || oldWidget.unitPrice == widget.unitPrice) {
       return;
     }
-    _controller.text = _numberText(widget.unitPrice);
+    _controller.text = _bnNumber(_numberText(widget.unitPrice));
   }
 
   @override
@@ -735,7 +736,7 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
                 decimal: true,
               ),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                const _BanglaNumberInputFormatter(),
               ],
               textAlignVertical: TextAlignVertical.center,
               style: textTheme.titleMedium?.copyWith(
@@ -756,11 +757,11 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
 }
 
 double _readMoneyInput(String value) {
-  return double.tryParse(value.replaceAll(',', '').trim()) ?? 0;
+  return double.tryParse(_enNumber(value).replaceAll(',', '').trim()) ?? 0;
 }
 
 int _readIntInput(String value) {
-  return int.tryParse(value.trim()) ?? 0;
+  return int.tryParse(_enNumber(value).trim()) ?? 0;
 }
 
 class _CartSummaryCard extends StatelessWidget {
@@ -952,7 +953,7 @@ class _PercentAmountInputRow extends StatelessWidget {
             enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              const _BanglaNumberInputFormatter(),
             ],
             textAlign: TextAlign.end,
             decoration: _inputDecoration(suffixText: '%'),
@@ -970,7 +971,7 @@ class _PercentAmountInputRow extends StatelessWidget {
             enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              const _BanglaNumberInputFormatter(),
             ],
             textAlign: TextAlign.end,
             decoration: _inputDecoration(
@@ -1098,4 +1099,82 @@ String _bnNumber(Object value) {
     RegExp(r'\d'),
     (match) => digits[int.parse(match.group(0)!)],
   );
+}
+
+String _enNumber(String value) {
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  var output = value;
+  for (var i = 0; i < bengaliDigits.length; i++) {
+    output = output.replaceAll(bengaliDigits[i], englishDigits[i]);
+  }
+  return output;
+}
+
+class _BanglaNumberInputFormatter extends TextInputFormatter {
+  const _BanglaNumberInputFormatter();
+
+  static const _englishDigits = [
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+  ];
+  static const _banglaDigits = [
+    '০',
+    '১',
+    '২',
+    '৩',
+    '৪',
+    '৫',
+    '৬',
+    '৭',
+    '৮',
+    '৯',
+  ];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final buffer = StringBuffer();
+    var decimalSeen = false;
+    var decimalPlaces = 0;
+
+    for (final rune in newValue.text.runes) {
+      final char = String.fromCharCode(rune);
+      final englishIndex = _englishDigits.indexOf(char);
+      final banglaIndex = _banglaDigits.indexOf(char);
+      final isDigit = englishIndex != -1 || banglaIndex != -1;
+
+      if (isDigit) {
+        if (decimalSeen && decimalPlaces >= 2) {
+          continue;
+        }
+        buffer.write(banglaIndex != -1 ? char : _banglaDigits[englishIndex]);
+        if (decimalSeen) {
+          decimalPlaces++;
+        }
+        continue;
+      }
+
+      if (char == '.' && !decimalSeen) {
+        buffer.write(char);
+        decimalSeen = true;
+      }
+    }
+
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
 }

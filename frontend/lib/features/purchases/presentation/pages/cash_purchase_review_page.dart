@@ -638,7 +638,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'পণ্যের নোট বা ধরন',
+                  'পণ্যের নোট বা কোড',
                   style: textTheme.labelSmall?.copyWith(
                     color: AppColors.textMuted,
                     fontWeight: FontWeight.w700,
@@ -649,14 +649,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    Expanded(
-                      child: _RequiredNumberField(
-                        controller: draft.quantityController,
-                        label: 'পরিমাণ',
-                        hintText: '0',
-                        suffixText: 'টি',
-                      ),
-                    ),
+                
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: _RequiredNumberField(
@@ -666,12 +659,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                         prefixText: '৳ ',
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
+                      Expanded(
                       child: _RequiredNumberField(
                         controller: draft.sellingPriceController,
                         label: 'বিক্রয় মূল্য / প্রতি আইটেম',
@@ -679,7 +667,21 @@ class _PurchaseReviewItem extends StatelessWidget {
                         prefixText: '৳ ',
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                  
                     const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                      child: _RequiredNumberField(
+                        controller: draft.quantityController,
+                        label: 'পরিমাণ',
+                        hintText: '0',
+                        suffixText: 'টি',
+                      ),
+                    ),
                     Expanded(
                       child: _RequiredNumberField(
                         controller: draft.profitController,
