@@ -159,6 +159,8 @@ class _SalesPageState extends ConsumerState<SalesPage> {
                             const SizedBox(height: AppSpacing.xl),
                             _SalesHeaderRow(
                               productCount: filteredProducts.length,
+                              hasCartItems: cartLines.isNotEmpty,
+                              onClearCart: _clearCart,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             _SalesProductList(
@@ -310,6 +312,17 @@ class _SalesPageState extends ConsumerState<SalesPage> {
       cartController.decreaseProduct(product);
     }
   }
+
+  void _clearCart() {
+    if (ref.read(salesCartProvider).isEmpty) {
+      return;
+    }
+    ref.read(salesCartProvider.notifier).clear();
+    ref.read(salesCheckoutProvider.notifier).clear();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('কার্ট খালি করা হয়েছে')));
+  }
 }
 
 class _SalesSearchBar extends StatelessWidget {
@@ -375,14 +388,25 @@ class _SalesSearchBar extends StatelessWidget {
 }
 
 class _SalesHeaderRow extends StatelessWidget {
-  const _SalesHeaderRow({required this.productCount});
+  const _SalesHeaderRow({
+    required this.productCount,
+    required this.hasCartItems,
+    required this.onClearCart,
+  });
 
   final int productCount;
+  final bool hasCartItems;
+  final VoidCallback onClearCart;
 
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.sizeOf(context).width;
-    final bool isSmall = screenWidth < 380;
+    final bool isSmall = screenWidth < 520;
+    final clearCartChip = _SalesFilterChip(
+      icon: Icons.remove_shopping_cart_rounded,
+      label: 'Clear cart',
+      onTap: hasCartItems ? onClearCart : null,
+    );
 
     if (isSmall) {
       return Column(
@@ -396,14 +420,16 @@ class _SalesHeaderRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Row(
+          Row(
             children: [
-              _SalesFilterChip(
+              const _SalesFilterChip(
                 icon: Icons.filter_alt_outlined,
                 label: 'ফিল্টার',
               ),
-              SizedBox(width: AppSpacing.sm),
-              _SalesFilterChip(icon: Icons.sort_rounded, label: 'সোর্ট'),
+              const SizedBox(width: AppSpacing.sm),
+              const _SalesFilterChip(icon: Icons.sort_rounded, label: 'সোর্ট'),
+              const SizedBox(width: AppSpacing.sm),
+              clearCartChip,
             ],
           ),
         ],
@@ -420,11 +446,16 @@ class _SalesHeaderRow extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        const Row(
+        Row(
           children: [
-            _SalesFilterChip(icon: Icons.filter_alt_outlined, label: 'ফিল্টার'),
-            SizedBox(width: AppSpacing.sm),
-            _SalesFilterChip(icon: Icons.sort_rounded, label: 'সোর্ট'),
+            const _SalesFilterChip(
+              icon: Icons.filter_alt_outlined,
+              label: 'ফিল্টার',
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const _SalesFilterChip(icon: Icons.sort_rounded, label: 'সোর্ট'),
+            const SizedBox(width: AppSpacing.sm),
+            clearCartChip,
           ],
         ),
       ],
@@ -433,41 +464,54 @@ class _SalesHeaderRow extends StatelessWidget {
 }
 
 class _SalesFilterChip extends StatelessWidget {
-  const _SalesFilterChip({required this.icon, required this.label});
+  const _SalesFilterChip({required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isSmall = screenWidth < 380;
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmall ? AppSpacing.sm : AppSpacing.md,
-        vertical: isSmall ? AppSpacing.xs : AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
+    final isEnabled = onTap != null;
+    final contentColor = isEnabled
+        ? AppColors.textSecondary
+        : AppColors.textMuted;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: isSmall ? 16 : 18, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style:
-                (isSmall
-                        ? Theme.of(context).textTheme.labelSmall
-                        : Theme.of(context).textTheme.labelMedium)
-                    ?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmall ? AppSpacing.sm : AppSpacing.md,
+            vertical: isSmall ? AppSpacing.xs : AppSpacing.sm,
           ),
-        ],
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: isSmall ? 16 : 18, color: contentColor),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style:
+                    (isSmall
+                            ? Theme.of(context).textTheme.labelSmall
+                            : Theme.of(context).textTheme.labelMedium)
+                        ?.copyWith(
+                          color: contentColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

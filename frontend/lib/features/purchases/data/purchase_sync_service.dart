@@ -59,7 +59,7 @@ class PurchaseSyncService {
     final invalidLine = draft.selectedLines.any(
       (line) =>
           line.quantityValue <= 0 ||
-          line.buyingPriceValue <= 0 ||
+          line.buyingPriceValue < 0 ||
           line.sellingPriceValue <= 0,
     );
     if (invalidLine) {

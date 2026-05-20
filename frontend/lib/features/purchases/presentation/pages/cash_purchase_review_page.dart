@@ -613,171 +613,186 @@ class _PurchaseReviewItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.soft,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 4,
-            height: 300,
-            decoration: BoxDecoration(
-              color: category.syncStatus == 'pending'
-                  ? AppColors.secondary
-                  : AppColors.primary,
-              borderRadius: BorderRadius.circular(999),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: category.syncStatus == 'pending'
+                    ? AppColors.secondary
+                    : AppColors.primary,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2F2F38),
-                        borderRadius: BorderRadius.circular(AppRadii.lg),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2F2F38),
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                        ),
+                        child: const Icon(
+                          Icons.inventory_2_rounded,
+                          color: Color(0xFFFFC857),
+                          size: 34,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.inventory_2_rounded,
-                        color: Color(0xFFFFC857),
-                        size: 34,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            category.name,
-                            style: textTheme.titleMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              category.name,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            details?.isNotEmpty == true
-                                ? details!
-                                : 'নির্বাচিত পণ্য',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textMuted,
+                            const SizedBox(height: 2),
+                            Text(
+                              details?.isNotEmpty == true
+                                  ? details!
+                                  : 'নির্বাচিত পণ্য',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _TotalPriceLabel(total: draft.purchaseTotal),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'পণ্যের নোট বা কোড',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w700,
+                      const SizedBox(width: AppSpacing.sm),
+                      _TotalPriceLabel(total: draft.purchaseTotal),
+                    ],
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _NoteBox(controller: draft.noteController),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _RequiredNumberField(
-                        controller: draft.buyingPriceController,
-                        allowZero: true,
-                        label: 'ক্রয় মূল্য / প্রতি আইটেম',
-                        hintText: '0',
-                        prefixText: '৳ ',
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: _RequiredNumberField(
-                        controller: draft.sellingPriceController,
-                        label: 'বিক্রয় মূল্য / প্রতি আইটেম',
-                        hintText: '0',
-                        prefixText: '৳ ',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _RequiredNumberField(
-                        controller: draft.quantityController,
-                        label: 'পরিমাণ',
-                        hintText: '0',
-                        suffixText: 'টি',
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: _RequiredNumberField(
-                        controller: draft.profitController,
-                        label: 'লাভ / প্রতি আইটেম',
-                        hintText: '0',
-                        prefixText: '৳ ',
-                        suffixText: _percent(draft.profitPercent),
-                        allowNegative: true,
-                        isRequired: false,
-                      ),
-                    ),
-                  ],
-                ),
-                if (draft.hasLowerSellingPrice) ...[
+
                   const SizedBox(height: AppSpacing.sm),
-                  _PriceWarning(
-                    message:
-                        'বিক্রয় মূল্য ক্রয় মূল্যের চেয়ে কম। এই আইটেমে ক্ষতি হবে।',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RequiredNumberField(
+                          controller: draft.buyingPriceController,
+                          allowZero: true,
+                          label: 'ক্রয় মূল্য / প্রতি আইটেম',
+                          hintText: '0',
+                          prefixText: '৳ ',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _RequiredNumberField(
+                          controller: draft.sellingPriceController,
+                          label: 'বিক্রয় মূল্য / প্রতি আইটেম',
+                          hintText: '0',
+                          prefixText: '৳ ',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RequiredNumberField(
+                          controller: draft.quantityController,
+                          label: 'পরিমাণ',
+                          hintText: '0',
+                          suffixText: 'টি',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _RequiredNumberField(
+                          controller: draft.profitController,
+                          label: 'লাভ / প্রতি আইটেম',
+                          hintText: '0',
+                          prefixText: '৳ ',
+                          suffixText: _percent(draft.profitPercent),
+                          allowNegative: true,
+                          isRequired: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (draft.hasLowerSellingPrice) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _PriceWarning(
+                      message:
+                          'বিক্রয় মূল্য ক্রয় মূল্যের চেয়ে কম। এই আইটেমে ক্ষতি হবে।',
+                    ),
+                  ],
+                  Theme(
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      maintainState: true,
+                      title: Text(
+                        'অতিরিক্ত তথ্য ও অ্যাকশন',
+                        style: textTheme.labelLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      children: [
+                        const SizedBox(height: AppSpacing.sm),
+                        _NoteBox(controller: draft.noteController),
+                        const SizedBox(height: AppSpacing.sm),
+                        _BarcodeField(
+                          controller: draft.barcodeController,
+                          onScan: onScan,
+                          onRegenerate: onRegenerateBarcode,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            _ActionChip(
+                              icon: Icons.qr_code_scanner_rounded,
+                              label: 'স্ক্যান করুন',
+                              color: AppColors.primary,
+                              backgroundColor: AppColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              onTap: onScan,
+                            ),
+                            _ActionChip(
+                              icon: Icons.print_rounded,
+                              label: 'বারকোড প্রিন্ট',
+                              color: const Color(0xFF673AB7),
+                              backgroundColor: const Color(0xFFF3E5F5),
+                              onTap: onPrintBarcode,
+                            ),
+                            _ActionChip(
+                              icon: Icons.delete_outline_rounded,
+                              label: 'মুছুন',
+                              color: const Color(0xFFD9534F),
+                              backgroundColor: const Color(0xFFFFF0F0),
+                              onTap: onRemove,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.sm),
-                _BarcodeField(
-                  controller: draft.barcodeController,
-                  onScan: onScan,
-                  onRegenerate: onRegenerateBarcode,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    _ActionChip(
-                      icon: Icons.qr_code_scanner_rounded,
-                      label: 'স্ক্যান করুন',
-                      color: AppColors.primary,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      onTap: onScan,
-                    ),
-                    _ActionChip(
-                      icon: Icons.print_rounded,
-                      label: 'বারকোড প্রিন্ট',
-                      color: const Color(0xFF673AB7),
-                      backgroundColor: const Color(0xFFF3E5F5),
-                      onTap: onPrintBarcode,
-                    ),
-                    _ActionChip(
-                      icon: Icons.delete_outline_rounded,
-                      label: 'মুছুন',
-                      color: const Color(0xFFD9534F),
-                      backgroundColor: const Color(0xFFFFF0F0),
-                      onTap: onRemove,
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

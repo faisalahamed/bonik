@@ -717,7 +717,7 @@ class _HistoryItemCard extends StatelessWidget {
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  '${_bnNumber(entry.itemCount)}টি পণ্য',
+                                  '${_bnNumber(entry.itemCount)}ধরনের পণ্য',
                                   style: textTheme.labelMedium?.copyWith(
                                     color: AppColors.textSecondary,
                                     fontWeight: FontWeight.w700,
@@ -746,19 +746,6 @@ class _HistoryItemCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        entry.syncStatus == 'pending'
-                            ? 'সিঙ্ক বাকি'
-                            : 'সার্ভারে সিঙ্কড',
-                        style: textTheme.labelSmall?.copyWith(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
                   ],
                 ),
