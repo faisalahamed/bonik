@@ -440,6 +440,27 @@ class _CartReviewItem extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+                          if (_hasText(product.categoryName)) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _hasText(product.categoryDetails)
+                                        ? '${product.categoryName} (${product.categoryDetails})'
+                                        : product.categoryName!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textMuted,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           if (_hasText(product.description)) ...[
                             const SizedBox(height: 4),
                             Text(
@@ -682,7 +703,9 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _bnNumber(_numberText(widget.unitPrice)));
+    _controller = TextEditingController(
+      text: _bnNumber(_numberText(widget.unitPrice)),
+    );
     _focusNode = FocusNode();
   }
 
@@ -735,9 +758,7 @@ class _UnitPriceCardState extends State<_UnitPriceCard> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              inputFormatters: [
-                const _BanglaNumberInputFormatter(),
-              ],
+              inputFormatters: [const _BanglaNumberInputFormatter()],
               textAlignVertical: TextAlignVertical.center,
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
@@ -923,6 +944,12 @@ class _PercentAmountInputRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isSmallScreen = screenWidth < 380;
+
+    final percentWidth = isSmallScreen ? 60.0 : 78.0;
+    final amountWidth = isSmallScreen ? 96.0 : 126.0;
+
     return Row(
       children: [
         InkWell(
@@ -933,55 +960,61 @@ class _PercentAmountInputRow extends StatelessWidget {
                 ? Icons.radio_button_checked_rounded
                 : Icons.radio_button_unchecked_rounded,
             color: enabled ? AppColors.primary : AppColors.textMuted,
-            size: 22,
+            size: isSmallScreen ? 18 : 22,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             label,
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
+            style:
+                (isSmallScreen ? textTheme.titleSmall : textTheme.titleMedium)
+                    ?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
           ),
         ),
         SizedBox(
-          width: 78,
+          width: percentWidth,
           child: TextField(
             controller: percentController,
             enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              const _BanglaNumberInputFormatter(),
-            ],
+            inputFormatters: [const _BanglaNumberInputFormatter()],
             textAlign: TextAlign.end,
             decoration: _inputDecoration(suffixText: '%'),
-            style: textTheme.titleMedium?.copyWith(
-              color: enabled ? AppColors.textPrimary : AppColors.textMuted,
-              fontWeight: FontWeight.w800,
-            ),
+            style:
+                (isSmallScreen ? textTheme.titleSmall : textTheme.titleMedium)
+                    ?.copyWith(
+                      color: enabled
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                      fontWeight: FontWeight.w800,
+                    ),
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        SizedBox(width: isSmallScreen ? 4 : AppSpacing.sm),
         SizedBox(
-          width: 126,
+          width: amountWidth,
           child: TextField(
             controller: amountController,
             enabled: enabled,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              const _BanglaNumberInputFormatter(),
-            ],
+            inputFormatters: [const _BanglaNumberInputFormatter()],
             textAlign: TextAlign.end,
             decoration: _inputDecoration(
               hintText: _numberText(value),
               prefixText: '৳ ',
             ),
-            style: textTheme.titleMedium?.copyWith(
-              color: enabled ? AppColors.textPrimary : AppColors.textMuted,
-              fontWeight: FontWeight.w800,
-            ),
+            style:
+                (isSmallScreen ? textTheme.titleSmall : textTheme.titleMedium)
+                    ?.copyWith(
+                      color: enabled
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                      fontWeight: FontWeight.w800,
+                    ),
           ),
         ),
       ],

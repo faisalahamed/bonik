@@ -4174,19 +4174,21 @@ final class AppDatabase extends _$AppDatabase {
     return customSelect(
       '''
       SELECT
-        MIN(id) AS id,
-        category_id,
-        product_name,
-        MAX(NULLIF(description, '')) AS description,
-        SUM(available_quantity) AS stock_quantity,
-        COALESCE(MAX(buying_price), 0.0) AS buying_price,
-        COALESCE(MAX(est_selling_price), MAX(buying_price), 0.0) AS selling_price,
-        SUM(available_quantity * COALESCE(buying_price, 0.0)) AS stock_value,
+        MIN(p.id) AS id,
+        p.category_id,
+        MAX(c.name) AS category_name,
+        MAX(c.details) AS category_details,
+        p.product_name,
+        MAX(NULLIF(p.description, '')) AS description,
+        SUM(p.available_quantity) AS stock_quantity,
+        COALESCE(MAX(p.buying_price), 0.0) AS buying_price,
+        COALESCE(MAX(p.est_selling_price), MAX(p.buying_price), 0.0) AS selling_price,
+        SUM(p.available_quantity * COALESCE(p.buying_price, 0.0)) AS stock_value,
         SUM(
-          available_quantity *
+          p.available_quantity *
           (
-            COALESCE(est_selling_price, buying_price, 0.0) -
-            COALESCE(buying_price, 0.0)
+            COALESCE(p.est_selling_price, p.buying_price, 0.0) -
+            COALESCE(p.buying_price, 0.0)
           )
         ) AS expected_profit
       FROM (
@@ -4211,16 +4213,18 @@ final class AppDatabase extends _$AppDatabase {
             AND is_authenticated = 1
         )
           AND pi.deleted_at IS NULL
-      ) AS available_batches
-      GROUP BY COALESCE(category_id, product_name), product_name
+      ) AS p
+      LEFT JOIN local_categories c ON c.id = p.category_id
+      GROUP BY COALESCE(p.category_id, p.product_name), p.product_name
       HAVING stock_quantity > 0
-      ORDER BY product_name ASC
+      ORDER BY p.product_name ASC
       ''',
       readsFrom: {
         localPurchaseItems,
         localSaleItems,
         localSaleReturnItems,
         localSessions,
+        localCategories,
       },
     ).watch().map(
       (rows) => rows
@@ -4235,6 +4239,8 @@ final class AppDatabase extends _$AppDatabase {
               sellingPrice: row.read<double>('selling_price'),
               stockValue: row.read<double>('stock_value'),
               expectedProfit: row.read<double>('expected_profit'),
+              categoryName: row.readNullable<String>('category_name'),
+              categoryDetails: row.readNullable<String>('category_details'),
             ),
           )
           .toList(),
@@ -4733,8 +4739,10 @@ final class AppDatabase extends _$AppDatabase {
     final itemRows = await customSelect(
       '''
       SELECT
-        COALESCE(pi.product_name, 'à¦ªà¦£à§à¦¯') AS product_name,
+        COALESCE(pi.product_name, 'à¦ªà¦£à§ à¦¯') AS product_name,
         pi.category_id,
+        MAX(c.name) AS category_name,
+        MAX(c.details) AS category_details,
         MAX(NULLIF(pi.description, '')) AS description,
         MIN(pi.id) AS product_id,
         COALESCE(MAX(pi.buying_price), 0.0) AS buying_price,
@@ -4744,13 +4752,14 @@ final class AppDatabase extends _$AppDatabase {
         SUM(si.price) AS line_total
       FROM local_sale_items si
       LEFT JOIN local_purchase_items pi ON pi.id = si.product_id
+      LEFT JOIN local_categories c ON c.id = pi.category_id
       WHERE si.order_id = ?
         AND si.deleted_at IS NULL
-      GROUP BY COALESCE(pi.product_name, 'à¦ªà¦£à§à¦¯'), pi.category_id, si.sale_price
+      GROUP BY COALESCE(pi.product_name, 'à¦ªà¦£à§ à¦¯'), pi.category_id, si.sale_price
       ORDER BY MIN(si.created_at) ASC
       ''',
       variables: [Variable<String>(saleId)],
-      readsFrom: {localSaleItems, localPurchaseItems},
+      readsFrom: {localSaleItems, localPurchaseItems, localCategories},
     ).get();
 
     final lines = <LocalSaleEditLine>[];
@@ -4785,6 +4794,8 @@ final class AppDatabase extends _$AppDatabase {
                 stockQuantity *
                 (row.read<double>('selling_price') -
                     row.read<double>('buying_price')),
+            categoryName: row.readNullable<String>('category_name'),
+            categoryDetails: row.readNullable<String>('category_details'),
           ),
           quantity: quantity,
           unitPrice: row.read<double>('sale_price'),
@@ -6525,6 +6536,8 @@ class LocalSalesProduct {
     required this.sellingPrice,
     required this.stockValue,
     required this.expectedProfit,
+    this.categoryName,
+    this.categoryDetails,
   });
 
   final String id;
@@ -6536,6 +6549,8 @@ class LocalSalesProduct {
   final double sellingPrice;
   final double stockValue;
   final double expectedProfit;
+  final String? categoryName;
+  final String? categoryDetails;
 }
 
 class LocalProductReportEntry {

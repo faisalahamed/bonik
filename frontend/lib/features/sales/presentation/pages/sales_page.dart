@@ -250,19 +250,15 @@ class _SalesPageState extends ConsumerState<SalesPage> {
     if (_query.isEmpty) {
       filtered = List.of(products);
     } else {
-      filtered = products
-          .where(
-            (product) {
-              final isSelected = cartLines.any(
-                (line) => _sameProductForSalesList(line.product, product),
-              );
-              if (isSelected) return true;
+      filtered = products.where((product) {
+        final isSelected = cartLines.any(
+          (line) => _sameProductForSalesList(line.product, product),
+        );
+        if (isSelected) return true;
 
-              return product.name.toLowerCase().contains(_query) ||
-                  (product.description?.toLowerCase().contains(_query) ?? false);
-            },
-          )
-          .toList();
+        return product.name.toLowerCase().contains(_query) ||
+            (product.description?.toLowerCase().contains(_query) ?? false);
+      }).toList();
     }
 
     filtered.sort((a, b) {
@@ -385,6 +381,35 @@ class _SalesHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isSmall = screenWidth < 380;
+
+    if (isSmall) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'পণ্য তালিকা (${_bnNumber(productCount)})',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Row(
+            children: [
+              _SalesFilterChip(
+                icon: Icons.filter_alt_outlined,
+                label: 'ফিল্টার',
+              ),
+              SizedBox(width: AppSpacing.sm),
+              _SalesFilterChip(icon: Icons.sort_rounded, label: 'সোর্ট'),
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -415,10 +440,13 @@ class _SalesFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isSmall = screenWidth < 380;
+
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? AppSpacing.sm : AppSpacing.md,
+        vertical: isSmall ? AppSpacing.xs : AppSpacing.sm,
       ),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
@@ -426,14 +454,18 @@ class _SalesFilterChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
+          Icon(icon, size: isSmall ? 16 : 18, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+            style:
+                (isSmall
+                        ? Theme.of(context).textTheme.labelSmall
+                        : Theme.of(context).textTheme.labelMedium)
+                    ?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
           ),
         ],
       ),
@@ -530,12 +562,21 @@ class _SalesProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLowStock = product.stockQuantity <= 5;
     final isSelected = selectedQuantity > 0;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isSmallScreen = screenWidth < 380;
+
+    final cardPadding = isSmallScreen ? AppSpacing.sm : AppSpacing.md;
+    final elementSpacing = isSmallScreen ? AppSpacing.sm : AppSpacing.md;
+    final iconSize = isSmallScreen ? 48.0 : 60.0;
+    final iconInnerSize = isSmallScreen ? 22.0 : 28.0;
+    final buttonSize = isSmallScreen ? 36.0 : 40.0;
+    final buttonIconSize = isSmallScreen ? 16.0 : 20.0;
 
     return InkWell(
-      onTap: onTap,
+      onTap: isSelected ? null : onTap,
       borderRadius: BorderRadius.circular(AppRadii.xl),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(cardPadding),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFFF1FAF6)
@@ -550,116 +591,148 @@ class _SalesProductCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF4F7F6),
-                shape: BoxShape.circle,
+              width: iconSize,
+              height: iconSize,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F6F4),
+                borderRadius: BorderRadius.circular(
+                  isSmallScreen ? AppRadii.sm : AppRadii.md,
+                ),
               ),
               alignment: Alignment.center,
-              child: const Icon(
-                Icons.inventory_2_rounded,
+              child: Icon(
+                Icons.inventory_2_outlined,
                 color: AppColors.primary,
-                size: 34,
+                size: iconInnerSize,
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
+            SizedBox(width: elementSpacing),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     product.name,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (isSmallScreen
+                                ? Theme.of(context).textTheme.titleSmall
+                                : Theme.of(context).textTheme.titleMedium)
+                            ?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
                   ),
+                  if (_hasText(product.categoryName)) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _hasText(product.categoryDetails)
+                                ? '${product.categoryName} (${product.categoryDetails})'
+                                : product.categoryName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isSmallScreen ? 10 : 11,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (_hasText(product.description)) ...[
                     const SizedBox(height: 4),
                     Text(
                       product.description!,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
                       _StockBadge(
                         label: _stockLabel(product.stockQuantity, isLowStock),
                         isLowStock: isLowStock,
+                        isSmall: isSmallScreen,
                       ),
                       if (isSelected)
-                        _SelectedBadge(quantity: selectedQuantity),
+                        _SelectedBadge(
+                          quantity: selectedQuantity,
+                          isSmall: isSmallScreen,
+                        ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: elementSpacing),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'মূল্য',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: AppColors.textMuted),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: isSmallScreen ? 10 : null,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
                   _money(product.sellingPrice),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style:
+                      (isSmallScreen
+                              ? Theme.of(context).textTheme.titleMedium
+                              : Theme.of(context).textTheme.titleLarge)
+                          ?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSelected) ...[
+                      _CompactActionButton(
+                        icon: Icons.remove_rounded,
+                        color: const Color(0xFFC15151),
+                        backgroundColor: const Color(0xFFFFEAEA),
+                        size: buttonSize,
+                        iconSize: buttonIconSize,
+                        onTap: onDecrease,
+                      ),
+                      SizedBox(width: isSmallScreen ? 6.0 : 8.0),
+                    ],
+                    _CompactActionButton(
+                      icon: isSelected
+                          ? Icons.add_rounded
+                          : Icons.add_shopping_cart_rounded,
+                      color: isSelected ? Colors.white : AppColors.primary,
+                      backgroundColor: isSelected
+                          ? AppColors.primary
+                          : const Color(0xFFF0F8F5),
+                      size: buttonSize,
+                      iconSize: buttonIconSize,
+                      onTap: onTap,
+                    ),
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            if (isSelected)
-              Container(
-                width: 44,
-                height: 44,
-                margin: const EdgeInsets.only(right: AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEAEA),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onDecrease,
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    child: const Icon(
-                      Icons.remove_rounded,
-                      color: Color(0xFFC15151),
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : const Color(0xFFF0F8F5),
-                borderRadius: BorderRadius.circular(AppRadii.md),
-              ),
-              child: Icon(
-                isSelected
-                    ? Icons.add_rounded
-                    : Icons.add_shopping_cart_rounded,
-                color: isSelected ? Colors.white : AppColors.primary,
-                size: 22,
-              ),
             ),
           ],
         ),
@@ -668,18 +741,61 @@ class _SalesProductCard extends StatelessWidget {
   }
 }
 
-class _StockBadge extends StatelessWidget {
-  const _StockBadge({required this.label, required this.isLowStock});
+class _CompactActionButton extends StatelessWidget {
+  const _CompactActionButton({
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+    required this.size,
+    required this.iconSize,
+    required this.onTap,
+  });
 
-  final String label;
-  final bool isLowStock;
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+  final double size;
+  final double iconSize;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 6,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: Icon(icon, color: color, size: iconSize),
+        ),
+      ),
+    );
+  }
+}
+
+class _StockBadge extends StatelessWidget {
+  const _StockBadge({
+    required this.label,
+    required this.isLowStock,
+    this.isSmall = false,
+  });
+
+  final String label;
+  final bool isLowStock;
+  final bool isSmall;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 6 : AppSpacing.sm,
+        vertical: isSmall ? 3 : 4,
       ),
       decoration: BoxDecoration(
         color: isLowStock ? const Color(0xFFFFEAEA) : const Color(0xFFE9F7F2),
@@ -687,28 +803,35 @@ class _StockBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: isLowStock
-              ? const Color(0xFFC15151)
-              : AppColors.primaryContainer,
-          fontWeight: FontWeight.w700,
-        ),
+        style:
+            (isSmall
+                    ? Theme.of(
+                        context,
+                      ).textTheme.labelSmall?.copyWith(fontSize: 10)
+                    : Theme.of(context).textTheme.labelSmall)
+                ?.copyWith(
+                  color: isLowStock
+                      ? const Color(0xFFC15151)
+                      : AppColors.primaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
       ),
     );
   }
 }
 
 class _SelectedBadge extends StatelessWidget {
-  const _SelectedBadge({required this.quantity});
+  const _SelectedBadge({required this.quantity, this.isSmall = false});
 
   final int quantity;
+  final bool isSmall;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 6,
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 6 : AppSpacing.sm,
+        vertical: isSmall ? 3 : 4,
       ),
       decoration: BoxDecoration(
         color: AppColors.primary,
@@ -716,10 +839,13 @@ class _SelectedBadge extends StatelessWidget {
       ),
       child: Text(
         'কার্টে: ${_bnNumber(quantity)}টি',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-        ),
+        style:
+            (isSmall
+                    ? Theme.of(
+                        context,
+                      ).textTheme.labelSmall?.copyWith(fontSize: 10)
+                    : Theme.of(context).textTheme.labelSmall)
+                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -733,6 +859,9 @@ class _SalesBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool isSmallScreen = screenWidth < 380;
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: SafeArea(
@@ -765,11 +894,14 @@ class _SalesBottomBar extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       _money(total),
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      style:
+                          (isSmallScreen
+                                  ? Theme.of(context).textTheme.titleLarge
+                                  : Theme.of(context).textTheme.headlineMedium)
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
                     ),
                   ],
                 ),
