@@ -504,6 +504,35 @@ class _OwnerHistoryEntry extends StatelessWidget {
     final isGiven = credit != '-';
     final dateColor = isGiven ? AppColors.primary : AppColors.textSecondary;
 
+    final actionButtons = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(
+            Icons.edit_rounded,
+            color: AppColors.primary,
+            size: 16,
+          ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          splashRadius: 16,
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(
+            Icons.delete_rounded,
+            color: Color(0xFFD9534F),
+            size: 16,
+          ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          splashRadius: 16,
+        ),
+      ],
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -519,12 +548,18 @@ class _OwnerHistoryEntry extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$dateMonth $day',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: dateColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '$dateMonth $day',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: dateColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    actionButtons,
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -550,18 +585,6 @@ class _OwnerHistoryEntry extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 8),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.edit_rounded,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  splashRadius: 20,
-                ),
               ],
             ),
           ),
@@ -577,18 +600,6 @@ class _OwnerHistoryEntry extends StatelessWidget {
                     color: const Color(0xFFD9534F),
                     fontWeight: FontWeight.w800,
                   ),
-                ),
-                const SizedBox(height: 8),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.delete_rounded,
-                    color: Color(0xFFD9534F),
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  splashRadius: 20,
                 ),
               ],
             ),
@@ -749,7 +760,7 @@ String _reference(LocalOwnerTransactionEntry entry) {
     return 'Ref: ${referenceId.length > 8 ? referenceId.substring(0, 8) : referenceId}';
   }
 
-  return entry.isGiven ? 'Owner given' : 'Owner taken';
+  return entry.isGiven ? 'দিলো' : 'নিলো';
 }
 
 String _money(double value) {

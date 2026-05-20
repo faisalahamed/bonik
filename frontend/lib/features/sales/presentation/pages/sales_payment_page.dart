@@ -1496,9 +1496,6 @@ class _PaymentMethodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isSmallScreen = screenWidth < 380;
-    
     final displayLabel = switch (icon) {
       Icons.payments => 'নগদ',
       Icons.more_horiz => 'ব্যাংক/কার্ড',
@@ -1510,8 +1507,7 @@ class _PaymentMethodCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Container(
-        height: isSmallScreen ? 38 : 44,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        height: 44,
         decoration: BoxDecoration(
           color: active ? const Color(0xFF004D40) : Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -1523,20 +1519,18 @@ class _PaymentMethodCard extends StatelessWidget {
             Icon(
               icon,
               color: active ? Colors.white : const Color(0xFF004D40),
-              size: isSmallScreen ? 14 : 16,
+              size: 16,
             ),
-            SizedBox(width: isSmallScreen ? 4 : 6),
-            Flexible(
-              child: Text(
-                displayLabel,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: active ? Colors.white : const Color(0xFF004D40),
-                  fontWeight: FontWeight.bold,
-                  fontSize: isSmallScreen ? 11 : 13,
-                ),
+            const SizedBox(width: 6),
+            Text(
+              displayLabel,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: active ? Colors.white : const Color(0xFF004D40),
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
             ),
           ],
