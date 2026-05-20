@@ -178,13 +178,24 @@ class _CashPurchaseReviewPageState
     }
   }
 
-  void _continueToPayment() {
+  Future<void> _continueToPayment() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('সব বাধ্যতামূলক তথ্য পূরণ করুন।')),
       );
       return;
+    }
+
+    final hasFreeProduct = _drafts.any((draft) => draft.buyingPrice == 0);
+    if (hasFreeProduct) {
+      final shouldContinue = await _confirmFreeProductPurchase();
+      if (!mounted) {
+        return;
+      }
+      if (!shouldContinue) {
+        return;
+      }
     }
 
     for (final draft in _drafts) {
@@ -195,6 +206,30 @@ class _CashPurchaseReviewPageState
       AppRoutes.cashPurchasePayment,
       extra: _drafts.map((draft) => draft.toInput()).toList(growable: false),
     );
+  }
+
+  Future<bool> _confirmFreeProductPurchase() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ক্রয় মূল্য ০ টাকা'),
+        content: const Text(
+          'আপনি কি নিশ্চিত যে এই পণ্যটি ফ্রি পেয়েছেন? হ্যাঁ হলে আগের মতোই এগিয়ে যাবে।',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('না'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('হ্যাঁ, এগিয়ে যান'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
   }
 
   Future<void> _showPrintBarcodeDialog(_PurchaseLineDraft draft) async {
@@ -299,7 +334,9 @@ class _CashPurchaseReviewPageState
                   ),
                   _PurchaseReviewBottomAction(
                     isEnabled: hasItems,
-                    onContinue: _continueToPayment,
+                    onContinue: () {
+                      _continueToPayment();
+                    },
                   ),
                 ],
               ),
@@ -656,6 +693,7 @@ class _PurchaseReviewItem extends StatelessWidget {
                     Expanded(
                       child: _RequiredNumberField(
                         controller: draft.buyingPriceController,
+                        allowZero: true,
                         label: 'ক্রয় মূল্য / প্রতি আইটেম',
                         hintText: '0',
                         prefixText: '৳ ',
@@ -785,6 +823,7 @@ class _RequiredNumberField extends StatelessWidget {
     this.prefixText,
     this.suffixText,
     this.allowNegative = false,
+    this.allowZero = false,
     this.isRequired = true,
   });
 
@@ -794,6 +833,7 @@ class _RequiredNumberField extends StatelessWidget {
   final String? prefixText;
   final String? suffixText;
   final bool allowNegative;
+  final bool allowZero;
   final bool isRequired;
 
   @override
@@ -818,7 +858,7 @@ class _RequiredNumberField extends StatelessWidget {
         if (number == null) {
           return 'সঠিক সংখ্যা দিন';
         }
-        if (isRequired && number <= 0) {
+        if (isRequired && (allowZero ? number < 0 : number <= 0)) {
           return '০ এর বেশি দিন';
         }
         return null;

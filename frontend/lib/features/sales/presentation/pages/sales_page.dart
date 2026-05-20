@@ -669,11 +669,6 @@ class _SalesProductCard extends StatelessWidget {
                         isLowStock: isLowStock,
                         isSmall: isSmallScreen,
                       ),
-                      if (isSelected)
-                        _SelectedBadge(
-                          quantity: selectedQuantity,
-                          isSmall: isSmallScreen,
-                        ),
                     ],
                   ),
                 ],
@@ -715,6 +710,11 @@ class _SalesProductCard extends StatelessWidget {
                         size: buttonSize,
                         iconSize: buttonIconSize,
                         onTap: onDecrease,
+                      ),
+                      SizedBox(width: isSmallScreen ? 6.0 : 8.0),
+                      _SelectedBadge(
+                        quantity: selectedQuantity,
+                        isSmall: isSmallScreen,
                       ),
                       SizedBox(width: isSmallScreen ? 6.0 : 8.0),
                     ],
@@ -838,7 +838,7 @@ class _SelectedBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'কার্টে: ${_bnNumber(quantity)}টি',
+        '${_bnNumber(quantity)}টি',
         style:
             (isSmall
                     ? Theme.of(

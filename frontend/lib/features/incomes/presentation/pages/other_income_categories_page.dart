@@ -24,6 +24,36 @@ class _OtherIncomeCategoriesPageState
   LocalCategory? _categoryPendingRestore;
   _CategoryListMode _listMode = _CategoryListMode.active;
 
+  final _searchController = TextEditingController();
+  var _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<LocalCategory> _filterCategories(List<LocalCategory> categories) {
+    if (_query.isEmpty) return categories;
+    return categories
+        .where(
+          (item) =>
+              item.name.toLowerCase().contains(_query) ||
+              (item.details ?? '').toLowerCase().contains(_query),
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(incomeCategoriesProvider);
@@ -55,9 +85,9 @@ class _OtherIncomeCategoriesPageState
                 SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
-                    AppSpacing.xxl,
+                    AppSpacing.xl,
                     AppSpacing.lg,
-                    AppSpacing.xxl,
+                    AppSpacing.xl,
                   ),
                   child: Center(
                     child: ConstrainedBox(
@@ -65,6 +95,8 @@ class _OtherIncomeCategoriesPageState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          _CategorySearchBar(controller: _searchController),
+                          const SizedBox(height: AppSpacing.xl),
                           _CategoryListToggle(
                             selectedMode: _listMode,
                             onChanged: (mode) {
@@ -73,7 +105,7 @@ class _OtherIncomeCategoriesPageState
                               });
                             },
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                           const SizedBox(height: AppSpacing.xxl),
                           if (_listMode == _CategoryListMode.active)
                             Text(
                               'বিদ্যমান আয়ের খাতসমূহ',
@@ -88,7 +120,7 @@ class _OtherIncomeCategoriesPageState
                           if (_listMode == _CategoryListMode.active)
                             categoriesAsync.when(
                               data: (items) => _ExistingCategoryList(
-                                categories: items,
+                                categories: _filterCategories(items),
                                 isLoading: false,
                                 onDelete: _deleteCategory,
                                 onEdit: _editCategory,
@@ -116,7 +148,7 @@ class _OtherIncomeCategoriesPageState
                           if (_listMode == _CategoryListMode.deleted)
                             deletedCategoriesAsync.when(
                               data: (items) => _DeletedCategoryList(
-                                categories: items,
+                                categories: _filterCategories(items),
                                 isLoading: false,
                                 onRestore: _restoreCategory,
                               ),
@@ -499,17 +531,19 @@ class _ExistingCategoryTile extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    category.syncStatus == 'pending' ? 'সিঙ্ক বাকি' : 'সিঙ্কড',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                  if (category.details?.isNotEmpty == true) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      category.details!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -964,4 +998,68 @@ class AddIncomeCategoryDraft {
   const AddIncomeCategoryDraft({required this.name, this.details});
   final String name;
   final String? details;
+}
+
+class _CategorySearchBar extends StatelessWidget {
+  const _CategorySearchBar({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search_rounded,
+            color: AppColors.textMuted,
+            size: 28,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'খোঁজ করুন...',
+                hintStyle: TextStyle(color: AppColors.textMuted),
+                fillColor: Colors.transparent,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              if (value.text.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                onPressed: () => controller.clear(),
+                icon: const Icon(
+                  Icons.clear_rounded,
+                  color: AppColors.textMuted,
+                  size: 24,
+                ),
+              );
+            },
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.tune_rounded,
+              color: AppColors.primary,
+              size: 28,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

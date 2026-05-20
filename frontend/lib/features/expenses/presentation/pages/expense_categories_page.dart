@@ -24,6 +24,9 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
   LocalCategory? _categoryPendingRestore;
   _CategoryListMode _listMode = _CategoryListMode.active;
 
+  final _searchController = TextEditingController();
+  var _query = '';
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,28 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
     _deletedCategoriesStream = ref
         .read(appDatabaseProvider)
         .watchDeletedExpenseCategoriesForCurrentShop();
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<LocalCategory> _filterCategories(List<LocalCategory> categories) {
+    if (_query.isEmpty) return categories;
+    return categories
+        .where(
+          (item) =>
+              item.name.toLowerCase().contains(_query) ||
+              (item.details ?? '').toLowerCase().contains(_query),
+        )
+        .toList();
   }
 
   @override
@@ -70,6 +95,8 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          _ExpenseCategorySearchBar(controller: _searchController),
+                          const SizedBox(height: AppSpacing.xl),
                           _CategoryListToggle(
                             selectedMode: _listMode,
                             onChanged: (mode) {
@@ -78,7 +105,7 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
                               });
                             },
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.xxl),
                           if (_listMode == _CategoryListMode.active)
                             Text(
                               'বিদ্যমান খরচের খাতসমূহ',
@@ -95,7 +122,7 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
                               stream: _categoriesStream,
                               builder: (context, snapshot) {
                                 return _ExistingCategoryList(
-                                  categories: snapshot.data ?? const [],
+                                  categories: _filterCategories(snapshot.data ?? const []),
                                   isLoading:
                                       snapshot.connectionState ==
                                           ConnectionState.waiting &&
@@ -122,7 +149,7 @@ class _ExpenseCategoriesPageState extends ConsumerState<ExpenseCategoriesPage> {
                               stream: _deletedCategoriesStream,
                               builder: (context, snapshot) {
                                 return _DeletedCategoryList(
-                                  categories: snapshot.data ?? const [],
+                                  categories: _filterCategories(snapshot.data ?? const []),
                                   isLoading:
                                       snapshot.connectionState ==
                                           ConnectionState.waiting &&
@@ -956,4 +983,68 @@ class _AddExpenseCategoryDraft {
 
   final String name;
   final String details;
+}
+
+class _ExpenseCategorySearchBar extends StatelessWidget {
+  const _ExpenseCategorySearchBar({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search_rounded,
+            color: AppColors.textMuted,
+            size: 28,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'খোঁজ করুন...',
+                hintStyle: TextStyle(color: AppColors.textMuted),
+                fillColor: Colors.transparent,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              if (value.text.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                onPressed: () => controller.clear(),
+                icon: const Icon(
+                  Icons.clear_rounded,
+                  color: AppColors.textMuted,
+                  size: 24,
+                ),
+              );
+            },
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.tune_rounded,
+              color: AppColors.primary,
+              size: 28,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

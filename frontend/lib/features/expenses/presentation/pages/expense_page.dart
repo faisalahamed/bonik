@@ -360,6 +360,22 @@ class _ExpenseSearchBar extends StatelessWidget {
               ),
             ),
           ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              if (value.text.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                onPressed: () => controller.clear(),
+                icon: const Icon(
+                  Icons.clear_rounded,
+                  color: AppColors.textMuted,
+                  size: 24,
+                ),
+              );
+            },
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(

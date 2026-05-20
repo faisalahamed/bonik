@@ -84,7 +84,11 @@ class _OtherIncomePageState extends ConsumerState<OtherIncomePage> {
     final filtered = _query.isEmpty
         ? List<LocalCategory>.of(categories)
         : categories
-              .where((item) => item.name.toLowerCase().contains(_query))
+              .where(
+                (item) =>
+                    item.name.toLowerCase().contains(_query) ||
+                    (item.details ?? '').toLowerCase().contains(_query),
+              )
               .toList();
 
     filtered.sort((a, b) {
@@ -172,6 +176,7 @@ class _OtherIncomePageState extends ConsumerState<OtherIncomePage> {
                           for (var i = 0; i < filtered.length; i++) ...[
                             _IncomeCategoryCard(
                               name: filtered[i].name,
+                              details: filtered[i].details,
                               onTap: () => context.push(
                                 '${AppRoutes.otherIncomeCreate}/${Uri.encodeComponent(filtered[i].name)}',
                               ),
@@ -294,9 +299,7 @@ class _IncomeSummaryCard extends StatelessWidget {
             ),
           ),
           InkWell(
-            onTap: () {
-              // TODO: Navigate to income list
-            },
+            onTap: () => context.push(AppRoutes.reportOtherIncome),
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
@@ -365,6 +368,22 @@ class _OtherIncomeSearchBar extends StatelessWidget {
                 border: InputBorder.none,
               ),
             ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, child) {
+              if (value.text.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                onPressed: () => controller.clear(),
+                icon: const Icon(
+                  Icons.clear_rounded,
+                  color: AppColors.textMuted,
+                  size: 24,
+                ),
+              );
+            },
           ),
           IconButton(
             onPressed: () {},
@@ -500,9 +519,14 @@ class _EmptyIncomeCategoryCard extends StatelessWidget {
 }
 
 class _IncomeCategoryCard extends StatelessWidget {
-  const _IncomeCategoryCard({required this.name, required this.onTap});
+  const _IncomeCategoryCard({
+    required this.name,
+    this.details,
+    required this.onTap,
+  });
 
   final String name;
+  final String? details;
   final VoidCallback onTap;
 
   @override
@@ -542,15 +566,17 @@ class _IncomeCategoryCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'INCOME CATEGORY',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                    if (details?.isNotEmpty == true) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        details!,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
